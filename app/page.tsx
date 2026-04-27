@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useKoffie } from "@/lib/useKoffie";
 import { ShotCard } from "@/components/ShotCard";
 import { EmptyState } from "@/components/EmptyState";
+import { BaristaTips } from "@/components/BaristaTips";
 import { average } from "@/lib/utils";
+import { globalTips } from "@/lib/tips";
 
 export default function DashboardPage() {
   const { ready, beans, shots } = useKoffie();
@@ -23,6 +25,7 @@ export default function DashboardPage() {
     .slice(0, 3);
 
   const avgRating = average(shots.map((s) => s.rating));
+  const tips = globalTips(beans, shots);
 
   return (
     <div className="space-y-10">
@@ -53,6 +56,8 @@ export default function DashboardPage() {
           />
         </section>
       )}
+
+      <BaristaTips tips={tips} />
 
       <section>
         <SectionHeader

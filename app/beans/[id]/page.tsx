@@ -7,7 +7,9 @@ import { useKoffie } from "@/lib/useKoffie";
 import { ShotCard } from "@/components/ShotCard";
 import { StarRating } from "@/components/StarRating";
 import { EmptyState } from "@/components/EmptyState";
+import { BaristaTips } from "@/components/BaristaTips";
 import { average, formatDateOnly, mode } from "@/lib/utils";
+import { tipsForBean } from "@/lib/tips";
 import type { ShotLog } from "@/lib/types";
 
 type SortKey = "date" | "rating" | "time";
@@ -56,6 +58,7 @@ export default function BeanDetailPage() {
   const top = bestShots[0];
   const bestGrind = mode(bestShots.slice(0, 3).map((s) => s.grindSize));
   const lastAdjustment = beanShots.find((s) => s.nextAdjustment);
+  const tips = tipsForBean(bean, beanShots);
 
   return (
     <div className="space-y-8">
@@ -101,6 +104,8 @@ export default function BeanDetailPage() {
           </p>
         )}
       </header>
+
+      <BaristaTips tips={tips} />
 
       {beanShots.length > 0 && (
         <section className="rounded-xl2 border border-line bg-card p-5 shadow-soft">
