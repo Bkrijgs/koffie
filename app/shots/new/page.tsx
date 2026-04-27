@@ -8,16 +8,11 @@ function NewShotInner() {
   const params = useSearchParams();
   const beanId = params.get("beanId") ?? undefined;
   return (
-    <div className="space-y-5">
-      <header>
-        <h1 className="text-2xl font-semibold text-espresso-700">
-          Nieuwe shot
-        </h1>
-        <p className="text-sm text-espresso-400">
-          Leg vast wat goed werkte en wat je volgende keer wilt aanpassen.
-        </p>
-      </header>
-      <div className="rounded-2xl border border-crema-100 bg-white p-5 shadow-soft">
+    <div className="space-y-6">
+      <h1 className="font-display text-3xl tracking-tighter2 text-ink-800 sm:text-4xl">
+        Nieuwe shot
+      </h1>
+      <div className="rounded-xl2 border border-line bg-card p-6 shadow-soft">
         <ShotForm initialBeanId={beanId} />
       </div>
     </div>
@@ -26,7 +21,7 @@ function NewShotInner() {
 
 export default function NewShotPage() {
   return (
-    <Suspense fallback={<p className="text-sm text-espresso-400">Laden…</p>}>
+    <Suspense fallback={<p className="text-sm text-ink-300">Laden…</p>}>
       <NewShotInner />
     </Suspense>
   );

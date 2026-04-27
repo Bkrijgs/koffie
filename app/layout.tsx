@@ -3,15 +3,14 @@ import Link from "next/link";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Koffie — Dial-in Log",
-  description:
-    "Log je espresso-shots voor de Sage Barista Express en vind je beste instellingen per boon.",
+  title: "Koffie",
+  description: "Espresso dial-in log voor de Sage Barista Express.",
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#fbf6ef",
+  themeColor: "#f6f1e8",
 };
 
 export default function RootLayout({
@@ -21,45 +20,51 @@ export default function RootLayout({
 }) {
   return (
     <html lang="nl">
-      <body className="min-h-screen bg-crema-50 font-sans text-espresso-700">
-        <header className="sticky top-0 z-10 border-b border-crema-100 bg-crema-50/90 backdrop-blur">
-          <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
+      <body className="min-h-screen bg-paper font-sans text-ink-700 antialiased">
+        <header className="sticky top-0 z-10 border-b border-line/70 bg-paper/85 backdrop-blur">
+          <div className="mx-auto flex max-w-3xl items-center justify-between px-5 py-4">
             <Link
               href="/"
-              className="flex items-center gap-2 text-base font-semibold text-espresso-700"
+              className="font-display text-xl tracking-tightish text-ink-800"
             >
-              <span aria-hidden>☕</span>
-              <span>Koffie</span>
+              koffie
             </Link>
             <nav className="flex items-center gap-1 text-sm">
-              <Link
-                href="/"
-                className="rounded-full px-3 py-1.5 text-espresso-600 hover:bg-crema-100"
-              >
-                Dashboard
-              </Link>
-              <Link
-                href="/beans"
-                className="rounded-full px-3 py-1.5 text-espresso-600 hover:bg-crema-100"
-              >
-                Bonen
-              </Link>
+              <NavLink href="/">Shots</NavLink>
+              <NavLink href="/beans">Bonen</NavLink>
               <Link
                 href="/shots/new"
-                className="rounded-full bg-espresso-600 px-3 py-1.5 font-medium text-crema-50 hover:bg-espresso-700"
+                className="ml-2 rounded-lg bg-ink-800 px-3 py-1.5 text-sm font-medium text-paper transition hover:bg-ink-700"
               >
-                + Shot
+                Nieuw
               </Link>
             </nav>
           </div>
         </header>
 
-        <main className="mx-auto max-w-3xl px-4 py-6 pb-24">{children}</main>
+        <main className="mx-auto max-w-3xl px-5 py-8 pb-24">{children}</main>
 
-        <footer className="mx-auto max-w-3xl px-4 py-8 text-center text-xs text-espresso-400">
-          Sage Barista Express dial-in log · Lokaal opgeslagen
+        <footer className="mx-auto max-w-3xl px-5 py-10 text-center text-[11px] uppercase tracking-[0.18em] text-ink-300">
+          Lokaal opgeslagen
         </footer>
       </body>
     </html>
+  );
+}
+
+function NavLink({
+  href,
+  children,
+}: {
+  href: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      className="rounded-lg px-3 py-1.5 text-ink-500 transition hover:bg-ink-50/60 hover:text-ink-800"
+    >
+      {children}
+    </Link>
   );
 }

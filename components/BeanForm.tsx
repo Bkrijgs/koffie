@@ -24,7 +24,7 @@ export function BeanForm({ onCreated, onCancel }: Props) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) {
-      setError("Naam van de boon is verplicht");
+      setError("Naam vereist");
       return;
     }
     setSubmitting(true);
@@ -48,26 +48,26 @@ export function BeanForm({ onCreated, onCancel }: Props) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-5">
       <Field label="Naam" htmlFor="bean-name" required>
         <input
           id="bean-name"
           className={inputClass}
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Bv. Ethiopia Yirgacheffe"
+          placeholder="Ethiopia Yirgacheffe"
           autoFocus
         />
       </Field>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-5 sm:grid-cols-2">
         <Field label="Brander" htmlFor="bean-roaster">
           <input
             id="bean-roaster"
             className={inputClass}
             value={roaster}
             onChange={(e) => setRoaster(e.target.value)}
-            placeholder="Bv. Friedhats"
+            placeholder="Friedhats"
           />
         </Field>
         <Field label="Herkomst" htmlFor="bean-origin">
@@ -76,7 +76,7 @@ export function BeanForm({ onCreated, onCancel }: Props) {
             className={inputClass}
             value={origin}
             onChange={(e) => setOrigin(e.target.value)}
-            placeholder="Bv. Ethiopië, Sidamo"
+            placeholder="Ethiopië, Sidamo"
           />
         </Field>
       </div>
@@ -97,25 +97,25 @@ export function BeanForm({ onCreated, onCancel }: Props) {
           className={`${inputClass} min-h-[80px]`}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          placeholder="Smaakprofiel, verwachtingen, etc."
+          placeholder="Smaakprofiel"
         />
       </Field>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-red-700">{error}</p>}
 
-      <div className="flex gap-2">
+      <div className="flex gap-2 pt-1">
         <button
           type="submit"
           disabled={submitting}
-          className="flex-1 rounded-xl bg-espresso-600 px-4 py-2.5 font-medium text-crema-50 transition hover:bg-espresso-700 disabled:opacity-50"
+          className="flex-1 rounded-lg bg-ink-800 px-4 py-2.5 text-sm font-medium text-paper transition hover:bg-ink-700 disabled:opacity-50"
         >
-          {submitting ? "Opslaan…" : "Boon opslaan"}
+          {submitting ? "…" : "Opslaan"}
         </button>
         {onCancel && (
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-xl border border-crema-200 px-4 py-2.5 font-medium text-espresso-600 hover:bg-crema-50"
+            className="rounded-lg border border-line px-4 py-2.5 text-sm font-medium text-ink-600 transition hover:bg-ink-50/40"
           >
             Annuleren
           </button>

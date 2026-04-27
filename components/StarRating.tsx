@@ -12,8 +12,8 @@ type Props = {
 };
 
 const sizeMap = {
-  sm: "text-base",
-  md: "text-2xl",
+  sm: "text-sm",
+  md: "text-xl",
   lg: "text-3xl",
 };
 
@@ -29,38 +29,38 @@ export function StarRating({
 
   return (
     <div
-      className="inline-flex items-center gap-1"
+      className="inline-flex items-center gap-0.5"
       role={readOnly ? "img" : "radiogroup"}
-      aria-label={ariaLabel ?? `Rating ${value} of 5`}
+      aria-label={ariaLabel ?? `Rating ${value} van 5`}
     >
       {[1, 2, 3, 4, 5].map((n) => {
         const active = n <= display;
-        const Star = (
+        const star = (
           <span
             className={`${sizeMap[size]} leading-none transition-colors ${
-              active ? "text-crema-400" : "text-espresso-200"
+              active ? "text-gold-400" : "text-ink-100"
             }`}
             aria-hidden="true"
           >
-            {active ? "★" : "☆"}
+            {active ? "★" : "★"}
           </span>
         );
-        if (readOnly) return <span key={n}>{Star}</span>;
+        if (readOnly) return <span key={n}>{star}</span>;
         return (
           <button
             key={n}
             type="button"
             role="radio"
             aria-checked={value === n}
-            aria-label={`${n} star${n > 1 ? "s" : ""}`}
+            aria-label={`${n} ster${n > 1 ? "ren" : ""}`}
             onMouseEnter={() => setHover(n)}
             onMouseLeave={() => setHover(0)}
             onFocus={() => setHover(n)}
             onBlur={() => setHover(0)}
             onClick={() => onChange?.(n as Rating)}
-            className="cursor-pointer rounded p-0.5 hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-crema-400"
+            className="cursor-pointer rounded p-0.5 transition-transform hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400"
           >
-            {Star}
+            {star}
           </button>
         );
       })}

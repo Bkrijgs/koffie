@@ -39,13 +39,13 @@ export default function BeanDetailPage() {
     return arr;
   }, [beanShots, sortBy]);
 
-  if (!ready) return <p className="text-sm text-espresso-400">Laden…</p>;
+  if (!ready) return <p className="text-sm text-ink-300">Laden…</p>;
   if (!bean) {
     return (
       <div className="space-y-3">
-        <p className="text-sm text-espresso-500">Boon niet gevonden.</p>
-        <Link href="/beans" className="text-sm text-crema-500 underline">
-          ← Terug naar bonen
+        <p className="text-sm text-ink-500">Boon niet gevonden.</p>
+        <Link href="/beans" className="text-sm text-ink-700 underline">
+          ← Bonen
         </Link>
       </div>
     );
@@ -58,63 +58,66 @@ export default function BeanDetailPage() {
   const lastAdjustment = beanShots.find((s) => s.nextAdjustment);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <Link
         href="/beans"
-        className="text-sm text-espresso-400 hover:text-crema-500"
+        className="text-sm text-ink-300 hover:text-ink-700"
       >
         ← Bonen
       </Link>
 
-      <header className="rounded-2xl border border-crema-100 bg-white p-6 shadow-soft">
+      <header>
         <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold text-espresso-700">
+          <div className="min-w-0">
+            <h1 className="font-display text-3xl tracking-tighter2 text-ink-800 sm:text-4xl">
               {bean.name}
             </h1>
             {bean.roaster && (
-              <p className="text-sm text-espresso-500">{bean.roaster}</p>
+              <p className="mt-1 text-sm text-ink-400">{bean.roaster}</p>
             )}
           </div>
           <Link
             href={`/shots/new?beanId=${bean.id}`}
-            className="whitespace-nowrap rounded-full bg-espresso-600 px-3 py-1.5 text-sm font-medium text-crema-50 hover:bg-espresso-700"
+            className="shrink-0 rounded-lg bg-ink-800 px-3 py-2 text-sm font-medium text-paper transition hover:bg-ink-700"
           >
-            + Shot
+            Shot
           </Link>
         </div>
 
-        <dl className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+        <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
           <Meta label="Herkomst" value={bean.origin} />
-          <Meta label="Branddatum" value={formatDateOnly(bean.roastDate)} />
-          <Meta label="Shots" value={String(beanShots.length)} />
+          <Meta label="Brand" value={formatDateOnly(bean.roastDate)} numeric />
+          <Meta label="Shots" value={String(beanShots.length)} numeric />
           <Meta
-            label="Gem. rating"
+            label="Gem."
             value={beanShots.length > 0 ? avg.toFixed(1) : "—"}
+            numeric
           />
         </dl>
 
         {bean.notes && (
-          <p className="mt-4 rounded-xl bg-crema-50 px-3 py-2 text-sm text-espresso-600">
+          <p className="mt-5 border-l-2 border-line pl-4 text-sm italic text-ink-500">
             {bean.notes}
           </p>
         )}
       </header>
 
       {beanShots.length > 0 && (
-        <section className="rounded-2xl border border-crema-100 bg-white p-5 shadow-soft">
-          <h2 className="text-base font-semibold text-espresso-700">
-            Beste instellingen tot nu toe
+        <section className="rounded-xl2 border border-line bg-card p-5 shadow-soft">
+          <h2 className="font-display text-base tracking-tightish text-ink-800">
+            Beste tot nu toe
           </h2>
-          <div className="mt-3 grid gap-3 sm:grid-cols-3">
-            <Highlight label="Beste maalgraad" value={bestGrind ?? "—"} />
+          <div className="mt-4 grid gap-4 sm:grid-cols-3">
+            <Highlight label="Maalgraad" value={bestGrind ?? "—"} numeric />
             <Highlight
-              label="Top shot"
+              label="Top"
               value={
                 top ? (
                   <span className="flex items-center gap-2">
                     <StarRating value={top.rating} readOnly size="sm" />
-                    <span>1 : {top.brewRatio.toFixed(2)}</span>
+                    <span className="numeric text-ink-500">
+                      1:{top.brewRatio.toFixed(2)}
+                    </span>
                   </span>
                 ) : (
                   "—"
@@ -130,9 +133,9 @@ export default function BeanDetailPage() {
       )}
 
       <section>
-        <header className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-espresso-700">
-            Shotgeschiedenis
+        <header className="mb-4 flex items-center justify-between">
+          <h2 className="font-display text-lg tracking-tightish text-ink-800">
+            Shots
           </h2>
           {beanShots.length > 1 && (
             <SortControl value={sortBy} onChange={setSortBy} />
@@ -140,10 +143,10 @@ export default function BeanDetailPage() {
         </header>
         {sorted.length === 0 ? (
           <EmptyState
-            title="Nog geen shots"
-            description="Log een eerste shot voor deze boon."
+            title="Geen shots"
+            description="Log er een voor deze boon."
             ctaHref={`/shots/new?beanId=${bean.id}`}
-            ctaLabel="+ Nieuwe shot"
+            ctaLabel="Nieuwe shot"
           />
         ) : (
           <div className="space-y-3">
@@ -157,13 +160,25 @@ export default function BeanDetailPage() {
   );
 }
 
-function Meta({ label, value }: { label: string; value?: string }) {
+function Meta({
+  label,
+  value,
+  numeric = false,
+}: {
+  label: string;
+  value?: string;
+  numeric?: boolean;
+}) {
   return (
     <div>
-      <dt className="text-[11px] uppercase tracking-wide text-espresso-400">
+      <dt className="text-[10px] uppercase tracking-[0.16em] text-ink-300">
         {label}
       </dt>
-      <dd className="font-medium text-espresso-700">{value || "—"}</dd>
+      <dd
+        className={`mt-1 text-sm font-medium text-ink-800 ${numeric ? "numeric" : ""}`}
+      >
+        {value || "—"}
+      </dd>
     </div>
   );
 }
@@ -171,16 +186,22 @@ function Meta({ label, value }: { label: string; value?: string }) {
 function Highlight({
   label,
   value,
+  numeric = false,
 }: {
   label: string;
   value: React.ReactNode;
+  numeric?: boolean;
 }) {
   return (
-    <div className="rounded-xl bg-crema-50 px-3 py-3">
-      <p className="text-[11px] uppercase tracking-wide text-espresso-400">
+    <div>
+      <p className="text-[10px] uppercase tracking-[0.16em] text-ink-300">
         {label}
       </p>
-      <p className="mt-1 font-medium text-espresso-700">{value}</p>
+      <p
+        className={`mt-1.5 text-sm text-ink-800 ${numeric ? "numeric font-medium" : ""}`}
+      >
+        {value}
+      </p>
     </div>
   );
 }
@@ -198,16 +219,16 @@ function SortControl({
     { key: "time", label: "Tijd" },
   ];
   return (
-    <div className="inline-flex rounded-full border border-crema-200 bg-white p-0.5 text-xs">
+    <div className="inline-flex rounded-lg border border-line bg-card p-0.5 text-xs">
       {options.map((o) => (
         <button
           key={o.key}
           type="button"
           onClick={() => onChange(o.key)}
-          className={`rounded-full px-3 py-1 transition ${
+          className={`rounded-md px-2.5 py-1 transition ${
             value === o.key
-              ? "bg-espresso-600 text-crema-50"
-              : "text-espresso-500 hover:text-espresso-700"
+              ? "bg-ink-800 text-paper"
+              : "text-ink-400 hover:text-ink-700"
           }`}
         >
           {o.label}

@@ -4,12 +4,40 @@
 
 :root {
   color-scheme: light;
+  --paper: #f6f1e8;
+  --ink: #241a10;
 }
 
 html,
 body {
-  background: #fbf6ef;
-  color: #33231a;
+  background: var(--paper);
+  color: var(--ink);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "ss01", "cv11";
+}
+
+.numeric {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+.divider {
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(36, 26, 16, 0.12),
+    transparent
+  );
+}
+
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
 }

@@ -4,72 +4,73 @@ import Link from "next/link";
 import { useKoffie } from "@/lib/useKoffie";
 import { ShotCard } from "@/components/ShotCard";
 import { EmptyState } from "@/components/EmptyState";
+import { average } from "@/lib/utils";
 
 export default function DashboardPage() {
   const { ready, beans, shots } = useKoffie();
 
   if (!ready) {
-    return <p className="text-sm text-espresso-400">Laden…</p>;
+    return <p className="text-sm text-ink-300">Laden…</p>;
   }
 
   const beanById = new Map(beans.map((b) => [b.id, b]));
   const recent = shots.slice(0, 5);
-  const best = [...shots]
+  const top = [...shots]
     .sort((a, b) => {
       if (b.rating !== a.rating) return b.rating - a.rating;
       return +new Date(b.createdAt) - +new Date(a.createdAt);
     })
     .slice(0, 3);
 
+  const avgRating = average(shots.map((s) => s.rating));
+
   return (
-    <div className="space-y-8">
-      <section className="rounded-3xl bg-gradient-to-br from-espresso-600 to-espresso-700 p-6 text-crema-50 shadow-soft sm:p-8">
-        <p className="text-xs uppercase tracking-widest text-crema-200">
-          Sage Barista Express
-        </p>
-        <h1 className="mt-1 text-2xl font-semibold sm:text-3xl">
-          Hoe was je shot vandaag?
-        </h1>
-        <p className="mt-2 text-sm text-crema-100">
-          Log je espresso, ontdek je beste maalgraad per boon en wat je
-          volgende keer wilt aanpassen.
-        </p>
-        <div className="mt-5 flex flex-wrap gap-2">
-          <Link
-            href="/shots/new"
-            className="rounded-full bg-crema-50 px-4 py-2 text-sm font-medium text-espresso-700 hover:bg-crema-100"
-          >
-            + Nieuwe shot loggen
-          </Link>
-          <Link
-            href="/beans"
-            className="rounded-full border border-crema-200/30 px-4 py-2 text-sm font-medium text-crema-50 hover:bg-espresso-500"
-          >
-            Bonen beheren
-          </Link>
+    <div className="space-y-10">
+      <section className="flex items-end justify-between gap-6">
+        <div>
+          <h1 className="font-display text-3xl tracking-tighter2 text-ink-800 sm:text-4xl">
+            Dial-in log
+          </h1>
+          <p className="mt-1 text-sm text-ink-400">
+            {shots.length} shots · {beans.length} bonen
+          </p>
         </div>
+        <Link
+          href="/shots/new"
+          className="hidden rounded-lg bg-ink-800 px-4 py-2 text-sm font-medium text-paper transition hover:bg-ink-700 sm:inline-block"
+        >
+          Nieuwe shot
+        </Link>
       </section>
 
+      {shots.length > 0 && (
+        <section className="grid grid-cols-3 gap-px overflow-hidden rounded-xl2 border border-line bg-line">
+          <Stat label="Shots" value={String(shots.length)} />
+          <Stat label="Bonen" value={String(beans.length)} />
+          <Stat
+            label="Gem. rating"
+            value={avgRating > 0 ? avgRating.toFixed(1) : "—"}
+          />
+        </section>
+      )}
+
       <section>
-        <header className="mb-3 flex items-baseline justify-between">
-          <h2 className="text-lg font-semibold text-espresso-700">
-            Laatste shots
-          </h2>
-          {shots.length > 5 && (
-            <Link
-              href="/beans"
-              className="text-sm text-espresso-500 hover:text-crema-500"
-            >
-              Alles bekijken →
-            </Link>
-          )}
-        </header>
+        <SectionHeader
+          title="Laatste shots"
+          action={
+            shots.length > 5 ? (
+              <Link href="/beans" className="text-ink-400 hover:text-ink-700">
+                Alles →
+              </Link>
+            ) : null
+          }
+        />
         {recent.length === 0 ? (
           <EmptyState
-            title="Nog geen shots"
-            description="Log je eerste espresso om te beginnen met je dial-in."
+            title="Geen shots"
+            description="Voeg je eerste shot toe."
             ctaHref="/shots/new"
-            ctaLabel="+ Nieuwe shot"
+            ctaLabel="Nieuwe shot"
           />
         ) : (
           <div className="space-y-3">
@@ -80,20 +81,46 @@ export default function DashboardPage() {
         )}
       </section>
 
-      {best.length > 0 && (
+      {top.length > 0 && (
         <section>
-          <header className="mb-3">
-            <h2 className="text-lg font-semibold text-espresso-700">
-              Hoogst beoordeeld
-            </h2>
-          </header>
+          <SectionHeader title="Top shots" />
           <div className="space-y-3">
-            {best.map((s) => (
+            {top.map((s) => (
               <ShotCard key={s.id} shot={s} bean={beanById.get(s.beanId)} />
             ))}
           </div>
         </section>
       )}
+    </div>
+  );
+}
+
+function SectionHeader({
+  title,
+  action,
+}: {
+  title: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <header className="mb-4 flex items-baseline justify-between">
+      <h2 className="font-display text-lg tracking-tightish text-ink-800">
+        {title}
+      </h2>
+      {action && <div className="text-sm">{action}</div>}
+    </header>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="bg-card px-4 py-5 text-center">
+      <p className="text-[10px] uppercase tracking-[0.18em] text-ink-300">
+        {label}
+      </p>
+      <p className="numeric mt-1 font-display text-2xl tracking-tightish text-ink-800">
+        {value}
+      </p>
     </div>
   );
 }

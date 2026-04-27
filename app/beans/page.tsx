@@ -11,7 +11,7 @@ export default function BeansPage() {
   const [showForm, setShowForm] = useState(false);
 
   if (!ready) {
-    return <p className="text-sm text-espresso-400">Laden…</p>;
+    return <p className="text-sm text-ink-300">Laden…</p>;
   }
 
   const shotsByBean = new Map<string, typeof shots>();
@@ -22,28 +22,27 @@ export default function BeansPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <header className="flex items-center justify-between">
+    <div className="space-y-8">
+      <header className="flex items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-espresso-700">Bonen</h1>
-          <p className="text-sm text-espresso-400">
-            {beans.length} {beans.length === 1 ? "boon" : "bonen"}
+          <h1 className="font-display text-3xl tracking-tighter2 text-ink-800 sm:text-4xl">
+            Bonen
+          </h1>
+          <p className="numeric mt-1 text-sm text-ink-400">
+            {beans.length}
           </p>
         </div>
         <button
           type="button"
           onClick={() => setShowForm((v) => !v)}
-          className="rounded-full bg-espresso-600 px-4 py-2 text-sm font-medium text-crema-50 hover:bg-espresso-700"
+          className="rounded-lg bg-ink-800 px-4 py-2 text-sm font-medium text-paper transition hover:bg-ink-700"
         >
-          {showForm ? "Sluiten" : "+ Nieuwe boon"}
+          {showForm ? "Sluiten" : "Nieuwe boon"}
         </button>
       </header>
 
       {showForm && (
-        <div className="rounded-2xl border border-crema-100 bg-white p-5 shadow-soft">
-          <h2 className="mb-4 text-lg font-semibold text-espresso-700">
-            Nieuwe boon
-          </h2>
+        <div className="rounded-xl2 border border-line bg-card p-6 shadow-soft">
           <BeanForm
             onCreated={() => setShowForm(false)}
             onCancel={() => setShowForm(false)}
@@ -53,8 +52,8 @@ export default function BeansPage() {
 
       {beans.length === 0 ? (
         <EmptyState
-          title="Nog geen bonen"
-          description="Voeg je eerste zak koffie toe om shots te kunnen loggen."
+          title="Geen bonen"
+          description="Voeg je eerste boon toe."
         />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
