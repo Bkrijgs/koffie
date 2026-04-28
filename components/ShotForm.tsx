@@ -4,28 +4,40 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useKoffie } from "@/lib/useKoffie";
 import { calcBrewRatio } from "@/lib/utils";
-import type { Rating } from "@/lib/types";
+import type { Rating, ShotLog } from "@/lib/types";
 import { Field, inputClass } from "./Field";
 import { StarRating } from "./StarRating";
 import { BeanForm } from "./BeanForm";
 
 type Props = {
   initialBeanId?: string;
+  shot?: ShotLog;
 };
 
-export function ShotForm({ initialBeanId }: Props) {
+export function ShotForm({ initialBeanId, shot }: Props) {
   const router = useRouter();
-  const { beans, addShot, ready } = useKoffie();
+  const { beans, addShot, updateShot, ready } = useKoffie();
+  const isEdit = Boolean(shot);
 
-  const [beanId, setBeanId] = useState<string>(initialBeanId ?? "");
+  const [beanId, setBeanId] = useState<string>(
+    shot?.beanId ?? initialBeanId ?? "",
+  );
   const [showNewBean, setShowNewBean] = useState(false);
-  const [grindSize, setGrindSize] = useState("");
-  const [doseGrams, setDoseGrams] = useState<string>("18");
-  const [yieldGrams, setYieldGrams] = useState<string>("36");
-  const [extractionTimeSeconds, setExtractionTime] = useState<string>("28");
-  const [rating, setRating] = useState<Rating | 0>(0);
-  const [notes, setNotes] = useState("");
-  const [nextAdjustment, setNextAdjustment] = useState("");
+  const [grindSize, setGrindSize] = useState(shot?.grindSize ?? "");
+  const [doseGrams, setDoseGrams] = useState<string>(
+    shot ? String(shot.doseGrams) : "18",
+  );
+  const [yieldGrams, setYieldGrams] = useState<string>(
+    shot ? String(shot.yieldGrams) : "36",
+  );
+  const [extractionTimeSeconds, setExtractionTime] = useState<string>(
+    shot ? String(shot.extractionTimeSeconds) : "28",
+  );
+  const [rating, setRating] = useState<Rating | 0>(shot?.rating ?? 0);
+  const [notes, setNotes] = useState(shot?.notes ?? "");
+  const [nextAdjustment, setNextAdjustment] = useState(
+    shot?.nextAdjustment ?? "",
+  );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,7 +62,7 @@ export function ShotForm({ initialBeanId }: Props) {
 
     setSubmitting(true);
     try {
-      await addShot({
+      const payload = {
         beanId,
         grindSize: grindSize.trim(),
         doseGrams: dose,
@@ -59,7 +71,12 @@ export function ShotForm({ initialBeanId }: Props) {
         rating,
         notes: notes.trim() || undefined,
         nextAdjustment: nextAdjustment.trim() || undefined,
-      });
+      };
+      if (shot) {
+        await updateShot(shot.id, payload);
+      } else {
+        await addShot(payload);
+      }
       router.push(`/beans/${beanId}`);
     } finally {
       setSubmitting(false);
@@ -221,7 +238,7 @@ export function ShotForm({ initialBeanId }: Props) {
         disabled={submitting}
         className="w-full rounded-lg bg-ink-800 px-4 py-3 text-sm font-medium text-paper transition hover:bg-ink-700 disabled:opacity-50"
       >
-        {submitting ? "…" : "Opslaan"}
+        {submitting ? "…" : isEdit ? "Bijwerken" : "Opslaan"}
       </button>
     </form>
   );

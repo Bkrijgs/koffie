@@ -14,6 +14,7 @@ export interface KoffieStorage {
 
   listShots(): Promise<ShotLog[]>;
   addShot(input: ShotInput): Promise<ShotLog>;
+  updateShot(id: string, input: ShotInput): Promise<ShotLog>;
   shotsForBean(beanId: string): Promise<ShotLog[]>;
 }
 
@@ -73,6 +74,19 @@ export const localStorageBackend: KoffieStorage = {
     all.push(shot);
     write(SHOTS_KEY, all);
     return shot;
+  },
+  async updateShot(id, input) {
+    const all = read<ShotLog>(SHOTS_KEY);
+    const idx = all.findIndex((s) => s.id === id);
+    if (idx === -1) throw new Error("Shot niet gevonden");
+    const updated: ShotLog = {
+      ...all[idx],
+      ...input,
+      brewRatio: calcBrewRatio(input.yieldGrams, input.doseGrams),
+    };
+    all[idx] = updated;
+    write(SHOTS_KEY, all);
+    return updated;
   },
   async shotsForBean(beanId) {
     return read<ShotLog>(SHOTS_KEY)
@@ -189,6 +203,27 @@ export const supabaseBackend: KoffieStorage = {
         next_adjustment: input.nextAdjustment ?? null,
         rating: input.rating,
       })
+      .select("*")
+      .single();
+    if (error) throw error;
+    return shotFromRow(data as ShotRow);
+  },
+  async updateShot(id, input) {
+    const brewRatio = calcBrewRatio(input.yieldGrams, input.doseGrams);
+    const { data, error } = await getSupabase()
+      .from("shots")
+      .update({
+        bean_id: input.beanId,
+        grind_size: input.grindSize,
+        dose_grams: input.doseGrams,
+        yield_grams: input.yieldGrams,
+        brew_ratio: brewRatio,
+        extraction_time_seconds: input.extractionTimeSeconds,
+        notes: input.notes ?? null,
+        next_adjustment: input.nextAdjustment ?? null,
+        rating: input.rating,
+      })
+      .eq("id", id)
       .select("*")
       .single();
     if (error) throw error;
