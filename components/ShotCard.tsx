@@ -10,9 +10,25 @@ type Props = {
 };
 
 export function ShotCard({ shot, bean, showBean = true }: Props) {
+  const ribbon =
+    shot.rating >= 4
+      ? "bg-gold-400"
+      : shot.rating >= 3
+        ? "bg-gold-300"
+        : "bg-ink-100";
+
   return (
-    <article className="rounded-xl2 border border-line bg-card p-5 shadow-soft transition hover:shadow-lift">
-      <header className="flex items-start justify-between gap-3">
+    <article className="relative rounded-xl2 border border-line bg-card p-5 pl-7 shadow-soft transition hover:shadow-lift">
+      <span
+        aria-hidden
+        className={`absolute inset-y-3 left-0 w-1 rounded-r ${ribbon}`}
+      />
+      <span className="absolute right-4 top-4 inline-flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.2em] text-ink-400">
+        <span className="h-1.5 w-1.5 rounded-full bg-ink-700" aria-hidden />
+        Shot
+      </span>
+
+      <header className="flex items-start justify-between gap-3 pr-14">
         <div className="min-w-0">
           {showBean && bean && (
             <Link
@@ -26,16 +42,7 @@ export function ShotCard({ shot, bean, showBean = true }: Props) {
             {formatDate(shot.createdAt)}
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <StarRating value={shot.rating} readOnly size="sm" />
-          <Link
-            href={`/shots/${shot.id}/edit`}
-            className="text-xs text-ink-300 hover:text-ink-700"
-            aria-label="Shot bewerken"
-          >
-            Bewerk
-          </Link>
-        </div>
+        <StarRating value={shot.rating} readOnly size="sm" />
       </header>
 
       <dl className="mt-4 grid grid-cols-3 gap-x-4 gap-y-3 sm:grid-cols-5">
@@ -61,6 +68,16 @@ export function ShotCard({ shot, bean, showBean = true }: Props) {
           )}
         </div>
       )}
+
+      <div className="mt-3 flex justify-end">
+        <Link
+          href={`/shots/${shot.id}/edit`}
+          className="text-xs text-ink-300 transition hover:text-ink-700"
+          aria-label="Shot bewerken"
+        >
+          Bewerken →
+        </Link>
+      </div>
     </article>
   );
 }
