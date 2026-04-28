@@ -128,7 +128,7 @@ function shotFromRow(row: ShotRow): ShotLog {
     extractionTimeSeconds: row.extraction_time_seconds,
     notes: row.notes ?? undefined,
     nextAdjustment: row.next_adjustment ?? undefined,
-    rating: row.rating as ShotLog["rating"],
+    rating: Number(row.rating) as ShotLog["rating"],
     createdAt: row.created_at,
   };
 }

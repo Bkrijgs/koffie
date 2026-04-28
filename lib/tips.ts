@@ -170,6 +170,23 @@ export function globalTips(beans: Bean[], shots: ShotLog[]): Tip[] {
   const tips: Tip[] = [];
   const last = shots[0];
 
+  const lastBean = beans.find((b) => b.id === last.beanId);
+  if (lastBean) {
+    const lastBeanShots = shots.filter((s) => s.beanId === lastBean.id);
+    const beanTips = tipsForBean(lastBean, lastBeanShots).filter((t) =>
+      ["time-fast", "time-slow", "ratio-low", "ratio-high", "grind-drift"].includes(
+        t.id,
+      ),
+    );
+    for (const t of beanTips) {
+      tips.push({
+        ...t,
+        id: `${lastBean.id}:${t.id}`,
+        text: `${lastBean.name}: ${t.text}`,
+      });
+    }
+  }
+
   const daysSinceLast = daysBetween(last.createdAt);
   if (daysSinceLast >= 5) {
     tips.push({
