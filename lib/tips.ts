@@ -249,6 +249,116 @@ export function globalTips(beans: Bean[], shots: ShotLog[]): Tip[] {
   return tips.slice(0, 3);
 }
 
+/**
+ * Tips for a single shot, used on the edit page so the barista can
+ * comment on this specific log entry.
+ */
+export function tipsForShot(
+  shot: ShotLog,
+  bean: Bean | undefined,
+  beanShots: ShotLog[],
+): Tip[] {
+  const tips: Tip[] = [];
+
+  if (shot.extractionTimeSeconds < TIME_MIN) {
+    tips.push({
+      id: "shot-time-fast",
+      kind: "tweak",
+      text: `${shot.extractionTimeSeconds}s is aan de snelle kant. Volgende keer iets fijner malen of een tikje meer dose.`,
+    });
+  } else if (shot.extractionTimeSeconds > TIME_MAX) {
+    tips.push({
+      id: "shot-time-slow",
+      kind: "tweak",
+      text: `${shot.extractionTimeSeconds}s loopt door — probeer iets grover voor een betere balans.`,
+    });
+  } else if (shot.rating >= 4) {
+    tips.push({
+      id: "shot-time-sweet",
+      kind: "praise",
+      text: `${shot.extractionTimeSeconds}s + ${shot.rating}★ — sweet spot. Hou deze instellingen vast.`,
+    });
+  }
+
+  if (shot.brewRatio && shot.brewRatio < RATIO_MIN) {
+    tips.push({
+      id: "shot-ratio-low",
+      kind: "tweak",
+      text: `Ratio 1:${shot.brewRatio.toFixed(2)} is een ristretto-style. Voor meer zoet en body even langer door laten lopen.`,
+    });
+  } else if (shot.brewRatio && shot.brewRatio > RATIO_MAX) {
+    tips.push({
+      id: "shot-ratio-high",
+      kind: "tweak",
+      text: `Ratio 1:${shot.brewRatio.toFixed(2)} is lungo-territorium. Eerder afkappen voor minder bitter.`,
+    });
+  }
+
+  if (bean && beanShots.length >= 3) {
+    const others = beanShots.filter((s) => s.id !== shot.id);
+    if (others.length > 0) {
+      const avg = average(others.map((s) => s.rating));
+      if (shot.rating - avg >= 1) {
+        tips.push({
+          id: "shot-best",
+          kind: "praise",
+          text: `${shot.rating}★ vs ${avg.toFixed(1)}★ gemiddeld voor ${bean.name}. Eén van je beste — onthou deze instellingen.`,
+        });
+      } else if (avg - shot.rating >= 1) {
+        tips.push({
+          id: "shot-worst",
+          kind: "warn",
+          text: `${shot.rating}★ vs ${avg.toFixed(1)}★ gemiddeld. Wat ging er anders? Maalgraad of dose terug?`,
+        });
+      }
+    }
+
+    const topShot = [...beanShots].sort((a, b) => b.rating - a.rating)[0];
+    if (
+      topShot &&
+      topShot.id !== shot.id &&
+      topShot.rating >= 4 &&
+      topShot.grindSize !== shot.grindSize
+    ) {
+      tips.push({
+        id: "shot-grind-vs-best",
+        kind: "info",
+        text: `Beste shot voor ${bean.name} (${topShot.rating}★) had maalgraad ${topShot.grindSize}, deze ${shot.grindSize}.`,
+      });
+    }
+  }
+
+  if (bean?.roastDate) {
+    const days = Math.floor(
+      (+new Date(shot.createdAt) - +new Date(bean.roastDate)) /
+        (1000 * 60 * 60 * 24),
+    );
+    if (days >= 0 && days < FRESH_MIN_DAYS) {
+      tips.push({
+        id: "shot-too-fresh",
+        kind: "info",
+        text: `Boon was ${days}d oud — nog aan het ontgassen. Verklaart eventuele onrust.`,
+      });
+    } else if (days > FRESH_MAX_DAYS) {
+      tips.push({
+        id: "shot-too-old",
+        kind: "warn",
+        text: `Boon was ${days}d oud bij deze shot. Smaak vlakt af na ~5 weken.`,
+      });
+    }
+  }
+
+  if (tips.length === 0) {
+    tips.push({
+      id: "shot-neutral",
+      kind: "info",
+      text: `Tijd, ratio en rating zien er stabiel uit. Niets om aan te passen.`,
+    });
+  }
+
+  return dedupe(tips).slice(0, 3);
+}
+
 function dedupe(tips: Tip[]): Tip[] {
   const seen = new Set<string>();
   return tips.filter((t) => {

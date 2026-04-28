@@ -10,25 +10,9 @@ type Props = {
 };
 
 export function ShotCard({ shot, bean, showBean = true }: Props) {
-  const ribbon =
-    shot.rating >= 4
-      ? "bg-gold-400"
-      : shot.rating >= 3
-        ? "bg-gold-300"
-        : "bg-ink-100";
-
   return (
-    <article className="relative rounded-xl2 border border-line bg-card p-5 pl-7 shadow-soft transition hover:shadow-lift">
-      <span
-        aria-hidden
-        className={`absolute inset-y-3 left-0 w-1 rounded-r ${ribbon}`}
-      />
-      <span className="absolute right-4 top-4 inline-flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.2em] text-ink-400">
-        <span className="h-1.5 w-1.5 rounded-full bg-ink-700" aria-hidden />
-        Shot
-      </span>
-
-      <header className="flex items-start justify-between gap-3 pr-14">
+    <article className="rounded-xl2 border border-line bg-card p-5 shadow-soft transition hover:shadow-lift">
+      <header className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           {showBean && bean && (
             <Link
@@ -72,7 +56,7 @@ export function ShotCard({ shot, bean, showBean = true }: Props) {
       <div className="mt-3 flex justify-end">
         <Link
           href={`/shots/${shot.id}/edit`}
-          className="text-xs text-ink-300 transition hover:text-ink-700"
+          className="text-xs text-ink-400 transition hover:text-ink-700"
           aria-label="Shot bewerken"
         >
           Bewerken →
