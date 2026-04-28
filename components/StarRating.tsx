@@ -33,37 +33,89 @@ export function StarRating({
       role={readOnly ? "img" : "radiogroup"}
       aria-label={ariaLabel ?? `Rating ${value} van 5`}
     >
-      {[1, 2, 3, 4, 5].map((n) => {
-        const active = n <= display;
-        const star = (
-          <span
-            className={`${sizeMap[size]} leading-none transition-colors ${
-              active ? "text-gold-400" : "text-ink-100"
-            }`}
-            aria-hidden="true"
-          >
-            {active ? "★" : "★"}
-          </span>
-        );
-        if (readOnly) return <span key={n}>{star}</span>;
+      {[1, 2, 3, 4, 5].map((slot) => {
+        const fill = Math.max(0, Math.min(1, display - (slot - 1)));
         return (
-          <button
-            key={n}
-            type="button"
-            role="radio"
-            aria-checked={value === n}
-            aria-label={`${n} ster${n > 1 ? "ren" : ""}`}
-            onMouseEnter={() => setHover(n)}
-            onMouseLeave={() => setHover(0)}
-            onFocus={() => setHover(n)}
-            onBlur={() => setHover(0)}
-            onClick={() => onChange?.(n as Rating)}
-            className="cursor-pointer rounded p-0.5 transition-transform hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400"
-          >
-            {star}
-          </button>
+          <Star
+            key={slot}
+            slot={slot}
+            fill={fill}
+            sizeClass={sizeMap[size]}
+            readOnly={readOnly}
+            current={value}
+            onHover={setHover}
+            onPick={(v) => onChange?.(v)}
+          />
         );
       })}
     </div>
+  );
+}
+
+function Star({
+  slot,
+  fill,
+  sizeClass,
+  readOnly,
+  current,
+  onHover,
+  onPick,
+}: {
+  slot: number;
+  fill: number;
+  sizeClass: string;
+  readOnly: boolean;
+  current: Rating | 0;
+  onHover: (v: number) => void;
+  onPick: (v: Rating) => void;
+}) {
+  const half = (slot - 0.5) as Rating;
+  const full = slot as Rating;
+
+  const visual = (
+    <span className={`relative inline-block leading-none ${sizeClass}`}>
+      <span className="text-ink-100" aria-hidden>
+        ★
+      </span>
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-y-0 left-0 overflow-hidden text-gold-400"
+        style={{ width: `${fill * 100}%` }}
+      >
+        ★
+      </span>
+    </span>
+  );
+
+  if (readOnly) return visual;
+
+  return (
+    <span className="relative inline-block">
+      {visual}
+      <button
+        type="button"
+        role="radio"
+        aria-checked={current === half}
+        aria-label={`${half} sterren`}
+        onMouseEnter={() => onHover(half)}
+        onMouseLeave={() => onHover(0)}
+        onFocus={() => onHover(half)}
+        onBlur={() => onHover(0)}
+        onClick={() => onPick(half)}
+        className="absolute inset-y-0 left-0 w-1/2 cursor-pointer rounded-l focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400"
+      />
+      <button
+        type="button"
+        role="radio"
+        aria-checked={current === full}
+        aria-label={`${full} sterren`}
+        onMouseEnter={() => onHover(full)}
+        onMouseLeave={() => onHover(0)}
+        onFocus={() => onHover(full)}
+        onBlur={() => onHover(0)}
+        onClick={() => onPick(full)}
+        className="absolute inset-y-0 right-0 w-1/2 cursor-pointer rounded-r focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400"
+      />
+    </span>
   );
 }

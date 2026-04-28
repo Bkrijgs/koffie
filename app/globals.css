@@ -41,3 +41,43 @@ textarea {
 button {
   -webkit-tap-highlight-color: transparent;
 }
+
+@keyframes barista-bob {
+  0%, 100% {
+    transform: translateY(0) rotate(-1.5deg);
+  }
+  50% {
+    transform: translateY(-3px) rotate(1.5deg);
+  }
+}
+
+@keyframes barista-wave {
+  0%, 70%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  78% {
+    transform: translateY(-2px) rotate(-4deg);
+  }
+  86% {
+    transform: translateY(-2px) rotate(4deg);
+  }
+  94% {
+    transform: translateY(-2px) rotate(-2deg);
+  }
+}
+
+.barista-anim {
+  transform-origin: 50% 90%;
+  animation: barista-bob 4.5s ease-in-out infinite;
+}
+
+.barista-anim:hover {
+  animation: barista-wave 1.6s ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .barista-anim,
+  .barista-anim:hover {
+    animation: none;
+  }
+}

@@ -15,7 +15,7 @@ export function Barista({ size = 56, className, alt = "" }: Props) {
       src="/Barista.svg"
       width={size}
       alt={alt}
-      className={className}
+      className={`barista-anim ${className ?? ""}`.trim()}
       aria-hidden={alt === "" ? true : undefined}
     />
   );
