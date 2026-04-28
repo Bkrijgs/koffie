@@ -39,12 +39,16 @@ create index if not exists beans_created_at_idx  on public.beans (created_at des
 alter table public.beans  enable row level security;
 alter table public.shots  enable row level security;
 
-drop policy if exists "anon read beans"   on public.beans;
-drop policy if exists "anon write beans"  on public.beans;
-drop policy if exists "anon read shots"   on public.shots;
-drop policy if exists "anon write shots"  on public.shots;
+drop policy if exists "anon read beans"    on public.beans;
+drop policy if exists "anon write beans"   on public.beans;
+drop policy if exists "anon update beans"  on public.beans;
+drop policy if exists "anon read shots"    on public.shots;
+drop policy if exists "anon write shots"   on public.shots;
+drop policy if exists "anon update shots"  on public.shots;
 
-create policy "anon read beans"   on public.beans for select using (true);
-create policy "anon write beans"  on public.beans for insert with check (true);
-create policy "anon read shots"   on public.shots for select using (true);
-create policy "anon write shots"  on public.shots for insert with check (true);
+create policy "anon read beans"    on public.beans for select using (true);
+create policy "anon write beans"   on public.beans for insert with check (true);
+create policy "anon update beans"  on public.beans for update using (true) with check (true);
+create policy "anon read shots"    on public.shots for select using (true);
+create policy "anon write shots"   on public.shots for insert with check (true);
+create policy "anon update shots"  on public.shots for update using (true) with check (true);

@@ -26,7 +26,16 @@ export function ShotCard({ shot, bean, showBean = true }: Props) {
             {formatDate(shot.createdAt)}
           </p>
         </div>
-        <StarRating value={shot.rating} readOnly size="sm" />
+        <div className="flex items-center gap-3">
+          <StarRating value={shot.rating} readOnly size="sm" />
+          <Link
+            href={`/shots/${shot.id}/edit`}
+            className="text-xs text-ink-300 hover:text-ink-700"
+            aria-label="Shot bewerken"
+          >
+            Bewerk
+          </Link>
+        </div>
       </header>
 
       <dl className="mt-4 grid grid-cols-3 gap-x-4 gap-y-3 sm:grid-cols-5">
