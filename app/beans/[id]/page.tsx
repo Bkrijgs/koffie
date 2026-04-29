@@ -79,12 +79,20 @@ export default function BeanDetailPage() {
               <p className="mt-1 text-sm text-ink-400">{bean.roaster}</p>
             )}
           </div>
-          <Link
-            href={`/shots/new?beanId=${bean.id}`}
-            className="shrink-0 rounded-lg bg-ink-800 px-3 py-2 text-sm font-medium text-paper transition hover:bg-ink-700"
-          >
-            Shot
-          </Link>
+          <div className="flex shrink-0 items-center gap-2">
+            <Link
+              href={`/beans/${bean.id}/edit`}
+              className="rounded-lg border border-line px-3 py-2 text-sm font-medium text-ink-600 transition hover:bg-ink-50/40"
+            >
+              Bewerk
+            </Link>
+            <Link
+              href={`/shots/new?beanId=${bean.id}`}
+              className="rounded-lg bg-ink-800 px-3 py-2 text-sm font-medium text-paper transition hover:bg-ink-700"
+            >
+              Shot
+            </Link>
+          </div>
         </div>
 
         <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">

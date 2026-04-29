@@ -50,6 +50,13 @@ export function useKoffie() {
     return bean;
   }, []);
 
+  const updateBean = useCallback(async (id: string, input: BeanInput) => {
+    const bean = await storage.updateBean(id, input);
+    state.beans = state.beans.map((b) => (b.id === id ? bean : b));
+    notify();
+    return bean;
+  }, []);
+
   const addShot = useCallback(async (input: ShotInput) => {
     const shot = await storage.addShot(input);
     state.shots = [shot, ...state.shots];
@@ -69,6 +76,7 @@ export function useKoffie() {
     beans: state.beans,
     shots: state.shots,
     addBean,
+    updateBean,
     addShot,
     updateShot,
   };
