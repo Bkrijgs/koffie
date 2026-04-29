@@ -21,6 +21,7 @@ export function BeanForm({ bean, onCreated, onUpdated, onCancel }: Props) {
   const [name, setName] = useState(bean?.name ?? "");
   const [roaster, setRoaster] = useState(bean?.roaster ?? "");
   const [origin, setOrigin] = useState(bean?.origin ?? "");
+  const [blend, setBlend] = useState(bean?.blend ?? "");
   const [roastDate, setRoastDate] = useState(bean?.roastDate ?? "");
   const [notes, setNotes] = useState(bean?.notes ?? "");
   const [submitting, setSubmitting] = useState(false);
@@ -39,6 +40,7 @@ export function BeanForm({ bean, onCreated, onUpdated, onCancel }: Props) {
         name: name.trim(),
         roaster: roaster.trim() || undefined,
         origin: origin.trim() || undefined,
+        blend: blend.trim() || undefined,
         roastDate: roastDate || undefined,
         notes: notes.trim() || undefined,
       };
@@ -96,15 +98,26 @@ export function BeanForm({ bean, onCreated, onUpdated, onCancel }: Props) {
         </Field>
       </div>
 
-      <Field label="Branddatum" htmlFor="bean-roast-date">
-        <input
-          id="bean-roast-date"
-          type="date"
-          className={inputClass}
-          value={roastDate}
-          onChange={(e) => setRoastDate(e.target.value)}
-        />
-      </Field>
+      <div className="grid gap-5 sm:grid-cols-2">
+        <Field label="Soort" htmlFor="bean-blend">
+          <input
+            id="bean-blend"
+            className={inputClass}
+            value={blend}
+            onChange={(e) => setBlend(e.target.value)}
+            placeholder="100% arabica / blend"
+          />
+        </Field>
+        <Field label="Branddatum" htmlFor="bean-roast-date">
+          <input
+            id="bean-roast-date"
+            type="date"
+            className={inputClass}
+            value={roastDate}
+            onChange={(e) => setRoastDate(e.target.value)}
+          />
+        </Field>
+      </div>
 
       <Field label="Opmerkingen" htmlFor="bean-notes">
         <textarea

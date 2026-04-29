@@ -97,6 +97,7 @@ export default function BeanDetailPage() {
 
         <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
           <Meta label="Herkomst" value={bean.origin} />
+          <Meta label="Soort" value={bean.blend} />
           <Meta label="Brand" value={formatDateOnly(bean.roastDate)} numeric />
           <Meta label="Shots" value={String(beanShots.length)} numeric />
           <Meta
