@@ -35,5 +35,16 @@ export type ShotLog = {
   rating: Rating;
 };
 
+export type Bag = {
+  id: string;
+  beanId: string;
+  grams: number;
+  openedAt: string;
+  finishedAt?: string;
+  notes?: string;
+  createdAt: string;
+};
+
 export type BeanInput = Omit<Bean, "id" | "createdAt">;
 export type ShotInput = Omit<ShotLog, "id" | "createdAt" | "brewRatio">;
+export type BagInput = Omit<Bag, "id" | "createdAt">;
