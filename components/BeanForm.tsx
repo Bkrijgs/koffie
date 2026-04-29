@@ -3,21 +3,26 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useKoffie } from "@/lib/useKoffie";
+import type { Bean } from "@/lib/types";
 import { Field, inputClass } from "./Field";
 
 type Props = {
+  bean?: Bean;
   onCreated?: (id: string) => void;
+  onUpdated?: (id: string) => void;
   onCancel?: () => void;
 };
 
-export function BeanForm({ onCreated, onCancel }: Props) {
-  const { addBean } = useKoffie();
+export function BeanForm({ bean, onCreated, onUpdated, onCancel }: Props) {
+  const { addBean, updateBean } = useKoffie();
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [roaster, setRoaster] = useState("");
-  const [origin, setOrigin] = useState("");
-  const [roastDate, setRoastDate] = useState("");
-  const [notes, setNotes] = useState("");
+  const isEdit = Boolean(bean);
+
+  const [name, setName] = useState(bean?.name ?? "");
+  const [roaster, setRoaster] = useState(bean?.roaster ?? "");
+  const [origin, setOrigin] = useState(bean?.origin ?? "");
+  const [roastDate, setRoastDate] = useState(bean?.roastDate ?? "");
+  const [notes, setNotes] = useState(bean?.notes ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,17 +35,27 @@ export function BeanForm({ onCreated, onCancel }: Props) {
     setSubmitting(true);
     setError(null);
     try {
-      const bean = await addBean({
+      const payload = {
         name: name.trim(),
         roaster: roaster.trim() || undefined,
         origin: origin.trim() || undefined,
         roastDate: roastDate || undefined,
         notes: notes.trim() || undefined,
-      });
-      if (onCreated) {
-        onCreated(bean.id);
+      };
+      if (bean) {
+        await updateBean(bean.id, payload);
+        if (onUpdated) {
+          onUpdated(bean.id);
+        } else {
+          router.push(`/beans/${bean.id}`);
+        }
       } else {
-        router.push(`/beans/${bean.id}`);
+        const created = await addBean(payload);
+        if (onCreated) {
+          onCreated(created.id);
+        } else {
+          router.push(`/beans/${created.id}`);
+        }
       }
     } finally {
       setSubmitting(false);
@@ -109,7 +124,7 @@ export function BeanForm({ onCreated, onCancel }: Props) {
           disabled={submitting}
           className="flex-1 rounded-lg bg-ink-800 px-4 py-2.5 text-sm font-medium text-paper transition hover:bg-ink-700 disabled:opacity-50"
         >
-          {submitting ? "…" : "Opslaan"}
+          {submitting ? "…" : isEdit ? "Bijwerken" : "Opslaan"}
         </button>
         {onCancel && (
           <button

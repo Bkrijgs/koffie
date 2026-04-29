@@ -10,6 +10,7 @@ import { calcBrewRatio, uid } from "./utils";
 export interface KoffieStorage {
   listBeans(): Promise<Bean[]>;
   addBean(input: BeanInput): Promise<Bean>;
+  updateBean(id: string, input: BeanInput): Promise<Bean>;
   getBean(id: string): Promise<Bean | undefined>;
 
   listShots(): Promise<ShotLog[]>;
@@ -54,6 +55,15 @@ export const localStorageBackend: KoffieStorage = {
     all.push(bean);
     write(BEANS_KEY, all);
     return bean;
+  },
+  async updateBean(id, input) {
+    const all = read<Bean>(BEANS_KEY);
+    const idx = all.findIndex((b) => b.id === id);
+    if (idx === -1) throw new Error("Boon niet gevonden");
+    const updated: Bean = { ...all[idx], ...input };
+    all[idx] = updated;
+    write(BEANS_KEY, all);
+    return updated;
   },
   async getBean(id) {
     return read<Bean>(BEANS_KEY).find((b) => b.id === id);
@@ -166,6 +176,22 @@ export const supabaseBackend: KoffieStorage = {
         roast_date: input.roastDate ?? null,
         notes: input.notes ?? null,
       })
+      .select("*")
+      .single();
+    if (error) throw error;
+    return beanFromRow(data as BeanRow);
+  },
+  async updateBean(id, input) {
+    const { data, error } = await getSupabase()
+      .from("beans")
+      .update({
+        name: input.name,
+        roaster: input.roaster ?? null,
+        origin: input.origin ?? null,
+        roast_date: input.roastDate ?? null,
+        notes: input.notes ?? null,
+      })
+      .eq("id", id)
       .select("*")
       .single();
     if (error) throw error;
