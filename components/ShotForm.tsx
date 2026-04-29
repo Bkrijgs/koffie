@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useKoffie } from "@/lib/useKoffie";
 import { calcBrewRatio } from "@/lib/utils";
@@ -17,7 +17,7 @@ type Props = {
 
 export function ShotForm({ initialBeanId, shot }: Props) {
   const router = useRouter();
-  const { beans, addShot, updateShot, ready } = useKoffie();
+  const { beans, shots, addShot, updateShot, ready } = useKoffie();
   const isEdit = Boolean(shot);
 
   const [beanId, setBeanId] = useState<string>(
@@ -41,6 +41,27 @@ export function ShotForm({ initialBeanId, shot }: Props) {
   );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [filledForBean, setFilledForBean] = useState<string | null>(null);
+
+  // When creating a new shot, prefill the metric inputs from the best
+  // existing shot for the selected bean (highest rating, ties broken by
+  // recency). Only does this once per bean so we don't clobber edits.
+  useEffect(() => {
+    if (isEdit) return;
+    if (!beanId || filledForBean === beanId) return;
+    const beanShots = shots.filter((s) => s.beanId === beanId);
+    if (beanShots.length === 0) return;
+    const best = [...beanShots].sort(
+      (a, b) =>
+        b.rating - a.rating ||
+        +new Date(b.createdAt) - +new Date(a.createdAt),
+    )[0];
+    setGrindSize(best.grindSize);
+    setDoseGrams(String(best.doseGrams));
+    setYieldGrams(String(best.yieldGrams));
+    setExtractionTime(String(best.extractionTimeSeconds));
+    setFilledForBean(beanId);
+  }, [beanId, shots, isEdit, filledForBean]);
 
   const dose = parseFloat(doseGrams);
   const yld = parseFloat(yieldGrams);
