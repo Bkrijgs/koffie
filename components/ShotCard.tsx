@@ -11,24 +11,24 @@ type Props = {
 
 export function ShotCard({ shot, bean, showBean = true }: Props) {
   return (
-    <article className="relative rounded-xl2 border border-line bg-card p-5 shadow-soft transition hover:shadow-lift">
-      {/* Stretched link: the whole card opens the shot for editing.
-          Inner links keep working because they sit above this overlay
-          via `position: relative`. */}
+    <article className="group relative cursor-pointer rounded-xl2 border border-line bg-card p-5 shadow-soft transition hover:shadow-lift">
+      {/* Stretched link overlay: covers the entire card so clicks anywhere
+          open the shot for editing. The bean name uses `position: relative`
+          to sit above this overlay and keep its own destination. */}
       <Link
         href={`/shots/${shot.id}/edit`}
         aria-label={`Shot van ${bean?.name ?? "boon"} op ${formatDate(shot.createdAt)} openen`}
-        className="absolute inset-0 rounded-xl2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-400"
+        className="absolute inset-0 z-10 rounded-xl2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-400"
       >
         <span className="sr-only">Openen</span>
       </Link>
 
-      <header className="relative flex items-start justify-between gap-3">
+      <header className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           {showBean && bean && (
             <Link
               href={`/beans/${bean.id}`}
-              className="relative inline-block font-display text-base tracking-tightish text-ink-800 hover:underline"
+              className="relative z-20 inline-block font-display text-base tracking-tightish text-ink-800 hover:underline"
             >
               {bean.name}
             </Link>
@@ -40,7 +40,7 @@ export function ShotCard({ shot, bean, showBean = true }: Props) {
         <StarRating value={shot.rating} readOnly size="sm" />
       </header>
 
-      <dl className="relative mt-4 grid grid-cols-3 gap-x-4 gap-y-3 sm:grid-cols-5">
+      <dl className="mt-4 grid grid-cols-3 gap-x-4 gap-y-3 sm:grid-cols-5">
         <Stat label="Maalgraad" value={shot.grindSize} />
         <Stat label="Dose" value={`${formatNum(shot.doseGrams)} g`} />
         <Stat label="Yield" value={`${formatNum(shot.yieldGrams)} g`} />
@@ -49,7 +49,7 @@ export function ShotCard({ shot, bean, showBean = true }: Props) {
       </dl>
 
       {(shot.notes || shot.nextAdjustment) && (
-        <div className="relative mt-4 space-y-1.5 border-t border-line pt-3 text-sm">
+        <div className="mt-4 space-y-1.5 border-t border-line pt-3 text-sm">
           {shot.notes && (
             <p className="text-ink-600">
               <span className="text-ink-400">Smaak.</span> {shot.notes}
