@@ -1,5 +1,6 @@
 import type { Bean, ShotLog } from "./types";
 import { average } from "./utils";
+import type { BaristaMood } from "@/components/Barista";
 
 export type TipKind = "tweak" | "info" | "praise" | "warn";
 
@@ -8,6 +9,21 @@ export type Tip = {
   kind: TipKind;
   text: string;
 };
+
+const WAVE_TIP_IDS = new Set(["no-beans", "no-shots", "first", "baseline"]);
+
+/**
+ * Pick a barista mood for a list of tips. Priority: empty/onboarding (wave)
+ * → praise (happy) → warn (concerned) → tweak (think) → otherwise content.
+ */
+export function moodForTips(tips: Tip[]): BaristaMood {
+  if (tips.length === 0) return "content";
+  if (tips.some((t) => WAVE_TIP_IDS.has(t.id))) return "wave";
+  if (tips.some((t) => t.kind === "praise")) return "happy";
+  if (tips.some((t) => t.kind === "warn")) return "concerned";
+  if (tips.some((t) => t.kind === "tweak")) return "think";
+  return "content";
+}
 
 const TIME_MIN = 25;
 const TIME_MAX = 32;
