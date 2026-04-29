@@ -38,7 +38,7 @@ export function BeanCard({ bean, shots }: Props) {
         )}
         {bean.roastDate && (
           <>
-            <dt className="text-ink-300">Brand</dt>
+            <dt className="text-ink-300">Branddatum</dt>
             <dd className="numeric text-ink-600">
               {formatDateOnly(bean.roastDate)}
             </dd>
