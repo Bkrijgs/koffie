@@ -1,5 +1,12 @@
 import { getSupabase, isSupabaseConfigured } from "./supabase";
-import type { Bean, BeanInput, ShotInput, ShotLog } from "./types";
+import type {
+  Bag,
+  BagInput,
+  Bean,
+  BeanInput,
+  ShotInput,
+  ShotLog,
+} from "./types";
 import { calcBrewRatio, uid } from "./utils";
 
 /**
@@ -17,10 +24,15 @@ export interface KoffieStorage {
   addShot(input: ShotInput): Promise<ShotLog>;
   updateShot(id: string, input: ShotInput): Promise<ShotLog>;
   shotsForBean(beanId: string): Promise<ShotLog[]>;
+
+  listBags(): Promise<Bag[]>;
+  addBag(input: BagInput): Promise<Bag>;
+  updateBag(id: string, input: BagInput): Promise<Bag>;
 }
 
 const BEANS_KEY = "koffie:beans:v1";
 const SHOTS_KEY = "koffie:shots:v1";
+const BAGS_KEY = "koffie:bags:v1";
 
 function read<T>(key: string): T[] {
   if (typeof window === "undefined") return [];
@@ -103,6 +115,31 @@ export const localStorageBackend: KoffieStorage = {
       .filter((s) => s.beanId === beanId)
       .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
   },
+  async listBags() {
+    return read<Bag>(BAGS_KEY).sort(
+      (a, b) => +new Date(b.openedAt) - +new Date(a.openedAt),
+    );
+  },
+  async addBag(input) {
+    const bag: Bag = {
+      id: uid(),
+      createdAt: new Date().toISOString(),
+      ...input,
+    };
+    const all = read<Bag>(BAGS_KEY);
+    all.push(bag);
+    write(BAGS_KEY, all);
+    return bag;
+  },
+  async updateBag(id, input) {
+    const all = read<Bag>(BAGS_KEY);
+    const idx = all.findIndex((b) => b.id === id);
+    if (idx === -1) throw new Error("Zak niet gevonden");
+    const updated: Bag = { ...all[idx], ...input };
+    all[idx] = updated;
+    write(BAGS_KEY, all);
+    return updated;
+  },
 };
 
 type BeanRow = {
@@ -138,6 +175,28 @@ function beanFromRow(row: BeanRow): Bean {
     origin: row.origin ?? undefined,
     blend: row.blend ?? undefined,
     roastDate: row.roast_date ?? undefined,
+    notes: row.notes ?? undefined,
+    createdAt: row.created_at,
+  };
+}
+
+type BagRow = {
+  id: string;
+  bean_id: string;
+  grams: number;
+  opened_at: string;
+  finished_at: string | null;
+  notes: string | null;
+  created_at: string;
+};
+
+function bagFromRow(row: BagRow): Bag {
+  return {
+    id: row.id,
+    beanId: row.bean_id,
+    grams: Number(row.grams),
+    openedAt: row.opened_at,
+    finishedAt: row.finished_at ?? undefined,
     notes: row.notes ?? undefined,
     createdAt: row.created_at,
   };
@@ -267,6 +326,45 @@ export const supabaseBackend: KoffieStorage = {
       .order("created_at", { ascending: false });
     if (error) throw error;
     return (data as ShotRow[]).map(shotFromRow);
+  },
+  async listBags() {
+    const { data, error } = await getSupabase()
+      .from("bags")
+      .select("*")
+      .order("opened_at", { ascending: false });
+    if (error) throw error;
+    return (data as BagRow[]).map(bagFromRow);
+  },
+  async addBag(input) {
+    const { data, error } = await getSupabase()
+      .from("bags")
+      .insert({
+        bean_id: input.beanId,
+        grams: input.grams,
+        opened_at: input.openedAt,
+        finished_at: input.finishedAt ?? null,
+        notes: input.notes ?? null,
+      })
+      .select("*")
+      .single();
+    if (error) throw error;
+    return bagFromRow(data as BagRow);
+  },
+  async updateBag(id, input) {
+    const { data, error } = await getSupabase()
+      .from("bags")
+      .update({
+        bean_id: input.beanId,
+        grams: input.grams,
+        opened_at: input.openedAt,
+        finished_at: input.finishedAt ?? null,
+        notes: input.notes ?? null,
+      })
+      .eq("id", id)
+      .select("*")
+      .single();
+    if (error) throw error;
+    return bagFromRow(data as BagRow);
   },
 };
 
