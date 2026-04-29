@@ -107,6 +107,15 @@ export function tipsForBean(bean: Bean, shots: ShotLog[]): Tip[] {
       b.rating - a.rating || +new Date(b.createdAt) - +new Date(a.createdAt),
   );
   const top = sortedByRating[0];
+  if (top) {
+    const fmt = (n: number) =>
+      Number.isInteger(n) ? String(n) : n.toFixed(1);
+    tips.unshift({
+      id: "best-shot",
+      kind: "info",
+      text: `Beste shot tot nu toe (${top.rating}★) — maalgraad ${top.grindSize}, ${fmt(top.doseGrams)} g in / ${fmt(top.yieldGrams)} g uit, ${top.extractionTimeSeconds}s.`,
+    });
+  }
   if (
     top &&
     last &&
