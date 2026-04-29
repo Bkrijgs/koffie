@@ -110,6 +110,7 @@ type BeanRow = {
   name: string;
   roaster: string | null;
   origin: string | null;
+  blend: string | null;
   roast_date: string | null;
   notes: string | null;
   created_at: string;
@@ -135,6 +136,7 @@ function beanFromRow(row: BeanRow): Bean {
     name: row.name,
     roaster: row.roaster ?? undefined,
     origin: row.origin ?? undefined,
+    blend: row.blend ?? undefined,
     roastDate: row.roast_date ?? undefined,
     notes: row.notes ?? undefined,
     createdAt: row.created_at,
@@ -173,6 +175,7 @@ export const supabaseBackend: KoffieStorage = {
         name: input.name,
         roaster: input.roaster ?? null,
         origin: input.origin ?? null,
+        blend: input.blend ?? null,
         roast_date: input.roastDate ?? null,
         notes: input.notes ?? null,
       })
@@ -188,6 +191,7 @@ export const supabaseBackend: KoffieStorage = {
         name: input.name,
         roaster: input.roaster ?? null,
         origin: input.origin ?? null,
+        blend: input.blend ?? null,
         roast_date: input.roastDate ?? null,
         notes: input.notes ?? null,
       })

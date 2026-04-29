@@ -9,6 +9,7 @@ create table if not exists public.beans (
   name        text        not null,
   roaster     text,
   origin      text,
+  blend       text,
   roast_date  date,
   notes       text,
   created_at  timestamptz not null default now()

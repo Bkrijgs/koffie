@@ -3,6 +3,7 @@ export type Bean = {
   name: string;
   roaster?: string;
   origin?: string;
+  blend?: string;
   roastDate?: string;
   notes?: string;
   createdAt: string;
