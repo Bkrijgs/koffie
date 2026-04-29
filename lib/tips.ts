@@ -11,18 +11,32 @@ export type Tip = {
 };
 
 const WAVE_TIP_IDS = new Set(["no-beans", "no-shots", "first", "baseline"]);
+const CELEBRATE_TIP_IDS = new Set([
+  "streak",
+  "shot-best",
+  "milestone-shots",
+  "milestone-bean",
+]);
+const SHRUG_TIP_IDS = new Set(["trending-down", "shot-worst"]);
 
 /**
- * Pick a barista mood for a list of tips. Priority: empty/onboarding (wave)
- * → praise (happy) → warn (concerned) → tweak (think) → otherwise content.
+ * Pick a barista mood for a list of tips. Priority:
+ *   wave (onboarding) → celebrate (special praise) → shrug (special warn) →
+ *   happy (other praise) → concerned (other warn) → think (tweak) →
+ *   taste/content (otherwise, alternating per day).
  */
 export function moodForTips(tips: Tip[]): BaristaMood {
   if (tips.length === 0) return "content";
   if (tips.some((t) => WAVE_TIP_IDS.has(t.id))) return "wave";
+  if (tips.some((t) => CELEBRATE_TIP_IDS.has(t.id))) return "celebrate";
+  if (tips.some((t) => SHRUG_TIP_IDS.has(t.id))) return "shrug";
   if (tips.some((t) => t.kind === "praise")) return "happy";
   if (tips.some((t) => t.kind === "warn")) return "concerned";
   if (tips.some((t) => t.kind === "tweak")) return "think";
-  return "content";
+  // Idle/info-only state — alternate between content and taste per day so
+  // the barista isn't doing the exact same thing every visit.
+  const day = Math.floor(Date.now() / (1000 * 60 * 60 * 24));
+  return day % 2 === 0 ? "content" : "taste";
 }
 
 const TIME_MIN = 25;
@@ -231,6 +245,38 @@ export function globalTips(beans: Bean[], shots: ShotLog[]): Tip[] {
         text: `Laatste 10 shots: ${r.toFixed(1)}★, daarvoor ${o.toFixed(1)}★. Wat is veranderd?`,
       });
     }
+  }
+
+  const highestRating = Math.max(...shots.map((s) => s.rating));
+  if (
+    last.rating >= 4.5 &&
+    last.rating === highestRating &&
+    shots.length >= 2
+  ) {
+    tips.push({
+      id: "top-shot",
+      kind: "praise",
+      text: `Net je beste shot tot nu toe (${last.rating}★). Onthou deze instellingen goed.`,
+    });
+  }
+
+  const milestone = [10, 25, 50, 100, 250, 500].find(
+    (m) => shots.length === m,
+  );
+  if (milestone) {
+    tips.push({
+      id: "milestone-shots",
+      kind: "praise",
+      text: `${milestone} shots gelogd. Dat is serieus dial-in werk.`,
+    });
+  }
+
+  if (beans.length === 5) {
+    tips.push({
+      id: "milestone-bean",
+      kind: "praise",
+      text: `Vijfde boon op de plank. Je begint een echt archief op te bouwen.`,
+    });
   }
 
   const beansWithShots = new Set(shots.map((s) => s.beanId));
