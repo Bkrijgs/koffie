@@ -2,14 +2,27 @@
 
 import { useState } from "react";
 
-export type BaristaMood = "happy" | "content" | "wave" | "think" | "concerned";
+export type BaristaMood =
+  | "wave"
+  | "happy"
+  | "content"
+  | "think"
+  | "concerned"
+  | "celebrate"
+  | "shrug"
+  | "pour"
+  | "taste";
 
 const moodToFile: Record<BaristaMood, string> = {
-  happy: "/barista/happy.mp4",
-  content: "/barista/content.mp4",
-  wave: "/barista/wave.mp4",
-  think: "/barista/think.mp4",
-  concerned: "/barista/concerned.mp4",
+  wave: "/wave.mp4",
+  happy: "/happy.mp4",
+  content: "/content.mp4",
+  think: "/think.mp4",
+  concerned: "/concerned.mp4",
+  celebrate: "/celebrate.mp4",
+  shrug: "/shrug.mp4",
+  pour: "/pour.mp4",
+  taste: "/taste.mp4",
 };
 
 type Props = {
@@ -20,8 +33,8 @@ type Props = {
 };
 
 /**
- * Barista-avatar. When `mood` is set we play /public/barista/<mood>.mp4
- * and fall back to the static SVG if the file is missing or fails to play.
+ * Barista-avatar. When `mood` is set we play /<mood>.mp4 and fall back to
+ * the static SVG if the file is missing or fails to play.
  */
 export function Barista({ size = 56, mood, className, alt = "" }: Props) {
   const [failed, setFailed] = useState(false);

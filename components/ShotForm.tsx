@@ -8,6 +8,7 @@ import type { Rating, ShotLog } from "@/lib/types";
 import { Field, inputClass } from "./Field";
 import { StarRating } from "./StarRating";
 import { BeanForm } from "./BeanForm";
+import { Barista } from "./Barista";
 
 type Props = {
   initialBeanId?: string;
@@ -236,9 +237,16 @@ export function ShotForm({ initialBeanId, shot }: Props) {
       <button
         type="submit"
         disabled={submitting}
-        className="w-full rounded-lg bg-ink-800 px-4 py-3 text-sm font-medium text-paper transition hover:bg-ink-700 disabled:opacity-50"
+        className="flex w-full items-center justify-center gap-2 rounded-lg bg-ink-800 px-4 py-3 text-sm font-medium text-paper transition hover:bg-ink-700 disabled:opacity-50"
       >
-        {submitting ? "…" : isEdit ? "Bijwerken" : "Opslaan"}
+        {submitting ? (
+          <>
+            <Barista mood="pour" size={22} />
+            <span>Aan het zetten…</span>
+          </>
+        ) : (
+          <span>{isEdit ? "Bijwerken" : "Opslaan"}</span>
+        )}
       </button>
     </form>
   );
