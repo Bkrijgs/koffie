@@ -18,10 +18,10 @@ export function BaristaTips({ tips, mood }: Props) {
   if (tips.length === 0) return null;
   const resolvedMood = mood ?? moodForTips(tips);
   return (
-    <aside className="rounded-xl2 border border-line bg-card p-5 shadow-soft">
-      <div className="flex gap-4">
-        <div className="shrink-0 text-ink-700">
-          <Barista size={56} mood={resolvedMood} />
+    <aside className="rounded-xl2 border border-line bg-card p-5 shadow-soft sm:p-6">
+      <div className="flex items-center gap-5 sm:gap-7">
+        <div className="shrink-0">
+          <Barista size={120} mood={resolvedMood} />
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-[10px] uppercase tracking-[0.18em] text-ink-300">
