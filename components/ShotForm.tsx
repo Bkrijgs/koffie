@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useKoffie } from "@/lib/useKoffie";
 import { calcBrewRatio } from "@/lib/utils";
@@ -15,6 +15,13 @@ type Props = {
   shot?: ShotLog;
 };
 
+const HARD_DEFAULTS = {
+  grindSize: "5",
+  doseGrams: "18",
+  yieldGrams: "36",
+  extractionTimeSeconds: "28",
+};
+
 export function ShotForm({ initialBeanId, shot }: Props) {
   const router = useRouter();
   const { beans, shots, addShot, updateShot, ready } = useKoffie();
@@ -26,13 +33,13 @@ export function ShotForm({ initialBeanId, shot }: Props) {
   const [showNewBean, setShowNewBean] = useState(false);
   const [grindSize, setGrindSize] = useState(shot?.grindSize ?? "");
   const [doseGrams, setDoseGrams] = useState<string>(
-    shot ? String(shot.doseGrams) : "18",
+    shot ? String(shot.doseGrams) : "",
   );
   const [yieldGrams, setYieldGrams] = useState<string>(
-    shot ? String(shot.yieldGrams) : "36",
+    shot ? String(shot.yieldGrams) : "",
   );
   const [extractionTimeSeconds, setExtractionTime] = useState<string>(
-    shot ? String(shot.extractionTimeSeconds) : "28",
+    shot ? String(shot.extractionTimeSeconds) : "",
   );
   const [rating, setRating] = useState<Rating | 0>(shot?.rating ?? 0);
   const [notes, setNotes] = useState(shot?.notes ?? "");
@@ -41,31 +48,33 @@ export function ShotForm({ initialBeanId, shot }: Props) {
   );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [filledForBean, setFilledForBean] = useState<string | null>(null);
 
-  // When creating a new shot, prefill the metric inputs from the best
-  // existing shot for the selected bean (highest rating, ties broken by
-  // recency). Only does this once per bean so we don't clobber edits.
-  useEffect(() => {
-    if (isEdit) return;
-    if (!beanId || filledForBean === beanId) return;
+  // Suggested values shown only as placeholders. Pulled from the bean's best
+  // shot when one exists, otherwise the Sage Barista Express baseline.
+  const placeholders = useMemo(() => {
+    if (!beanId) return HARD_DEFAULTS;
     const beanShots = shots.filter((s) => s.beanId === beanId);
-    if (beanShots.length === 0) return;
+    if (beanShots.length === 0) return HARD_DEFAULTS;
     const best = [...beanShots].sort(
       (a, b) =>
         b.rating - a.rating ||
         +new Date(b.createdAt) - +new Date(a.createdAt),
     )[0];
-    setGrindSize(best.grindSize);
-    setDoseGrams(String(best.doseGrams));
-    setYieldGrams(String(best.yieldGrams));
-    setExtractionTime(String(best.extractionTimeSeconds));
-    setFilledForBean(beanId);
-  }, [beanId, shots, isEdit, filledForBean]);
+    return {
+      grindSize: best.grindSize,
+      doseGrams: String(best.doseGrams),
+      yieldGrams: String(best.yieldGrams),
+      extractionTimeSeconds: String(best.extractionTimeSeconds),
+    };
+  }, [beanId, shots]);
 
-  const dose = parseFloat(doseGrams);
-  const yld = parseFloat(yieldGrams);
-  const time = parseFloat(extractionTimeSeconds);
+  // For the live ratio preview and submit fallback, fall through to the
+  // placeholder when an input is empty.
+  const dose = parseFloat(doseGrams || placeholders.doseGrams);
+  const yld = parseFloat(yieldGrams || placeholders.yieldGrams);
+  const time = parseFloat(
+    extractionTimeSeconds || placeholders.extractionTimeSeconds,
+  );
   const ratio = useMemo(
     () => (isFinite(dose) && isFinite(yld) ? calcBrewRatio(yld, dose) : 0),
     [dose, yld],
@@ -75,8 +84,10 @@ export function ShotForm({ initialBeanId, shot }: Props) {
     e.preventDefault();
     setError(null);
 
+    const grind = grindSize.trim() || placeholders.grindSize;
+
     if (!beanId) return setError("Kies een boon");
-    if (!grindSize.trim()) return setError("Maalgraad vereist");
+    if (!grind) return setError("Maalgraad vereist");
     if (!isFinite(dose) || dose <= 0) return setError("Dose vereist");
     if (!isFinite(yld) || yld <= 0) return setError("Yield vereist");
     if (!isFinite(time) || time <= 0) return setError("Tijd vereist");
@@ -86,7 +97,7 @@ export function ShotForm({ initialBeanId, shot }: Props) {
     try {
       const payload = {
         beanId,
-        grindSize: grindSize.trim(),
+        grindSize: grind,
         doseGrams: dose,
         yieldGrams: yld,
         extractionTimeSeconds: time,
@@ -175,7 +186,7 @@ export function ShotForm({ initialBeanId, shot }: Props) {
           className={inputClass}
           value={grindSize}
           onChange={(e) => setGrindSize(e.target.value)}
-          placeholder="6"
+          placeholder={placeholders.grindSize}
           inputMode="text"
         />
       </Field>
@@ -191,6 +202,7 @@ export function ShotForm({ initialBeanId, shot }: Props) {
             className={`${inputClass} numeric`}
             value={doseGrams}
             onChange={(e) => setDoseGrams(e.target.value)}
+            placeholder={placeholders.doseGrams}
           />
         </Field>
         <Field label="Yield (g)" htmlFor="shot-yield" required>
@@ -203,6 +215,7 @@ export function ShotForm({ initialBeanId, shot }: Props) {
             className={`${inputClass} numeric`}
             value={yieldGrams}
             onChange={(e) => setYieldGrams(e.target.value)}
+            placeholder={placeholders.yieldGrams}
           />
         </Field>
       </div>
@@ -226,6 +239,7 @@ export function ShotForm({ initialBeanId, shot }: Props) {
           className={`${inputClass} numeric`}
           value={extractionTimeSeconds}
           onChange={(e) => setExtractionTime(e.target.value)}
+          placeholder={placeholders.extractionTimeSeconds}
         />
       </Field>
 
