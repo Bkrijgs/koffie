@@ -27,6 +27,7 @@ create table if not exists public.shots (
   next_adjustment          text,
   rating                   numeric(2,1) not null
                             check (rating between 0.5 and 5 and (rating * 2) = floor(rating * 2)),
+  dial_in                  boolean     not null default false,
   created_at               timestamptz not null default now()
 );
 
@@ -43,6 +44,7 @@ create table if not exists public.bags (
 
 create index if not exists shots_bean_id_idx     on public.shots (bean_id);
 create index if not exists shots_created_at_idx  on public.shots (created_at desc);
+create index if not exists shots_effective_idx   on public.shots (bean_id) where dial_in = false;
 create index if not exists beans_created_at_idx  on public.beans (created_at desc);
 create index if not exists bags_bean_id_idx      on public.bags  (bean_id);
 create index if not exists bags_open_idx         on public.bags  (bean_id) where finished_at is null;

@@ -5,7 +5,7 @@ import { useKoffie } from "@/lib/useKoffie";
 import { ShotCard } from "@/components/ShotCard";
 import { EmptyState } from "@/components/EmptyState";
 import { BaristaTips } from "@/components/BaristaTips";
-import { average } from "@/lib/utils";
+import { average, effectiveShots } from "@/lib/utils";
 import { globalTips } from "@/lib/tips";
 
 export default function DashboardPage() {
@@ -16,15 +16,17 @@ export default function DashboardPage() {
   }
 
   const beanById = new Map(beans.map((b) => [b.id, b]));
+  const effective = effectiveShots(shots);
+  const dialInCount = shots.length - effective.length;
   const recent = shots.slice(0, 5);
-  const top = [...shots]
+  const top = [...effective]
     .sort((a, b) => {
       if (b.rating !== a.rating) return b.rating - a.rating;
       return +new Date(b.createdAt) - +new Date(a.createdAt);
     })
     .slice(0, 3);
 
-  const avgRating = average(shots.map((s) => s.rating));
+  const avgRating = average(effective.map((s) => s.rating));
   const tips = globalTips(beans, shots);
 
   return (
@@ -48,7 +50,11 @@ export default function DashboardPage() {
 
       {shots.length > 0 && (
         <section className="grid grid-cols-3 gap-px overflow-hidden rounded-xl2 border border-line bg-line">
-          <Stat label="Shots" value={String(shots.length)} />
+          <Stat
+            label="Shots"
+            value={String(shots.length)}
+            sub={dialInCount > 0 ? `${dialInCount} dial-in` : undefined}
+          />
           <Stat label="Bonen" value={String(beans.length)} />
           <Stat
             label="Gem. rating"
@@ -117,7 +123,15 @@ function SectionHeader({
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({
+  label,
+  value,
+  sub,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+}) {
   return (
     <div className="bg-card px-4 py-5 text-center">
       <p className="text-[10px] uppercase tracking-[0.18em] text-ink-300">
@@ -126,6 +140,11 @@ function Stat({ label, value }: { label: string; value: string }) {
       <p className="numeric mt-1 font-display text-2xl tracking-tightish text-ink-800">
         {value}
       </p>
+      {sub && (
+        <p className="numeric mt-0.5 text-[10px] uppercase tracking-[0.18em] text-ink-300">
+          {sub}
+        </p>
+      )}
     </div>
   );
 }

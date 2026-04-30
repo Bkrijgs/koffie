@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Bean, Rating, ShotLog } from "@/lib/types";
-import { average, formatDateOnly } from "@/lib/utils";
+import { average, effectiveShots, formatDateOnly } from "@/lib/utils";
 import { StarRating } from "./StarRating";
 
 type Props = {
@@ -9,7 +9,9 @@ type Props = {
 };
 
 export function BeanCard({ bean, shots }: Props) {
-  const avg = average(shots.map((s) => s.rating));
+  const effective = effectiveShots(shots);
+  const dialInCount = shots.length - effective.length;
+  const avg = average(effective.map((s) => s.rating));
   return (
     <Link
       href={`/beans/${bean.id}`}
@@ -24,8 +26,13 @@ export function BeanCard({ bean, shots }: Props) {
             <p className="text-sm text-ink-500">{bean.roaster}</p>
           )}
         </div>
-        <span className="numeric shrink-0 text-xs text-ink-400">
+        <span className="numeric shrink-0 text-right text-xs text-ink-400">
           {shots.length} {shots.length === 1 ? "shot" : "shots"}
+          {dialInCount > 0 && (
+            <span className="block text-[10px] text-ink-300">
+              {dialInCount} dial-in
+            </span>
+          )}
         </span>
       </div>
 
@@ -46,7 +53,7 @@ export function BeanCard({ bean, shots }: Props) {
         )}
       </dl>
 
-      {shots.length > 0 ? (
+      {effective.length > 0 ? (
         <div className="mt-4 flex items-center justify-between border-t border-line pt-3">
           <StarRating value={roundHalf(avg)} readOnly size="sm" />
           <span className="numeric text-xs text-ink-500">
