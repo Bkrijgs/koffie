@@ -10,6 +10,7 @@ type Props = {
 };
 
 export function ShotCard({ shot, bean, showBean = true }: Props) {
+  const dimmed = shot.dialIn ? "opacity-70" : "";
   return (
     <article className="group relative cursor-pointer rounded-xl2 border border-line bg-card p-5 shadow-soft transition hover:shadow-lift">
       {/* Stretched link overlay: covers the entire card so clicks anywhere
@@ -23,7 +24,16 @@ export function ShotCard({ shot, bean, showBean = true }: Props) {
         <span className="sr-only">Openen</span>
       </Link>
 
-      <header className="flex items-start justify-between gap-3">
+      {shot.dialIn && (
+        <span className="absolute right-4 top-4 inline-flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.2em] text-ink-300">
+          <span className="h-1.5 w-1.5 rounded-full bg-ink-300" aria-hidden />
+          Dial-in
+        </span>
+      )}
+
+      <header
+        className={`flex items-start justify-between gap-3 ${shot.dialIn ? "pr-20" : ""}`}
+      >
         <div className="min-w-0">
           {showBean && bean && (
             <Link
@@ -37,10 +47,14 @@ export function ShotCard({ shot, bean, showBean = true }: Props) {
             {formatDate(shot.createdAt)}
           </p>
         </div>
-        <StarRating value={shot.rating} readOnly size="sm" />
+        {!shot.dialIn && (
+          <StarRating value={shot.rating} readOnly size="sm" />
+        )}
       </header>
 
-      <dl className="mt-4 grid grid-cols-3 gap-x-4 gap-y-3 sm:grid-cols-5">
+      <dl
+        className={`mt-4 grid grid-cols-3 gap-x-4 gap-y-3 sm:grid-cols-5 ${dimmed}`}
+      >
         <Stat label="Maalgraad" value={shot.grindSize} />
         <Stat label="Dose" value={`${formatNum(shot.doseGrams)} g`} />
         <Stat label="Yield" value={`${formatNum(shot.yieldGrams)} g`} />
@@ -49,7 +63,9 @@ export function ShotCard({ shot, bean, showBean = true }: Props) {
       </dl>
 
       {(shot.notes || shot.nextAdjustment) && (
-        <div className="mt-4 space-y-1.5 border-t border-line pt-3 text-sm">
+        <div
+          className={`mt-4 space-y-1.5 border-t border-line pt-3 text-sm ${dimmed}`}
+        >
           {shot.notes && (
             <p className="text-ink-600">
               <span className="text-ink-400">Smaak.</span> {shot.notes}

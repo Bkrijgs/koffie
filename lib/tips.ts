@@ -1,5 +1,5 @@
 import type { Bean, ShotLog } from "./types";
-import { average } from "./utils";
+import { average, effectiveShots } from "./utils";
 import type { BaristaMood } from "@/components/Barista";
 
 export type TipKind = "tweak" | "info" | "praise" | "warn";
@@ -52,11 +52,17 @@ function daysBetween(iso: string, now = Date.now()): number {
 
 /**
  * Bean-specific tips. Input shots are expected newest-first.
+ *
+ * Stats and threshold checks run on `effective` (non-dial-in) shots so a
+ * dial-in shot never skews the bean's profile, but the onboarding
+ * "first" tip still fires on the original list — a brand-new bean with
+ * only dial-in shots still counts as "no real shots yet".
  */
 export function tipsForBean(bean: Bean, shots: ShotLog[]): Tip[] {
   const tips: Tip[] = [];
+  const effective = effectiveShots(shots);
 
-  if (shots.length === 0) {
+  if (effective.length === 0) {
     tips.push({
       id: "first",
       kind: "info",
@@ -65,7 +71,7 @@ export function tipsForBean(bean: Bean, shots: ShotLog[]): Tip[] {
     return tips;
   }
 
-  const recent = shots.slice(0, 3);
+  const recent = effective.slice(0, 3);
   const last = recent[0];
 
   const recentTimeAvg = average(recent.map((s) => s.extractionTimeSeconds));
@@ -102,7 +108,7 @@ export function tipsForBean(bean: Bean, shots: ShotLog[]): Tip[] {
     });
   }
 
-  const sortedByRating = [...shots].sort(
+  const sortedByRating = [...effective].sort(
     (a, b) =>
       b.rating - a.rating || +new Date(b.createdAt) - +new Date(a.createdAt),
   );
@@ -155,7 +161,7 @@ export function tipsForBean(bean: Bean, shots: ShotLog[]): Tip[] {
     });
   }
 
-  if (shots.length === 1) {
+  if (effective.length === 1) {
     tips.unshift({
       id: "baseline",
       kind: "info",
@@ -163,8 +169,8 @@ export function tipsForBean(bean: Bean, shots: ShotLog[]): Tip[] {
     });
   }
 
-  if (shots.length >= 2) {
-    const previous = shots[1];
+  if (effective.length >= 2) {
+    const previous = effective[1];
     if (
       previous.nextAdjustment &&
       last &&
@@ -207,7 +213,18 @@ export function globalTips(beans: Bean[], shots: ShotLog[]): Tip[] {
   }
 
   const tips: Tip[] = [];
-  const last = shots[0];
+  const effective = effectiveShots(shots);
+  if (effective.length === 0) {
+    // Only dial-in shots so far — treat the dashboard as still onboarding.
+    return [
+      {
+        id: "no-shots",
+        kind: "info",
+        text: "Log je eerste niet-dial-in shot om data-tips te krijgen.",
+      },
+    ];
+  }
+  const last = effective[0];
 
   const lastBean = beans.find((b) => b.id === last.beanId);
   if (lastBean) {
@@ -235,8 +252,8 @@ export function globalTips(beans: Bean[], shots: ShotLog[]): Tip[] {
     });
   }
 
-  const recent10 = shots.slice(0, 10);
-  const older10 = shots.slice(10, 20);
+  const recent10 = effective.slice(0, 10);
+  const older10 = effective.slice(10, 20);
   if (recent10.length >= 5 && older10.length >= 5) {
     const r = average(recent10.map((s) => s.rating));
     const o = average(older10.map((s) => s.rating));
@@ -256,11 +273,11 @@ export function globalTips(beans: Bean[], shots: ShotLog[]): Tip[] {
     }
   }
 
-  const highestRating = Math.max(...shots.map((s) => s.rating));
+  const highestRating = Math.max(...effective.map((s) => s.rating));
   if (
     last.rating >= 4.5 &&
     last.rating === highestRating &&
-    shots.length >= 2
+    effective.length >= 2
   ) {
     tips.push({
       id: "top-shot",
@@ -270,7 +287,7 @@ export function globalTips(beans: Bean[], shots: ShotLog[]): Tip[] {
   }
 
   const milestone = [10, 25, 50, 100, 250, 500].find(
-    (m) => shots.length === m,
+    (m) => effective.length === m,
   );
   if (milestone) {
     tips.push({
@@ -305,9 +322,11 @@ export function globalTips(beans: Bean[], shots: ShotLog[]): Tip[] {
   }
 
   if (tips.length === 0) {
-    const beanWithMostShots = topBean(beans, shots);
+    const beanWithMostShots = topBean(beans, effective);
     if (beanWithMostShots) {
-      const beanShots = shots.filter((s) => s.beanId === beanWithMostShots.id);
+      const beanShots = effective.filter(
+        (s) => s.beanId === beanWithMostShots.id,
+      );
       const avg = average(beanShots.map((s) => s.rating));
       tips.push({
         id: "active-bean",
@@ -365,9 +384,10 @@ export function tipsForShot(
     });
   }
 
-  if (bean && beanShots.length >= 3) {
-    const others = beanShots.filter((s) => s.id !== shot.id);
-    if (others.length > 0) {
+  const effectiveBeanShots = effectiveShots(beanShots);
+  if (bean && effectiveBeanShots.length >= 3) {
+    const others = effectiveBeanShots.filter((s) => s.id !== shot.id);
+    if (others.length > 0 && !shot.dialIn) {
       const avg = average(others.map((s) => s.rating));
       if (shot.rating - avg >= 1) {
         tips.push({
@@ -384,7 +404,9 @@ export function tipsForShot(
       }
     }
 
-    const topShot = [...beanShots].sort((a, b) => b.rating - a.rating)[0];
+    const topShot = [...effectiveBeanShots].sort(
+      (a, b) => b.rating - a.rating,
+    )[0];
     if (
       topShot &&
       topShot.id !== shot.id &&

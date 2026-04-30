@@ -9,7 +9,7 @@ import { StarRating } from "@/components/StarRating";
 import { EmptyState } from "@/components/EmptyState";
 import { BaristaTips } from "@/components/BaristaTips";
 import { Inventory } from "@/components/Inventory";
-import { average, formatDateOnly, mode } from "@/lib/utils";
+import { average, effectiveShots, formatDateOnly, mode } from "@/lib/utils";
 import { tipsForBean } from "@/lib/tips";
 import type { ShotLog } from "@/lib/types";
 
@@ -32,7 +32,9 @@ export default function BeanDetailPage() {
     if (sortBy === "rating") {
       arr.sort(
         (a, b) =>
-          b.rating - a.rating || +new Date(b.createdAt) - +new Date(a.createdAt),
+          (a.dialIn ? 1 : 0) - (b.dialIn ? 1 : 0) ||
+          b.rating - a.rating ||
+          +new Date(b.createdAt) - +new Date(a.createdAt),
       );
     } else if (sortBy === "time") {
       arr.sort((a, b) => a.extractionTimeSeconds - b.extractionTimeSeconds);
@@ -54,8 +56,10 @@ export default function BeanDetailPage() {
     );
   }
 
-  const avg = average(beanShots.map((s) => s.rating));
-  const bestShots = [...beanShots].sort((a, b) => b.rating - a.rating);
+  const effective = effectiveShots(beanShots);
+  const dialInCount = beanShots.length - effective.length;
+  const avg = average(effective.map((s) => s.rating));
+  const bestShots = [...effective].sort((a, b) => b.rating - a.rating);
   const top = bestShots[0];
   const bestGrind = mode(bestShots.slice(0, 3).map((s) => s.grindSize));
   const lastAdjustment = beanShots.find((s) => s.nextAdjustment);
@@ -100,10 +104,15 @@ export default function BeanDetailPage() {
           <Meta label="Herkomst" value={bean.origin} />
           <Meta label="Soort" value={bean.blend} />
           <Meta label="Branddatum" value={formatDateOnly(bean.roastDate)} numeric />
-          <Meta label="Shots" value={String(beanShots.length)} numeric />
+          <Meta
+            label="Shots"
+            value={String(beanShots.length)}
+            sub={dialInCount > 0 ? `${dialInCount} dial-in` : undefined}
+            numeric
+          />
           <Meta
             label="Gem."
-            value={beanShots.length > 0 ? avg.toFixed(1) : "—"}
+            value={effective.length > 0 ? avg.toFixed(1) : "—"}
             numeric
           />
         </dl>
@@ -180,10 +189,12 @@ export default function BeanDetailPage() {
 function Meta({
   label,
   value,
+  sub,
   numeric = false,
 }: {
   label: string;
   value?: string;
+  sub?: string;
   numeric?: boolean;
 }) {
   return (
@@ -196,6 +207,11 @@ function Meta({
       >
         {value || "—"}
       </dd>
+      {sub && (
+        <p className="text-[10px] uppercase tracking-[0.16em] text-ink-300">
+          {sub}
+        </p>
+      )}
     </div>
   );
 }

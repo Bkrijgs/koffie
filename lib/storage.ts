@@ -91,6 +91,7 @@ export const localStorageBackend: KoffieStorage = {
       createdAt: new Date().toISOString(),
       brewRatio: calcBrewRatio(input.yieldGrams, input.doseGrams),
       ...input,
+      dialIn: input.dialIn ?? false,
     };
     const all = read<ShotLog>(SHOTS_KEY);
     all.push(shot);
@@ -105,6 +106,7 @@ export const localStorageBackend: KoffieStorage = {
       ...all[idx],
       ...input,
       brewRatio: calcBrewRatio(input.yieldGrams, input.doseGrams),
+      dialIn: input.dialIn ?? false,
     };
     all[idx] = updated;
     write(SHOTS_KEY, all);
@@ -164,6 +166,7 @@ type ShotRow = {
   notes: string | null;
   next_adjustment: string | null;
   rating: number;
+  dial_in: boolean | null;
   created_at: string;
 };
 
@@ -214,6 +217,7 @@ function shotFromRow(row: ShotRow): ShotLog {
     notes: row.notes ?? undefined,
     nextAdjustment: row.next_adjustment ?? undefined,
     rating: Number(row.rating) as ShotLog["rating"],
+    dialIn: row.dial_in ?? false,
     createdAt: row.created_at,
   };
 }
@@ -291,6 +295,7 @@ export const supabaseBackend: KoffieStorage = {
         notes: input.notes ?? null,
         next_adjustment: input.nextAdjustment ?? null,
         rating: input.rating,
+        dial_in: input.dialIn ?? false,
       })
       .select("*")
       .single();
@@ -311,6 +316,7 @@ export const supabaseBackend: KoffieStorage = {
         notes: input.notes ?? null,
         next_adjustment: input.nextAdjustment ?? null,
         rating: input.rating,
+        dial_in: input.dialIn ?? false,
       })
       .eq("id", id)
       .select("*")

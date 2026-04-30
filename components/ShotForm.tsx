@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useKoffie } from "@/lib/useKoffie";
-import { calcBrewRatio } from "@/lib/utils";
+import { calcBrewRatio, effectiveShots } from "@/lib/utils";
 import type { Rating, ShotLog } from "@/lib/types";
 import { Field, inputClass } from "./Field";
 import { StarRating } from "./StarRating";
@@ -46,14 +46,18 @@ export function ShotForm({ initialBeanId, shot }: Props) {
   const [nextAdjustment, setNextAdjustment] = useState(
     shot?.nextAdjustment ?? "",
   );
+  const [dialIn, setDialIn] = useState<boolean>(shot?.dialIn ?? false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Suggested values shown only as placeholders. Pulled from the bean's best
-  // shot when one exists, otherwise the Sage Barista Express baseline.
+  // non-dial-in shot when one exists, otherwise the Sage Barista Express
+  // baseline.
   const placeholders = useMemo(() => {
     if (!beanId) return HARD_DEFAULTS;
-    const beanShots = shots.filter((s) => s.beanId === beanId);
+    const beanShots = effectiveShots(
+      shots.filter((s) => s.beanId === beanId),
+    );
     if (beanShots.length === 0) return HARD_DEFAULTS;
     const best = [...beanShots].sort(
       (a, b) =>
@@ -102,6 +106,7 @@ export function ShotForm({ initialBeanId, shot }: Props) {
         yieldGrams: yld,
         extractionTimeSeconds: time,
         rating,
+        dialIn,
         notes: notes.trim() || undefined,
         nextAdjustment: nextAdjustment.trim() || undefined,
       };
@@ -246,6 +251,23 @@ export function ShotForm({ initialBeanId, shot }: Props) {
       <Field label="Rating" required>
         <StarRating value={rating} onChange={(v) => setRating(v)} size="lg" />
       </Field>
+
+      <label className="flex items-start gap-3 rounded-lg border border-line bg-paper px-4 py-3 text-sm">
+        <input
+          id="shot-dial-in"
+          type="checkbox"
+          checked={dialIn}
+          onChange={(e) => setDialIn(e.target.checked)}
+          className="mt-0.5 h-4 w-4 cursor-pointer accent-ink-800"
+        />
+        <span className="min-w-0 flex-1">
+          <span className="font-medium text-ink-800">Dial-in shot</span>
+          <span className="block text-xs text-ink-400">
+            Telt niet mee in gemiddeldes en top-shots — voor shots waarbij
+            je nog aan het instellen was.
+          </span>
+        </span>
+      </label>
 
       <Field label="Smaak" htmlFor="shot-notes">
         <textarea

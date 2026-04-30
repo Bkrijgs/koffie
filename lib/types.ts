@@ -33,6 +33,7 @@ export type ShotLog = {
   notes?: string;
   nextAdjustment?: string;
   rating: Rating;
+  dialIn: boolean;
 };
 
 export type Bag = {

@@ -1,3 +1,14 @@
+import type { ShotLog } from "./types";
+
+/**
+ * Filter out shots that the user marked as a dial-in attempt. Use this
+ * everywhere we aggregate or sort by rating so dial-in shots stay
+ * visible in lists but never skew averages, top-shot detection or trends.
+ */
+export function effectiveShots(shots: ShotLog[]): ShotLog[] {
+  return shots.filter((s) => !s.dialIn);
+}
+
 export function uid(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID();
