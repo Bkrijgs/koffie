@@ -8,7 +8,7 @@ const config: Config = {
         paper: "#faf7f1",
         card: "#ffffff",
         kraft: "#ece2cd",
-        line: "#e3d9c6",
+        line: "#cfd5e8",
         ink: {
           50: "#f1ebde",
           100: "#dccfb6",
