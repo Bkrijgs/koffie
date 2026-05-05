@@ -19,7 +19,7 @@ export function ShotCard({ shot, bean, showBean = true }: Props) {
       <Link
         href={`/shots/${shot.id}/edit`}
         aria-label={`Shot van ${bean?.name ?? "boon"} op ${formatDate(shot.createdAt)} openen`}
-        className="absolute inset-0 z-10 rounded-xl2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-400"
+        className="absolute inset-0 z-10 rounded-xl2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-barista-400"
       >
         <span className="sr-only">Openen</span>
       </Link>

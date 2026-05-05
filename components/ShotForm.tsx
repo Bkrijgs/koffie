@@ -225,11 +225,11 @@ export function ShotForm({ initialBeanId, shot }: Props) {
         </Field>
       </div>
 
-      <div className="flex items-center justify-between rounded-lg border border-line bg-card px-4 py-3 text-sm">
+      <div className="flex items-center justify-between rounded-lg border border-barista-100 bg-card px-4 py-3 text-sm">
         <span className="text-[11px] uppercase tracking-[0.14em] text-ink-400">
           Brew ratio
         </span>
-        <span className="numeric font-display text-lg tracking-tightish text-ink-800">
+        <span className="numeric font-display text-lg tracking-tightish text-barista-400">
           {ratio > 0 ? `1 : ${ratio.toFixed(2)}` : "—"}
         </span>
       </div>
