@@ -5,9 +5,9 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        paper: "#faf7f1",
+        paper: "#f4f6fb",
         card: "#ffffff",
-        kraft: "#ece2cd",
+        kraft: "#e4e8f1",
         line: "#cfd5e8",
         ink: {
           50: "#f1ebde",
