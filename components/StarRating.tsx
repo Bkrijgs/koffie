@@ -102,7 +102,7 @@ function Star({
         onFocus={() => onHover(half)}
         onBlur={() => onHover(0)}
         onClick={() => onPick(half)}
-        className="absolute inset-y-0 left-0 w-1/2 cursor-pointer rounded-l focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400"
+        className="absolute inset-y-0 left-0 w-1/2 cursor-pointer rounded-l focus:outline-none focus-visible:ring-2 focus-visible:ring-barista-400"
       />
       <button
         type="button"
@@ -114,7 +114,7 @@ function Star({
         onFocus={() => onHover(full)}
         onBlur={() => onHover(0)}
         onClick={() => onPick(full)}
-        className="absolute inset-y-0 right-0 w-1/2 cursor-pointer rounded-r focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400"
+        className="absolute inset-y-0 right-0 w-1/2 cursor-pointer rounded-r focus:outline-none focus-visible:ring-2 focus-visible:ring-barista-400"
       />
     </span>
   );

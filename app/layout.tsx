@@ -26,7 +26,7 @@ export default function RootLayout({
           <div className="mx-auto flex max-w-3xl items-center justify-between px-5 py-4">
             <Link
               href="/"
-              className="font-display text-xl tracking-tightish text-ink-800"
+              className="font-display text-xl tracking-tightish text-barista-400 transition hover:text-barista-500"
             >
               koffie
             </Link>

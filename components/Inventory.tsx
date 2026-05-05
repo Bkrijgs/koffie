@@ -123,7 +123,7 @@ function OpenBag({
         aria-valuemax={100}
       >
         <div
-          className="h-full bg-ink-800 transition-all"
+          className="h-full bg-barista-400 transition-all"
           style={{ width: `${pctUsed}%` }}
         />
       </div>
