@@ -51,24 +51,28 @@ export function ShotForm({ initialBeanId, shot }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   // Suggested values shown only as placeholders. Pulled from the bean's best
-  // non-dial-in shot when one exists, otherwise the Sage Barista Express
+  // non-dial-in shot, otherwise the bean's most recent shot (so dial-in-only
+  // beans still get bean-specific hints), otherwise the Sage Barista Express
   // baseline.
   const placeholders = useMemo(() => {
     if (!beanId) return HARD_DEFAULTS;
-    const beanShots = effectiveShots(
-      shots.filter((s) => s.beanId === beanId),
-    );
+    const beanShots = shots.filter((s) => s.beanId === beanId);
     if (beanShots.length === 0) return HARD_DEFAULTS;
-    const best = [...beanShots].sort(
-      (a, b) =>
-        b.rating - a.rating ||
-        +new Date(b.createdAt) - +new Date(a.createdAt),
-    )[0];
+    const rated = effectiveShots(beanShots);
+    const source = rated.length > 0
+      ? [...rated].sort(
+          (a, b) =>
+            b.rating - a.rating ||
+            +new Date(b.createdAt) - +new Date(a.createdAt),
+        )[0]
+      : [...beanShots].sort(
+          (a, b) => +new Date(b.createdAt) - +new Date(a.createdAt),
+        )[0];
     return {
-      grindSize: best.grindSize,
-      doseGrams: String(best.doseGrams),
-      yieldGrams: String(best.yieldGrams),
-      extractionTimeSeconds: String(best.extractionTimeSeconds),
+      grindSize: source.grindSize,
+      doseGrams: String(source.doseGrams),
+      yieldGrams: String(source.yieldGrams),
+      extractionTimeSeconds: String(source.extractionTimeSeconds),
     };
   }, [beanId, shots]);
 
