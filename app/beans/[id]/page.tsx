@@ -8,7 +8,6 @@ import { ShotCard } from "@/components/ShotCard";
 import { StarRating } from "@/components/StarRating";
 import { EmptyState } from "@/components/EmptyState";
 import { BaristaTips } from "@/components/BaristaTips";
-import { Inventory } from "@/components/Inventory";
 import { average, effectiveShots, formatDateOnly, mode } from "@/lib/utils";
 import { tipsForBean } from "@/lib/tips";
 import type { ShotLog } from "@/lib/types";
@@ -18,7 +17,7 @@ type SortKey = "date" | "rating" | "time";
 export default function BeanDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id;
-  const { ready, beans, shots, bags } = useKoffie();
+  const { ready, beans, shots } = useKoffie();
   const [sortBy, setSortBy] = useState<SortKey>("date");
 
   const bean = useMemo(() => beans.find((b) => b.id === id), [beans, id]);
@@ -125,8 +124,6 @@ export default function BeanDetailPage() {
       </header>
 
       <BaristaTips tips={tips} />
-
-      <Inventory beanId={bean.id} bags={bags} shots={shots} />
 
       {beanShots.length > 0 && (
         <section className="rounded-xl2 border border-line bg-card p-5 shadow-soft">
