@@ -8,6 +8,7 @@ import { ShotCard } from "@/components/ShotCard";
 import { StarRating } from "@/components/StarRating";
 import { EmptyState } from "@/components/EmptyState";
 import { BaristaTips } from "@/components/BaristaTips";
+import { RatingCurve } from "@/components/RatingCurve";
 import { average, effectiveShots, formatDateOnly, mode } from "@/lib/utils";
 import { tipsForBean } from "@/lib/tips";
 import type { ShotLog } from "@/lib/types";
@@ -124,6 +125,15 @@ export default function BeanDetailPage() {
       </header>
 
       <BaristaTips tips={tips} />
+
+      {beanShots.length > 0 && (
+        <section>
+          <p className="mb-2 text-[10px] uppercase tracking-[0.16em] text-ink-300">
+            Rating-curve
+          </p>
+          <RatingCurve shots={beanShots} roastDate={bean.roastDate} />
+        </section>
+      )}
 
       {beanShots.length > 0 && (
         <section className="rounded-xl2 border border-line bg-card p-5 shadow-soft">

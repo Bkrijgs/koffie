@@ -5,6 +5,7 @@ import { useKoffie } from "@/lib/useKoffie";
 import { ShotCard } from "@/components/ShotCard";
 import { EmptyState } from "@/components/EmptyState";
 import { BaristaTips } from "@/components/BaristaTips";
+import { ShotHeatmap } from "@/components/ShotHeatmap";
 import { average, effectiveShots } from "@/lib/utils";
 import { globalTips } from "@/lib/tips";
 
@@ -64,6 +65,13 @@ export default function DashboardPage() {
       )}
 
       <BaristaTips tips={tips} />
+
+      {shots.length > 0 && (
+        <section>
+          <SectionHeader title="Activiteit" />
+          <ShotHeatmap shots={shots} />
+        </section>
+      )}
 
       <section>
         <SectionHeader
