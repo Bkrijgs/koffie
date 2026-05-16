@@ -50,6 +50,58 @@ function daysBetween(iso: string, now = Date.now()): number {
   return Math.floor((now - +new Date(iso)) / (1000 * 60 * 60 * 24));
 }
 
+type TodBucket = "ochtend" | "middag" | "avond";
+
+function hourBucket(iso: string): TodBucket {
+  const h = new Date(iso).getHours();
+  if (h >= 5 && h < 12) return "ochtend";
+  if (h >= 12 && h < 17) return "middag";
+  return "avond";
+}
+
+function bestTodPattern(
+  shots: ShotLog[],
+): { best: TodBucket; other: TodBucket; bestAvg: number; otherAvg: number } | null {
+  const buckets: Record<TodBucket, number[]> = {
+    ochtend: [],
+    middag: [],
+    avond: [],
+  };
+  for (const s of shots) buckets[hourBucket(s.createdAt)].push(s.rating);
+  const entries = (Object.entries(buckets) as [TodBucket, number[]][]).filter(
+    ([, arr]) => arr.length >= 3,
+  );
+  if (entries.length < 2) return null;
+  const stats = entries.map(([k, arr]) => ({ k, avg: average(arr) }));
+  stats.sort((a, b) => b.avg - a.avg);
+  const top = stats[0];
+  const bottom = stats[stats.length - 1];
+  if (top.avg - bottom.avg < 0.5) return null;
+  return {
+    best: top.k,
+    other: bottom.k,
+    bestAvg: top.avg,
+    otherAvg: bottom.avg,
+  };
+}
+
+function tagAggregates(
+  shots: ShotLog[],
+): { tag: string; avg: number; count: number }[] {
+  const map = new Map<string, number[]>();
+  for (const s of shots) {
+    if (!s.tags) continue;
+    for (const t of s.tags) {
+      const arr = map.get(t) ?? [];
+      arr.push(s.rating);
+      map.set(t, arr);
+    }
+  }
+  return Array.from(map.entries())
+    .filter(([, arr]) => arr.length >= 3)
+    .map(([tag, arr]) => ({ tag, avg: average(arr), count: arr.length }));
+}
+
 /**
  * Bean-specific tips. Input shots are expected newest-first.
  *
@@ -186,7 +238,45 @@ export function tipsForBean(bean: Bean, shots: ShotLog[]): Tip[] {
     }
   }
 
+  if (effective.length >= 6) {
+    const tod = bestTodPattern(effective);
+    if (tod) {
+      tips.push({
+        id: "tod-pattern",
+        kind: "info",
+        text: `${cap(tod.best)} shots scoren gem. ${tod.bestAvg.toFixed(1)}★ vs ${tod.otherAvg.toFixed(1)}★ ${tod.other}.`,
+      });
+    }
+
+    const beanAvg = average(effective.map((s) => s.rating));
+    const aggs = tagAggregates(effective);
+    const best = [...aggs]
+      .filter((a) => a.avg >= 4 && a.avg - beanAvg >= 0.5)
+      .sort((a, b) => b.avg - a.avg)[0];
+    if (best) {
+      tips.push({
+        id: "tag-best",
+        kind: "info",
+        text: `'${best.tag}' shots scoren gem. ${best.avg.toFixed(1)}★ bij deze boon.`,
+      });
+    }
+    const worst = [...aggs]
+      .filter((a) => beanAvg - a.avg >= 0.5)
+      .sort((a, b) => a.avg - b.avg)[0];
+    if (worst && (!best || worst.tag !== best.tag)) {
+      tips.push({
+        id: "tag-worst",
+        kind: "warn",
+        text: `'${worst.tag}' shots blijven steken op ${worst.avg.toFixed(1)}★ — andere extractie proberen?`,
+      });
+    }
+  }
+
   return dedupe(tips).slice(0, 3);
+}
+
+function cap(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 /**
@@ -250,6 +340,18 @@ export function globalTips(beans: Bean[], shots: ShotLog[]): Tip[] {
       kind: "info",
       text: `Geen shot in ${daysSinceLast} dagen. Bonen hebben mogelijk een fijnere maling nodig.`,
     });
+  }
+
+  if (effective.length >= 10) {
+    const tod = bestTodPattern(effective);
+    if (tod) {
+      const diff = tod.bestAvg - tod.otherAvg;
+      tips.push({
+        id: "global-tod",
+        kind: "info",
+        text: `${cap(tod.best)} shots scoren gem. ${tod.bestAvg.toFixed(1)}★ — ${diff.toFixed(1)}★ hoger dan ${tod.other}.`,
+      });
+    }
   }
 
   const recent10 = effective.slice(0, 10);
