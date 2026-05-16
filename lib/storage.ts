@@ -8,6 +8,7 @@ import type {
   ShotLog,
 } from "./types";
 import { calcBrewRatio, uid } from "./utils";
+import { sanitizeTags } from "./tags";
 
 /**
  * Storage abstraction. The app uses Supabase when configured, and falls back
@@ -86,12 +87,14 @@ export const localStorageBackend: KoffieStorage = {
     );
   },
   async addShot(input) {
+    const tags = sanitizeTags(input.tags);
     const shot: ShotLog = {
       id: uid(),
       createdAt: new Date().toISOString(),
       brewRatio: calcBrewRatio(input.yieldGrams, input.doseGrams),
       ...input,
       dialIn: input.dialIn ?? false,
+      tags: tags.length > 0 ? tags : undefined,
     };
     const all = read<ShotLog>(SHOTS_KEY);
     all.push(shot);
@@ -102,11 +105,13 @@ export const localStorageBackend: KoffieStorage = {
     const all = read<ShotLog>(SHOTS_KEY);
     const idx = all.findIndex((s) => s.id === id);
     if (idx === -1) throw new Error("Shot niet gevonden");
+    const tags = sanitizeTags(input.tags);
     const updated: ShotLog = {
       ...all[idx],
       ...input,
       brewRatio: calcBrewRatio(input.yieldGrams, input.doseGrams),
       dialIn: input.dialIn ?? false,
+      tags: tags.length > 0 ? tags : undefined,
     };
     all[idx] = updated;
     write(SHOTS_KEY, all);
@@ -167,6 +172,7 @@ type ShotRow = {
   next_adjustment: string | null;
   rating: number;
   dial_in: boolean | null;
+  tags: string[] | null;
   created_at: string;
 };
 
@@ -206,6 +212,7 @@ function bagFromRow(row: BagRow): Bag {
 }
 
 function shotFromRow(row: ShotRow): ShotLog {
+  const tags = sanitizeTags(row.tags);
   return {
     id: row.id,
     beanId: row.bean_id,
@@ -218,6 +225,7 @@ function shotFromRow(row: ShotRow): ShotLog {
     nextAdjustment: row.next_adjustment ?? undefined,
     rating: Number(row.rating) as ShotLog["rating"],
     dialIn: row.dial_in ?? false,
+    tags: tags.length > 0 ? tags : undefined,
     createdAt: row.created_at,
   };
 }
@@ -296,6 +304,7 @@ export const supabaseBackend: KoffieStorage = {
         next_adjustment: input.nextAdjustment ?? null,
         rating: input.rating,
         dial_in: input.dialIn ?? false,
+        tags: sanitizeTags(input.tags),
       })
       .select("*")
       .single();
@@ -317,6 +326,7 @@ export const supabaseBackend: KoffieStorage = {
         next_adjustment: input.nextAdjustment ?? null,
         rating: input.rating,
         dial_in: input.dialIn ?? false,
+        tags: sanitizeTags(input.tags),
       })
       .eq("id", id)
       .select("*")

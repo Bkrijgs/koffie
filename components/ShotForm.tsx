@@ -9,6 +9,7 @@ import { Field, inputClass } from "./Field";
 import { StarRating } from "./StarRating";
 import { BeanForm } from "./BeanForm";
 import { Barista } from "./Barista";
+import { TASTE_TAGS } from "@/lib/tags";
 
 type Props = {
   initialBeanId?: string;
@@ -47,8 +48,15 @@ export function ShotForm({ initialBeanId, shot }: Props) {
     shot?.nextAdjustment ?? "",
   );
   const [dialIn, setDialIn] = useState<boolean>(shot?.dialIn ?? false);
+  const [tags, setTags] = useState<string[]>(shot?.tags ?? []);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  function toggleTag(tag: string) {
+    setTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
+    );
+  }
 
   // Suggested values shown only as placeholders. Pulled from the bean's best
   // non-dial-in shot, otherwise the bean's most recent shot (so dial-in-only
@@ -113,6 +121,7 @@ export function ShotForm({ initialBeanId, shot }: Props) {
         dialIn,
         notes: notes.trim() || undefined,
         nextAdjustment: nextAdjustment.trim() || undefined,
+        tags: tags.length > 0 ? tags : undefined,
       };
       if (shot) {
         await updateShot(shot.id, payload);
@@ -273,13 +282,38 @@ export function ShotForm({ initialBeanId, shot }: Props) {
         </span>
       </label>
 
+      <div>
+        <span className="mb-1.5 block text-[11px] font-medium uppercase tracking-[0.14em] text-ink-400">
+          Smaakprofiel
+        </span>
+        <div className="flex flex-wrap gap-1.5">
+          {TASTE_TAGS.map((tag) => {
+            const selected = tags.includes(tag);
+            return (
+              <button
+                key={tag}
+                type="button"
+                onClick={() => toggleTag(tag)}
+                className={`rounded-full border px-2.5 py-1 text-xs transition ${
+                  selected
+                    ? "border-ink-800 bg-ink-800 text-paper"
+                    : "border-line text-ink-500 hover:bg-ink-50/40"
+                }`}
+              >
+                {tag}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       <Field label="Smaak" htmlFor="shot-notes">
         <textarea
           id="shot-notes"
           className={`${inputClass} min-h-[70px]`}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          placeholder="Fruitig, zuur, balans"
+          placeholder="Extra: balans, body, afdronk"
         />
       </Field>
 
