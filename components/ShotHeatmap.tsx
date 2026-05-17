@@ -5,7 +5,8 @@ type Props = {
   shots: ShotLog[];
 };
 
-const WEEKS = 12;
+const MIN_WEEKS = 4;
+const MAX_WEEKS = 12;
 const MONTHS_NL = [
   "jan",
   "feb",
@@ -38,6 +39,16 @@ export function ShotHeatmap({ shots }: Props) {
 
   const today = startOfDay(new Date());
   const dow = (today.getDay() + 6) % 7; // 0 = Monday
+
+  // Schaal het venster naar je oudste shot, met een buffer-week vóór die
+  // datum zodat de eerste cel niet helemaal in de hoek staat. Zo blijft de
+  // heatmap compact voor nieuwe gebruikers en groeit hij mee tot 12 weken.
+  const oldestMs = Math.min(
+    ...effective.map((s) => +startOfDay(new Date(s.createdAt))),
+  );
+  const daysSinceOldest = Math.floor((+today - oldestMs) / (1000 * 60 * 60 * 24));
+  const weeksSpan = Math.ceil((daysSinceOldest + 1) / 7) + 1;
+  const WEEKS = Math.min(MAX_WEEKS, Math.max(MIN_WEEKS, weeksSpan));
 
   const firstMonday = new Date(today);
   firstMonday.setDate(today.getDate() - dow - (WEEKS - 1) * 7);
@@ -100,7 +111,8 @@ export function ShotHeatmap({ shots }: Props) {
     <div>
       <p className="mb-3 text-xs text-ink-400">
         <span className="numeric text-ink-700">{total}</span>{" "}
-        {total === 1 ? "shot" : "shots"} in 12 weken
+        {total === 1 ? "shot" : "shots"} in {WEEKS}{" "}
+        {WEEKS === 1 ? "week" : "weken"}
       </p>
 
       <div className="flex items-start gap-2">
