@@ -6,8 +6,14 @@ import { ShotCard } from "@/components/ShotCard";
 import { EmptyState } from "@/components/EmptyState";
 import { BaristaTips } from "@/components/BaristaTips";
 import { ShotHeatmap } from "@/components/ShotHeatmap";
+import { BootSplash } from "@/components/BootSplash";
 import { average, effectiveShots } from "@/lib/utils";
 import { globalTips } from "@/lib/tips";
+import { useCountUp } from "@/lib/useCountUp";
+
+// Boot-splash duurt ~1.7s. Tellers starten daar net na zodat de
+// count-up zichtbaar is op het moment dat de splash uitfade.
+const COUNT_DELAY = 1500;
 
 export default function DashboardPage() {
   const { ready, beans, shots } = useKoffie();
@@ -32,6 +38,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-10">
+      <BootSplash />
       <section className="flex items-end justify-between gap-6">
         <div>
           <h1 className="font-display text-3xl tracking-tighter2 text-ink-800 sm:text-4xl">
@@ -51,15 +58,17 @@ export default function DashboardPage() {
 
       {shots.length > 0 && (
         <section className="grid grid-cols-3 gap-px overflow-hidden rounded-xl2 border border-line bg-line">
-          <Stat
+          <CountStat
             label="Shots"
-            value={String(shots.length)}
+            target={shots.length}
             sub={dialInCount > 0 ? `${dialInCount} dial-in` : undefined}
           />
-          <Stat label="Bonen" value={String(beans.length)} />
-          <Stat
+          <CountStat label="Bonen" target={beans.length} />
+          <CountStat
             label="Gem. rating"
-            value={avgRating > 0 ? avgRating.toFixed(1) : "—"}
+            target={avgRating}
+            decimals={1}
+            fallback="—"
           />
         </section>
       )}
@@ -131,22 +140,32 @@ function SectionHeader({
   );
 }
 
-function Stat({
+function CountStat({
   label,
-  value,
+  target,
   sub,
+  decimals = 0,
+  fallback,
 }: {
   label: string;
-  value: string;
+  target: number;
   sub?: string;
+  decimals?: number;
+  fallback?: string;
 }) {
+  const shown = useCountUp(target, {
+    delay: COUNT_DELAY,
+    duration: 900,
+    decimals,
+  });
+  const display = fallback && target <= 0 ? fallback : shown;
   return (
     <div className="bg-card px-4 py-5 text-center">
       <p className="text-[10px] uppercase tracking-[0.18em] text-ink-300">
         {label}
       </p>
       <p className="numeric mt-1 font-display text-2xl tracking-tightish text-ink-800">
-        {value}
+        {display}
       </p>
       {sub && (
         <p className="numeric mt-0.5 text-[10px] uppercase tracking-[0.18em] text-ink-300">

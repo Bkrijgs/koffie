@@ -115,6 +115,15 @@ button {
   }
 }
 
+@keyframes blink {
+  0%, 60% {
+    opacity: 1;
+  }
+  61%, 100% {
+    opacity: 0;
+  }
+}
+
 .anim-fade-up {
   animation: fade-up 0.35s ease-out both;
 }
@@ -138,6 +147,10 @@ button {
   animation: pop-in 0.35s ease-out both;
 }
 
+.animate-blink {
+  animation: blink 1.1s steps(1, end) infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .barista-anim,
   .barista-anim:hover,
@@ -145,7 +158,8 @@ button {
   .anim-fade-in,
   .anim-curve-line,
   .anim-curve-area,
-  .anim-curve-point {
+  .anim-curve-point,
+  .animate-blink {
     animation: none;
   }
 }
