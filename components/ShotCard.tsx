@@ -12,7 +12,7 @@ type Props = {
 export function ShotCard({ shot, bean, showBean = true }: Props) {
   const dimmed = shot.dialIn ? "opacity-70" : "";
   return (
-    <article className="group relative cursor-pointer rounded-xl2 border border-line bg-card p-5 shadow-soft transition hover:shadow-lift">
+    <article className="group relative cursor-pointer rounded-xl2 border border-line bg-card p-5 shadow-soft transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lift hover:border-barista-100">
       {/* Stretched link overlay: covers the entire card so clicks anywhere
           open the shot for editing. The bean name uses `position: relative`
           to sit above this overlay and keep its own destination. */}

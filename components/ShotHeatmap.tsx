@@ -133,7 +133,7 @@ export function ShotHeatmap({ shots }: Props) {
                   ) : (
                     <div
                       key={ri}
-                      className={`h-4 w-4 rounded-sm ${bucketClass(cell.count)}`}
+                      className={`h-4 w-4 rounded-sm transition-transform duration-150 hover:scale-150 ${bucketClass(cell.count)}`}
                       title={`${formatDateOnly(cell.date.toISOString())} — ${
                         cell.count
                       } shot${cell.count !== 1 ? "s" : ""}`}

@@ -15,7 +15,7 @@ export function BeanCard({ bean, shots }: Props) {
   return (
     <Link
       href={`/beans/${bean.id}`}
-      className="group block rounded-xl2 bg-kraft p-5 ring-1 ring-line transition hover:ring-ink-200"
+      className="group block rounded-xl2 bg-kraft p-5 ring-1 ring-line transition-all duration-200 ease-out hover:-translate-y-0.5 hover:ring-barista-300 hover:shadow-soft"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">

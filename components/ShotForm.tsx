@@ -307,10 +307,10 @@ export function ShotForm({ initialBeanId, shot }: Props) {
                 key={tag}
                 type="button"
                 onClick={() => toggleTag(tag)}
-                className={`rounded-full border px-2.5 py-1 text-xs transition ${
+                className={`rounded-full border px-2.5 py-1 text-xs transition-all duration-150 ease-out active:scale-90 ${
                   selected
-                    ? "border-ink-800 bg-ink-800 text-paper"
-                    : "border-line text-ink-500 hover:bg-ink-50/40"
+                    ? "border-ink-800 bg-ink-800 text-paper scale-105"
+                    : "border-line text-ink-500 hover:bg-ink-50/40 hover:scale-105"
                 }`}
               >
                 {tag}
