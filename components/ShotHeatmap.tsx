@@ -6,7 +6,7 @@ type Props = {
 };
 
 const MIN_WEEKS = 4;
-const MAX_WEEKS = 12;
+const MAX_WEEKS = 20;
 const MONTHS_NL = [
   "jan",
   "feb",
