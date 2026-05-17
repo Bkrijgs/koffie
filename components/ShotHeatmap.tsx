@@ -28,9 +28,9 @@ function startOfDay(d: Date): Date {
 
 function bucketClass(count: number): string {
   if (count === 0) return "bg-line";
-  if (count === 1) return "bg-barista-100";
-  if (count === 2) return "bg-barista-300";
-  return "bg-barista-400";
+  if (count === 1) return "bg-barista-300/50";
+  if (count === 2) return "bg-barista-400";
+  return "bg-barista-500";
 }
 
 export function ShotHeatmap({ shots }: Props) {
@@ -149,9 +149,9 @@ export function ShotHeatmap({ shots }: Props) {
       <div className="mt-3 flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-ink-300">
         <span>Minder</span>
         <span className="h-3 w-3 rounded-sm bg-line" />
-        <span className="h-3 w-3 rounded-sm bg-barista-100" />
-        <span className="h-3 w-3 rounded-sm bg-barista-300" />
+        <span className="h-3 w-3 rounded-sm bg-barista-300/50" />
         <span className="h-3 w-3 rounded-sm bg-barista-400" />
+        <span className="h-3 w-3 rounded-sm bg-barista-500" />
         <span>Meer</span>
       </div>
     </div>
