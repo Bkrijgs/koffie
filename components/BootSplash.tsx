@@ -97,48 +97,40 @@ export function BootSplash() {
           }}
         />
 
-        {/* Surface ripples — twee paths die hun shape morphen via SMIL
-            zodat het oppervlak echt ademt, niet gewoon horizontaal
-            schuift. Strak op de menisk, vallen weg naar beneden. */}
-        <svg
+        {/* Surface ripples — twee SVG-paths op het oppervlak die
+            horizontaal schuiven via CSS keyframes. SVG is 200% breed
+            zodat de translate van 0 → -50% naadloos loopt; de wave
+            pattern herhaalt zich elke 100 viewBox-units zodat de
+            cyclus klopt. Twee snelheden + tegengestelde richtingen
+            geven parallax. Geen SMIL = betrouwbaar op iOS. */}
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 h-10 overflow-hidden"
+          style={{ transform: "translateY(-50%)" }}
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 -top-1 h-10 w-full"
-          viewBox="0 0 200 40"
-          preserveAspectRatio="none"
         >
-          <path fill="rgba(244, 246, 251, 0.22)">
-            <animate
-              attributeName="d"
-              dur="5.5s"
-              repeatCount="indefinite"
-              values="
-                M0,18 Q50,8 100,18 T200,18 V40 H0 Z;
-                M0,18 Q50,24 100,18 T200,18 V40 H0 Z;
-                M0,18 Q50,12 100,18 T200,18 V40 H0 Z;
-                M0,18 Q50,8 100,18 T200,18 V40 H0 Z
-              "
-              calcMode="spline"
-              keyTimes="0; 0.33; 0.66; 1"
-              keySplines="0.42 0 0.58 1; 0.42 0 0.58 1; 0.42 0 0.58 1"
+          <svg
+            viewBox="0 0 200 30"
+            preserveAspectRatio="none"
+            className="anim-wave-back absolute inset-y-0 left-0 h-full"
+            style={{ width: "200%" }}
+          >
+            <path
+              d="M0 15 Q25 5 50 15 T100 15 T150 15 T200 15 V30 H0 Z"
+              fill="rgba(244, 246, 251, 0.22)"
             />
-          </path>
-          <path fill="rgba(244, 246, 251, 0.32)">
-            <animate
-              attributeName="d"
-              dur="3.8s"
-              repeatCount="indefinite"
-              values="
-                M0,24 Q50,18 100,24 T200,24 V40 H0 Z;
-                M0,24 Q50,30 100,24 T200,24 V40 H0 Z;
-                M0,24 Q50,20 100,24 T200,24 V40 H0 Z;
-                M0,24 Q50,18 100,24 T200,24 V40 H0 Z
-              "
-              calcMode="spline"
-              keyTimes="0; 0.33; 0.66; 1"
-              keySplines="0.42 0 0.58 1; 0.42 0 0.58 1; 0.42 0 0.58 1"
+          </svg>
+          <svg
+            viewBox="0 0 200 30"
+            preserveAspectRatio="none"
+            className="anim-wave-front absolute inset-y-0 left-0 h-full"
+            style={{ width: "200%" }}
+          >
+            <path
+              d="M0 18 Q25 26 50 18 T100 18 T150 18 T200 18 V30 H0 Z"
+              fill="rgba(244, 246, 251, 0.36)"
             />
-          </path>
-        </svg>
+          </svg>
+        </div>
       </div>
 
       {/* Content */}
@@ -148,12 +140,10 @@ export function BootSplash() {
         }`}
       >
         <div className="flex w-full max-w-sm flex-col items-center gap-7 text-paper">
-          {/* mix-blend-mode multiply maakt het witte videoframe transparant
-              zodat de barista direct op de gradient zit i.p.v. in een
-              witte box. */}
-          <div style={{ mixBlendMode: "multiply" }}>
-            <Barista size={120} mood="wave" />
-          </div>
+          {/* Statische SVG i.p.v. video — geen wit frame om weg te
+              blenden, geen iOS Safari flicker. Bob-animatie zit
+              ingebakken in de SVG class. */}
+          <Barista size={120} />
 
           <div className="flex flex-col items-center gap-2 text-center">
             <h1 className="font-display text-3xl tracking-tighter2 text-paper">
