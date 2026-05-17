@@ -12,11 +12,11 @@ const STAGES: Stage[] = [
   { label: "Crema controleren" },
 ];
 
-const FILL_MS = 1100; // duur van de liquid-fill keyframe
-const CONTENT_DELAY_MS = 950; // content verschijnt vlak vóór de fill klaar is
-const STAGE_MS = 300;
-const POST_DELAY_MS = 350;
-const FADE_MS = 350;
+const FILL_MS = 1300;
+const CONTENT_DELAY_MS = 1050;
+const STAGE_MS = 320;
+const POST_DELAY_MS = 400;
+const FADE_MS = 400;
 const TYPE_MS = 55;
 
 function greeting(now = new Date()): { hi: string; sub: string } {
@@ -36,13 +36,11 @@ export function BootSplash() {
   );
   const [{ hi, sub }] = useState(greeting);
 
-  // Content komt in beeld zodra de liquid bijna boven is.
   useEffect(() => {
     const t = window.setTimeout(() => setPhase("content"), CONTENT_DELAY_MS);
     return () => window.clearTimeout(t);
   }, []);
 
-  // Typewriter — start zodra de content phase begint
   useEffect(() => {
     if (phase === "filling") return;
     if (typed.length >= hi.length) return;
@@ -53,7 +51,6 @@ export function BootSplash() {
     return () => window.clearTimeout(t);
   }, [phase, typed, hi]);
 
-  // Stage cycling
   useEffect(() => {
     if (phase !== "content") return;
     if (stage >= STAGES.length) {
@@ -74,77 +71,111 @@ export function BootSplash() {
   if (phase === "gone") return null;
 
   const showContent = phase === "content" || phase === "leaving";
+  const typingDone = typed.length >= hi.length;
 
   return (
     <div
-      className="fixed inset-0 z-50 overflow-hidden bg-paper transition-opacity duration-300 ease-out"
+      className="fixed inset-0 z-50 overflow-hidden bg-paper transition-opacity duration-400 ease-out"
       style={{
         opacity: phase === "leaving" ? 0 : 1,
         pointerEvents: phase === "leaving" ? "none" : "auto",
       }}
       aria-hidden={phase === "leaving"}
     >
-      {/* De vloeistof — als een glas dat zich vult. Lichter blauw met een
-          subtiel gradient voor diepte, en twee parallax-waves op het
-          oppervlak die met verschillende snelheden over elkaar schuiven
-          zodat het echt bewegend water voelt. */}
+      {/* Stijgende vloeistof. Crème bovenin, espresso onderin — als een
+          shot dat zich onder de crema-laag opbouwt. Veel zachter dan de
+          vorige vol-saturated indigo. */}
       <div
         className="anim-liquid-fill absolute inset-0 will-change-transform"
         style={{ animationDuration: `${FILL_MS}ms` }}
       >
-        <div className="absolute inset-0 bg-gradient-to-b from-barista-300 to-barista-400" />
         <div
-          className="pointer-events-none absolute inset-x-0 -top-2 h-8 overflow-hidden"
+          className="absolute inset-0"
+          style={{
+            backgroundImage:
+              "linear-gradient(to top, #3340c0 0%, #5b66ed 45%, #97a3ee 85%, #c4cbf3 100%)",
+          }}
+        />
+
+        {/* Surface ripples — twee paths die hun shape morphen via SMIL
+            zodat het oppervlak echt ademt, niet gewoon horizontaal
+            schuift. Strak op de menisk, vallen weg naar beneden. */}
+        <svg
           aria-hidden
+          className="pointer-events-none absolute inset-x-0 -top-1 h-10 w-full"
+          viewBox="0 0 200 40"
+          preserveAspectRatio="none"
         >
-          <svg
-            viewBox="0 0 400 60"
-            preserveAspectRatio="none"
-            className="anim-wave-back absolute inset-y-0 left-0 h-full w-[200%]"
-          >
-            <path
-              d="M0 32 Q25 18 50 32 T100 32 T150 32 T200 32 T250 32 T300 32 T350 32 T400 32 V60 H0 Z"
-              className="fill-paper/15"
+          <path fill="rgba(244, 246, 251, 0.22)">
+            <animate
+              attributeName="d"
+              dur="5.5s"
+              repeatCount="indefinite"
+              values="
+                M0,18 Q50,8 100,18 T200,18 V40 H0 Z;
+                M0,18 Q50,24 100,18 T200,18 V40 H0 Z;
+                M0,18 Q50,12 100,18 T200,18 V40 H0 Z;
+                M0,18 Q50,8 100,18 T200,18 V40 H0 Z
+              "
+              calcMode="spline"
+              keyTimes="0; 0.33; 0.66; 1"
+              keySplines="0.42 0 0.58 1; 0.42 0 0.58 1; 0.42 0 0.58 1"
             />
-          </svg>
-          <svg
-            viewBox="0 0 400 60"
-            preserveAspectRatio="none"
-            className="anim-wave-front absolute inset-y-0 left-0 h-full w-[200%]"
-          >
-            <path
-              d="M0 40 Q25 26 50 40 T100 40 T150 40 T200 40 T250 40 T300 40 T350 40 T400 40 V60 H0 Z"
-              className="fill-paper/25"
+          </path>
+          <path fill="rgba(244, 246, 251, 0.32)">
+            <animate
+              attributeName="d"
+              dur="3.8s"
+              repeatCount="indefinite"
+              values="
+                M0,24 Q50,18 100,24 T200,24 V40 H0 Z;
+                M0,24 Q50,30 100,24 T200,24 V40 H0 Z;
+                M0,24 Q50,20 100,24 T200,24 V40 H0 Z;
+                M0,24 Q50,18 100,24 T200,24 V40 H0 Z
+              "
+              calcMode="spline"
+              keyTimes="0; 0.33; 0.66; 1"
+              keySplines="0.42 0 0.58 1; 0.42 0 0.58 1; 0.42 0 0.58 1"
             />
-          </svg>
-        </div>
+          </path>
+        </svg>
       </div>
 
-      {/* Content — verschijnt zodra de vloeistof boven is */}
+      {/* Content */}
       <div
-        className={`relative flex h-full w-full items-center justify-center px-6 transition-opacity duration-300 ${
+        className={`relative flex h-full w-full items-center justify-center px-6 transition-opacity duration-400 ${
           showContent ? "opacity-100" : "opacity-0"
         }`}
       >
-        <div className="flex w-full max-w-sm flex-col items-center gap-6 text-paper">
-          <Barista size={120} mood="wave" />
+        <div className="flex w-full max-w-sm flex-col items-center gap-7 text-paper">
+          {/* mix-blend-mode multiply maakt het witte videoframe transparant
+              zodat de barista direct op de gradient zit i.p.v. in een
+              witte box. */}
+          <div style={{ mixBlendMode: "multiply" }}>
+            <Barista size={120} mood="wave" />
+          </div>
 
-          <div className="flex flex-col items-center gap-1.5 text-center">
+          <div className="flex flex-col items-center gap-2 text-center">
             <h1 className="font-display text-3xl tracking-tighter2 text-paper">
               {typed}
-              <span className="ml-0.5 inline-block w-[2px] bg-paper align-middle animate-blink">
-                &nbsp;
-              </span>
+              {!typingDone && (
+                <span
+                  className="ml-0.5 inline-block animate-blink"
+                  aria-hidden
+                >
+                  |
+                </span>
+              )}
             </h1>
             <p
-              className="text-xs uppercase tracking-[0.18em] text-paper/60 anim-fade-in"
-              style={{ animationDelay: "0.4s" }}
+              className="text-xs uppercase tracking-[0.18em] text-paper/65 anim-fade-in"
+              style={{ animationDelay: "0.35s" }}
             >
               {sub}
             </p>
           </div>
 
-          <ul className="w-full space-y-2 font-mono text-[11px] uppercase tracking-wider">
+          <ul className="w-full space-y-2.5 font-mono text-[11px] uppercase tracking-wider">
             {STAGES.map((s, i) => {
               const done = i < stage;
               const active = i === stage;
@@ -171,8 +202,8 @@ export function BootSplash() {
                           <path
                             d="M3.5 8 L6.8 11 L12.5 5.6"
                             fill="none"
-                            stroke="#1e2ceb"
-                            strokeWidth="2.2"
+                            stroke="#3340c0"
+                            strokeWidth="2.4"
                             strokeLinecap="round"
                             strokeLinejoin="round"
                             className="anim-check-draw"
