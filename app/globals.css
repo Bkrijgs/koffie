@@ -142,6 +142,24 @@ button {
   }
 }
 
+@keyframes wave-flow {
+  from {
+    transform: translateX(0%);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes check-draw {
+  from {
+    stroke-dashoffset: 22;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
 .anim-fade-up {
   animation: fade-up 0.35s ease-out both;
 }
@@ -179,6 +197,21 @@ button {
   transform-origin: center;
 }
 
+.anim-wave-back {
+  animation: wave-flow 6s linear infinite;
+}
+
+.anim-wave-front {
+  animation: wave-flow 4s linear infinite;
+  animation-direction: reverse;
+}
+
+.anim-check-draw {
+  stroke-dasharray: 22;
+  stroke-dashoffset: 22;
+  animation: check-draw 0.35s ease-out 0.12s forwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .barista-anim,
   .barista-anim:hover,
@@ -189,7 +222,10 @@ button {
   .anim-curve-point,
   .animate-blink,
   .anim-liquid-fill,
-  .anim-liquid-shimmer {
+  .anim-liquid-shimmer,
+  .anim-wave-back,
+  .anim-wave-front,
+  .anim-check-draw {
     animation: none;
     transform: none;
   }

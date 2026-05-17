@@ -84,16 +84,39 @@ export function BootSplash() {
       }}
       aria-hidden={phase === "leaving"}
     >
-      {/* De vloeistof — barista-500 die als een glas wordt gevuld van onder
-          naar boven. Een subtiele lichtere strook bovenaan vormt de
-          "menisk" / cremalaag die meebeweegt met het oppervlak. */}
+      {/* De vloeistof — als een glas dat zich vult. Lichter blauw met een
+          subtiel gradient voor diepte, en twee parallax-waves op het
+          oppervlak die met verschillende snelheden over elkaar schuiven
+          zodat het echt bewegend water voelt. */}
       <div
         className="anim-liquid-fill absolute inset-0 will-change-transform"
         style={{ animationDuration: `${FILL_MS}ms` }}
       >
-        <div className="absolute inset-0 bg-barista-500" />
-        <div className="absolute inset-x-0 top-0 h-3 overflow-hidden">
-          <div className="anim-liquid-shimmer h-full w-full bg-gradient-to-b from-barista-300 via-barista-400 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-b from-barista-300 to-barista-400" />
+        <div
+          className="pointer-events-none absolute inset-x-0 -top-2 h-8 overflow-hidden"
+          aria-hidden
+        >
+          <svg
+            viewBox="0 0 400 60"
+            preserveAspectRatio="none"
+            className="anim-wave-back absolute inset-y-0 left-0 h-full w-[200%]"
+          >
+            <path
+              d="M0 32 Q25 18 50 32 T100 32 T150 32 T200 32 T250 32 T300 32 T350 32 T400 32 V60 H0 Z"
+              className="fill-paper/15"
+            />
+          </svg>
+          <svg
+            viewBox="0 0 400 60"
+            preserveAspectRatio="none"
+            className="anim-wave-front absolute inset-y-0 left-0 h-full w-[200%]"
+          >
+            <path
+              d="M0 40 Q25 26 50 40 T100 40 T150 40 T200 40 T250 40 T300 40 T350 40 T400 40 V60 H0 Z"
+              className="fill-paper/25"
+            />
+          </svg>
         </div>
       </div>
 
@@ -121,31 +144,48 @@ export function BootSplash() {
             </p>
           </div>
 
-          <ul className="w-full space-y-1.5 font-mono text-[11px] uppercase tracking-wider">
+          <ul className="w-full space-y-2 font-mono text-[11px] uppercase tracking-wider">
             {STAGES.map((s, i) => {
               const done = i < stage;
               const active = i === stage;
               return (
                 <li
                   key={s.label}
-                  className="flex items-center gap-2 transition-colors duration-150"
+                  className="flex items-center gap-3 transition-colors duration-200"
                   style={{
                     color: done
-                      ? "rgba(244, 246, 251, 0.5)"
+                      ? "rgba(244, 246, 251, 0.55)"
                       : active
                       ? "rgb(244, 246, 251)"
-                      : "rgba(244, 246, 251, 0.25)",
+                      : "rgba(244, 246, 251, 0.3)",
                   }}
                 >
-                  <span className="inline-flex h-3.5 w-3.5 items-center justify-center">
+                  <span className="relative inline-flex h-4 w-4 shrink-0 items-center justify-center">
                     {done ? (
-                      <svg viewBox="0 0 12 12" className="h-3 w-3 fill-paper">
-                        <path d="M10.2 2.4 4.6 8 1.8 5.2.4 6.6l4.2 4.2L11.6 3.8z" />
-                      </svg>
+                      <span className="anim-curve-point absolute inset-0 flex items-center justify-center rounded-full bg-paper">
+                        <svg
+                          viewBox="0 0 16 16"
+                          className="h-2.5 w-2.5"
+                          aria-hidden
+                        >
+                          <path
+                            d="M3.5 8 L6.8 11 L12.5 5.6"
+                            fill="none"
+                            stroke="#1e2ceb"
+                            strokeWidth="2.2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="anim-check-draw"
+                          />
+                        </svg>
+                      </span>
                     ) : active ? (
-                      <span className="h-1.5 w-1.5 rounded-full bg-paper animate-pulse" />
+                      <>
+                        <span className="absolute inset-0 rounded-full border-2 border-paper" />
+                        <span className="absolute inset-0 rounded-full border-2 border-paper opacity-60 animate-ping" />
+                      </>
                     ) : (
-                      <span className="h-1.5 w-1.5 rounded-full bg-paper/30" />
+                      <span className="absolute inset-0 rounded-full border border-paper/30" />
                     )}
                   </span>
                   <span>{s.label}</span>
