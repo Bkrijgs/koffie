@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useKoffie } from "@/lib/useKoffie";
 import { calcBrewRatio, effectiveShots } from "@/lib/utils";
@@ -57,6 +57,19 @@ export function ShotForm({ initialBeanId, shot }: Props) {
       prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
     );
   }
+
+  // Bij een verse nieuwe shot zonder URL-param: pak de boon van de meest
+  // recente shot. Zo opent het formulier nooit met een lege dropdown en
+  // de placeholders zijn meteen boon-specifiek i.p.v. de Sage default.
+  useEffect(() => {
+    if (isEdit || beanId || !ready || shots.length === 0) return;
+    const latest = [...shots].sort(
+      (a, b) => +new Date(b.createdAt) - +new Date(a.createdAt),
+    )[0];
+    if (latest && beans.some((b) => b.id === latest.beanId)) {
+      setBeanId(latest.beanId);
+    }
+  }, [isEdit, beanId, ready, shots, beans]);
 
   // Suggested values shown only as placeholders. Pulled from the bean's best
   // non-dial-in shot, otherwise the bean's most recent shot (so dial-in-only

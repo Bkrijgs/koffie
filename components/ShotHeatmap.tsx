@@ -6,6 +6,20 @@ type Props = {
 };
 
 const WEEKS = 12;
+const MONTHS_NL = [
+  "jan",
+  "feb",
+  "mrt",
+  "apr",
+  "mei",
+  "jun",
+  "jul",
+  "aug",
+  "sep",
+  "okt",
+  "nov",
+  "dec",
+];
 
 function startOfDay(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -23,23 +37,36 @@ export function ShotHeatmap({ shots }: Props) {
   if (effective.length === 0) return null;
 
   const today = startOfDay(new Date());
-  // dow = 0 for Monday, 6 for Sunday
-  const dow = (today.getDay() + 6) % 7;
+  const dow = (today.getDay() + 6) % 7; // 0 = Monday
 
-  // Anchor: Monday of the current week, then go back WEEKS-1 weeks.
   const firstMonday = new Date(today);
   firstMonday.setDate(today.getDate() - dow - (WEEKS - 1) * 7);
 
   const countByKey = new Map<string, number>();
+  let total = 0;
+  const windowStart = +firstMonday;
+  const windowEnd = +today;
   for (const s of effective) {
     const d = startOfDay(new Date(s.createdAt));
+    if (+d < windowStart || +d > windowEnd) continue;
     const key = d.toISOString().slice(0, 10);
     countByKey.set(key, (countByKey.get(key) ?? 0) + 1);
+    total += 1;
   }
 
-  const columns: { date: Date; count: number; future: boolean }[][] = [];
+  const columns: {
+    date: Date;
+    count: number;
+    future: boolean;
+    monthLabel: string | null;
+  }[][] = [];
   for (let c = 0; c < WEEKS; c++) {
-    const col: { date: Date; count: number; future: boolean }[] = [];
+    const col: {
+      date: Date;
+      count: number;
+      future: boolean;
+      monthLabel: string | null;
+    }[] = [];
     for (let r = 0; r < 7; r++) {
       const d = new Date(firstMonday);
       d.setDate(firstMonday.getDate() + c * 7 + r);
@@ -48,40 +75,77 @@ export function ShotHeatmap({ shots }: Props) {
         date: d,
         count: countByKey.get(key) ?? 0,
         future: +d > +today,
+        monthLabel: null,
       });
+    }
+    // Label the column with its month if this is the first column to
+    // contain the 1st day of that month (or the very first column).
+    const firstOfMonthInCol = col.find((cell) => cell.date.getDate() <= 7);
+    if (firstOfMonthInCol) {
+      const prevCol = columns[columns.length - 1];
+      const prevMonth = prevCol
+        ? prevCol[0].date.getMonth()
+        : -1;
+      if (firstOfMonthInCol.date.getMonth() !== prevMonth) {
+        col[0] = {
+          ...col[0],
+          monthLabel: MONTHS_NL[firstOfMonthInCol.date.getMonth()],
+        };
+      }
     }
     columns.push(col);
   }
 
   return (
-    <div className="flex items-start gap-1.5">
-      <div className="flex flex-col gap-[2px] pt-[2px] text-[9px] uppercase tracking-wider text-ink-300">
-        <span className="h-3 leading-3">M</span>
-        <span className="h-3 leading-3">&nbsp;</span>
-        <span className="h-3 leading-3">W</span>
-        <span className="h-3 leading-3">&nbsp;</span>
-        <span className="h-3 leading-3">V</span>
-        <span className="h-3 leading-3">&nbsp;</span>
-        <span className="h-3 leading-3">Z</span>
-      </div>
-      <div className="flex gap-[2px]">
-        {columns.map((col, ci) => (
-          <div key={ci} className="flex flex-col gap-[2px]">
-            {col.map((cell, ri) =>
-              cell.future ? (
-                <div key={ri} className="h-3 w-3" />
-              ) : (
-                <div
-                  key={ri}
-                  className={`h-3 w-3 rounded-sm ${bucketClass(cell.count)}`}
-                  title={`${formatDateOnly(cell.date.toISOString())} — ${
-                    cell.count
-                  } shot${cell.count !== 1 ? "s" : ""}`}
-                />
-              ),
-            )}
+    <div>
+      <p className="mb-3 text-xs text-ink-400">
+        <span className="numeric text-ink-700">{total}</span>{" "}
+        {total === 1 ? "shot" : "shots"} in 12 weken
+      </p>
+
+      <div className="flex items-start gap-2">
+        <div className="flex flex-col gap-1 pt-5 text-[10px] uppercase tracking-wider text-ink-300">
+          <span className="h-4 leading-4">ma</span>
+          <span className="h-4 leading-4">&nbsp;</span>
+          <span className="h-4 leading-4">wo</span>
+          <span className="h-4 leading-4">&nbsp;</span>
+          <span className="h-4 leading-4">vr</span>
+          <span className="h-4 leading-4">&nbsp;</span>
+          <span className="h-4 leading-4">zo</span>
+        </div>
+        <div className="min-w-0 overflow-x-auto">
+          <div className="flex gap-1">
+            {columns.map((col, ci) => (
+              <div key={ci} className="flex flex-col gap-1">
+                <div className="h-4 text-[10px] uppercase tracking-wider text-ink-400">
+                  {col[0].monthLabel ?? ""}
+                </div>
+                {col.map((cell, ri) =>
+                  cell.future ? (
+                    <div key={ri} className="h-4 w-4" />
+                  ) : (
+                    <div
+                      key={ri}
+                      className={`h-4 w-4 rounded-sm ${bucketClass(cell.count)}`}
+                      title={`${formatDateOnly(cell.date.toISOString())} — ${
+                        cell.count
+                      } shot${cell.count !== 1 ? "s" : ""}`}
+                    />
+                  ),
+                )}
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
+      </div>
+
+      <div className="mt-3 flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-ink-300">
+        <span>Minder</span>
+        <span className="h-3 w-3 rounded-sm bg-line" />
+        <span className="h-3 w-3 rounded-sm bg-barista-100" />
+        <span className="h-3 w-3 rounded-sm bg-barista-300" />
+        <span className="h-3 w-3 rounded-sm bg-barista-400" />
+        <span>Meer</span>
       </div>
     </div>
   );
