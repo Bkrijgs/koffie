@@ -71,6 +71,7 @@ export function ShotHeatmap({ shots }: Props) {
     future: boolean;
     monthLabel: string | null;
   }[][] = [];
+  let lastLabeledMonth = -1;
   for (let c = 0; c < WEEKS; c++) {
     const col: {
       date: Date;
@@ -89,20 +90,14 @@ export function ShotHeatmap({ shots }: Props) {
         monthLabel: null,
       });
     }
-    // Label the column with its month if this is the first column to
-    // contain the 1st day of that month (or the very first column).
-    const firstOfMonthInCol = col.find((cell) => cell.date.getDate() <= 7);
-    if (firstOfMonthInCol) {
-      const prevCol = columns[columns.length - 1];
-      const prevMonth = prevCol
-        ? prevCol[0].date.getMonth()
-        : -1;
-      if (firstOfMonthInCol.date.getMonth() !== prevMonth) {
-        col[0] = {
-          ...col[0],
-          monthLabel: MONTHS_NL[firstOfMonthInCol.date.getMonth()],
-        };
-      }
+    // Label de kolom met zijn maand zodra hij in een nieuwe maand begint
+    // t.o.v. de vorige label. Vergelijken tegen de vorige *gelabelde* maand
+    // voorkomt dat opeenvolgende kolommen in dezelfde maand allebei het
+    // label krijgen.
+    const colMonth = col[0].date.getMonth();
+    if (colMonth !== lastLabeledMonth) {
+      col[0] = { ...col[0], monthLabel: MONTHS_NL[colMonth] };
+      lastLabeledMonth = colMonth;
     }
     columns.push(col);
   }
@@ -118,11 +113,11 @@ export function ShotHeatmap({ shots }: Props) {
       <div className="flex items-start gap-2">
         <div className="flex flex-col gap-1 pt-5 text-[10px] uppercase tracking-wider text-ink-300">
           <span className="h-4 leading-4">ma</span>
-          <span className="h-4 leading-4">&nbsp;</span>
+          <span className="h-4 leading-4">di</span>
           <span className="h-4 leading-4">wo</span>
-          <span className="h-4 leading-4">&nbsp;</span>
+          <span className="h-4 leading-4">do</span>
           <span className="h-4 leading-4">vr</span>
-          <span className="h-4 leading-4">&nbsp;</span>
+          <span className="h-4 leading-4">za</span>
           <span className="h-4 leading-4">zo</span>
         </div>
         <div className="min-w-0 overflow-x-auto">
