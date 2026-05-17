@@ -126,7 +126,7 @@ button {
 
 @keyframes liquid-fill {
   from {
-    transform: translateY(100%);
+    transform: translateY(-100%);
   }
   to {
     transform: translateY(0);
@@ -206,6 +206,42 @@ button {
   animation-direction: reverse;
 }
 
+@keyframes chase-pulse {
+  0%, 100% {
+    opacity: 0.15;
+    transform: scale(0.7);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.anim-chase {
+  animation: chase-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes scan-line {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.6;
+  }
+  90% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}
+
+.anim-scan-line {
+  animation: scan-line 2.8s ease-in-out infinite;
+}
+
 .anim-check-draw {
   stroke-dasharray: 22;
   stroke-dashoffset: 22;
@@ -225,7 +261,9 @@ button {
   .anim-liquid-shimmer,
   .anim-wave-back,
   .anim-wave-front,
-  .anim-check-draw {
+  .anim-check-draw,
+  .anim-chase,
+  .anim-scan-line {
     animation: none;
     transform: none;
   }

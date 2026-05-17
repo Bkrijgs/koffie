@@ -19,6 +19,8 @@ const POST_DELAY_MS = 400;
 const FADE_MS = 400;
 const TYPE_MS = 55;
 
+const CHASE_DOTS = 9;
+
 function greeting(now = new Date()): { hi: string; sub: string } {
   const h = now.getHours();
   if (h < 5) return { hi: "Nog wakker?", sub: "Espresso om dit uur — durf" };
@@ -82,9 +84,10 @@ export function BootSplash() {
       }}
       aria-hidden={phase === "leaving"}
     >
-      {/* Stijgende vloeistof. Crème bovenin, espresso onderin — als een
-          shot dat zich onder de crema-laag opbouwt. Veel zachter dan de
-          vorige vol-saturated indigo. */}
+      {/* Vloeistof stort van bovenaf naar beneden — espresso die in de
+          cup wordt gegoten. Donkere navy bovenin, helderder blauw onder.
+          Subtiele radial highlight + grid-pattern voor een Jarvis-achtige
+          console-vibe. */}
       <div
         className="anim-liquid-fill absolute inset-0 will-change-transform"
         style={{ animationDuration: `${FILL_MS}ms` }}
@@ -93,43 +96,46 @@ export function BootSplash() {
           className="absolute inset-0"
           style={{
             backgroundImage:
-              "linear-gradient(to top, #3340c0 0%, #5b66ed 45%, #97a3ee 85%, #c4cbf3 100%)",
+              "radial-gradient(ellipse 80% 60% at 50% 40%, rgba(220, 228, 255, 0.18), transparent 70%), linear-gradient(to bottom, #1a2056 0%, #2c3a8a 45%, #4757d8 85%, #6c7be8 100%)",
           }}
         />
 
-        {/* Surface ripples — twee SVG-paths op het oppervlak die
-            horizontaal schuiven via CSS keyframes. SVG is 200% breed
-            zodat de translate van 0 → -50% naadloos loopt; de wave
-            pattern herhaalt zich elke 100 viewBox-units zodat de
-            cyclus klopt. Twee snelheden + tegengestelde richtingen
-            geven parallax. Geen SMIL = betrouwbaar op iOS. */}
+        {/* Subtiele tech-grid — alleen voelbaar, niet opdringerig */}
         <div
-          className="pointer-events-none absolute inset-x-0 top-0 h-10 overflow-hidden"
-          style={{ transform: "translateY(-50%)" }}
+          className="absolute inset-0 opacity-[0.06]"
+          style={{
+            backgroundImage:
+              "linear-gradient(to right, #fff 1px, transparent 1px), linear-gradient(to bottom, #fff 1px, transparent 1px)",
+            backgroundSize: "48px 48px",
+          }}
+        />
+
+        {/* Scanline die één keer van boven naar beneden veegt — Jarvis */}
+        <div className="anim-scan-line pointer-events-none absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-paper to-transparent" />
+
+        {/* Waves aan de ONDERkant van de afdalende vloeistof — de
+            leading edge die over het scherm zakt. Twee SVGs naast elkaar
+            in een 200%-brede container; CSS translate van 0 → -50%
+            schuift de tiles naadloos door. Werkt betrouwbaar op iOS. */}
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-10 overflow-hidden"
+          style={{ transform: "translateY(50%)" }}
           aria-hidden
         >
-          <svg
-            viewBox="0 0 200 30"
-            preserveAspectRatio="none"
-            className="anim-wave-back absolute inset-y-0 left-0 h-full"
+          <div
+            className="anim-wave-back absolute inset-y-0 left-0 flex h-full"
             style={{ width: "200%" }}
           >
-            <path
-              d="M0 15 Q25 5 50 15 T100 15 T150 15 T200 15 V30 H0 Z"
-              fill="rgba(244, 246, 251, 0.22)"
-            />
-          </svg>
-          <svg
-            viewBox="0 0 200 30"
-            preserveAspectRatio="none"
-            className="anim-wave-front absolute inset-y-0 left-0 h-full"
+            <WaveSvg amplitude="low" />
+            <WaveSvg amplitude="low" />
+          </div>
+          <div
+            className="anim-wave-front absolute inset-y-0 left-0 flex h-full"
             style={{ width: "200%" }}
           >
-            <path
-              d="M0 18 Q25 26 50 18 T100 18 T150 18 T200 18 V30 H0 Z"
-              fill="rgba(244, 246, 251, 0.36)"
-            />
-          </svg>
+            <WaveSvg amplitude="high" />
+            <WaveSvg amplitude="high" />
+          </div>
         </div>
       </div>
 
@@ -139,46 +145,64 @@ export function BootSplash() {
           showContent ? "opacity-100" : "opacity-0"
         }`}
       >
-        <div className="flex w-full max-w-sm flex-col items-center gap-7 text-paper">
-          {/* Statische SVG i.p.v. video — geen wit frame om weg te
-              blenden, geen iOS Safari flicker. Bob-animatie zit
-              ingebakken in de SVG class. */}
+        <div className="flex w-full max-w-sm flex-col items-center gap-6 text-paper">
           <Barista size={120} />
 
           <div className="flex flex-col items-center gap-2 text-center">
-            <h1 className="font-display text-3xl tracking-tighter2 text-paper">
-              {typed}
-              {!typingDone && (
-                <span
-                  className="ml-0.5 inline-block animate-blink"
-                  aria-hidden
-                >
-                  |
-                </span>
-              )}
+            <h1 className="flex items-baseline gap-2 font-display text-3xl tracking-tighter2 text-paper">
+              <span className="text-paper/35">[</span>
+              <span>
+                {typed}
+                {!typingDone && (
+                  <span
+                    className="ml-0.5 inline-block animate-blink"
+                    aria-hidden
+                  >
+                    |
+                  </span>
+                )}
+              </span>
+              <span className="text-paper/35">]</span>
             </h1>
             <p
-              className="text-xs uppercase tracking-[0.18em] text-paper/65 anim-fade-in"
+              className="text-[11px] uppercase tracking-[0.22em] text-paper/65 anim-fade-in"
               style={{ animationDelay: "0.35s" }}
             >
               {sub}
             </p>
           </div>
 
-          <ul className="w-full space-y-2.5 font-mono text-[11px] uppercase tracking-wider">
+          {/* Chase-light bar — sequenced pulse, Jarvis-style */}
+          <div
+            className="flex items-center gap-1.5 anim-fade-in"
+            style={{ animationDelay: "0.5s" }}
+            aria-hidden
+          >
+            {Array.from({ length: CHASE_DOTS }, (_, i) => (
+              <span
+                key={i}
+                className="anim-chase h-1 w-1 rounded-full bg-paper"
+                style={{ animationDelay: `${i * 0.13}s` }}
+              />
+            ))}
+          </div>
+
+          {/* Stages — gecentreerd, mono-spaced, met fade-up per regel */}
+          <ul className="flex w-full flex-col items-center space-y-2.5 font-mono text-[11px] uppercase tracking-wider">
             {STAGES.map((s, i) => {
               const done = i < stage;
               const active = i === stage;
               return (
                 <li
                   key={s.label}
-                  className="flex items-center gap-3 transition-colors duration-200"
+                  className="anim-fade-up flex items-center justify-center gap-3 transition-colors duration-200"
                   style={{
                     color: done
                       ? "rgba(244, 246, 251, 0.55)"
                       : active
                       ? "rgb(244, 246, 251)"
                       : "rgba(244, 246, 251, 0.3)",
+                    animationDelay: `${0.55 + i * 0.1}s`,
                   }}
                 >
                   <span className="relative inline-flex h-4 w-4 shrink-0 items-center justify-center">
@@ -192,7 +216,7 @@ export function BootSplash() {
                           <path
                             d="M3.5 8 L6.8 11 L12.5 5.6"
                             fill="none"
-                            stroke="#3340c0"
+                            stroke="#1a2056"
                             strokeWidth="2.4"
                             strokeLinecap="round"
                             strokeLinejoin="round"
@@ -217,5 +241,26 @@ export function BootSplash() {
         </div>
       </div>
     </div>
+  );
+}
+
+function WaveSvg({ amplitude }: { amplitude: "low" | "high" }) {
+  const path =
+    amplitude === "high"
+      ? "M0 18 Q25 26 50 18 T100 18 V30 H0 Z"
+      : "M0 15 Q25 5 50 15 T100 15 V30 H0 Z";
+  const fill =
+    amplitude === "high"
+      ? "rgba(244, 246, 251, 0.32)"
+      : "rgba(244, 246, 251, 0.18)";
+  return (
+    <svg
+      viewBox="0 0 100 30"
+      preserveAspectRatio="none"
+      className="h-full"
+      style={{ width: "50%" }}
+    >
+      <path d={path} fill={fill} />
+    </svg>
   );
 }
