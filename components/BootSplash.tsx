@@ -159,6 +159,44 @@ export function BootSplash() {
         </div>
       </div>
 
+      {/* Corner tech widgets — buiten het midden om de Jarvis-vibe zonder
+          de content te doorkruisen. Klein, low-opacity, monospace. */}
+      <div
+        className="pointer-events-none absolute inset-0 font-mono uppercase tracking-wider text-paper/40 anim-fade-in"
+        style={{ animationDelay: "0.7s" }}
+        aria-hidden
+      >
+        <div className="absolute left-4 top-4 flex flex-col gap-1 text-[9px]">
+          <StatusDot label="PWR" delay={0} />
+          <StatusDot label="NET" delay={0.25} />
+          <StatusDot label="RDY" delay={0.5} />
+        </div>
+
+        <div className="absolute right-4 top-4 w-20 text-[8px]">
+          <div className="flex items-center justify-between text-paper/45">
+            <span>SYS.LOAD</span>
+            <span className="numeric text-paper/55">RUN</span>
+          </div>
+          <div className="mt-1 h-px w-full bg-paper/15">
+            <div className="anim-bar-fill h-full bg-paper/65" />
+          </div>
+        </div>
+
+        <div className="absolute bottom-4 left-4 w-24 text-[8px]">
+          <div className="flex items-center gap-1.5 text-paper/45">
+            <span className="h-1 w-1 rounded-full bg-paper/70 animate-pulse" />
+            <span>DIAL-IN OK</span>
+          </div>
+          <div className="mt-1 h-px w-full overflow-hidden bg-paper/15">
+            <div className="anim-bar-pulse h-full w-1/3 bg-paper/50" />
+          </div>
+        </div>
+
+        <div className="absolute bottom-4 right-4 text-[9px] text-paper/45">
+          <BootTimer />
+        </div>
+      </div>
+
       {/* Content */}
       <div
         className={`relative flex h-full w-full items-center justify-center px-6 transition-opacity duration-400 ${
@@ -268,6 +306,34 @@ export function BootSplash() {
         </div>
       </div>
     </div>
+  );
+}
+
+function StatusDot({ label, delay }: { label: string; delay: number }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <span
+        className="anim-chase h-1 w-1 rounded-full bg-paper"
+        style={{ animationDelay: `${delay}s` }}
+      />
+      <span>{label}</span>
+    </div>
+  );
+}
+
+function BootTimer() {
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    const start = performance.now();
+    const id = window.setInterval(() => {
+      setElapsed(Math.floor(performance.now() - start));
+    }, 80);
+    return () => window.clearInterval(id);
+  }, []);
+  return (
+    <span className="numeric">
+      T+{String(elapsed).padStart(4, "0")}MS
+    </span>
   );
 }
 

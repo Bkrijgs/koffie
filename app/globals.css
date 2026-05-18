@@ -221,6 +221,32 @@ button {
   animation: chase-pulse 1.4s ease-in-out infinite;
 }
 
+@keyframes bar-fill {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+@keyframes bar-pulse {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(360%);
+  }
+}
+
+.anim-bar-fill {
+  animation: bar-fill 2.9s cubic-bezier(0.55, 0, 0.45, 1) both;
+}
+
+.anim-bar-pulse {
+  animation: bar-pulse 1.4s ease-in-out infinite;
+}
+
 @keyframes scan-line {
   0% {
     transform: translateY(-100%);
@@ -263,7 +289,9 @@ button {
   .anim-wave-front,
   .anim-check-draw,
   .anim-chase,
-  .anim-scan-line {
+  .anim-scan-line,
+  .anim-bar-fill,
+  .anim-bar-pulse {
     animation: none;
     transform: none;
   }
