@@ -76,30 +76,17 @@ export function BootSplash() {
 
   return (
     <div
-      className="fixed inset-0 z-50 overflow-hidden transition-opacity ease-out"
+      className="fixed inset-0 z-50 overflow-hidden bg-paper transition-opacity ease-out"
       style={{
         opacity: phase === "leaving" ? 0 : 1,
         pointerEvents: phase === "leaving" ? "none" : "auto",
         transitionDuration: `${FADE_MS}ms`,
         transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
-        backgroundImage:
-          "radial-gradient(ellipse 80% 60% at 50% 35%, rgba(255, 255, 255, 0.7), transparent 70%), linear-gradient(to bottom, #f4f6fb 0%, #e1e7f5 55%, #c5d0ef 100%)",
         paddingTop: "env(safe-area-inset-top)",
         paddingBottom: "env(safe-area-inset-bottom)",
       }}
       aria-hidden={phase === "leaving"}
     >
-      {/* Subtiele tech-grid — alleen voelbaar, niet opdringerig */}
-      <div
-        className="pointer-events-none absolute inset-0 opacity-[0.035]"
-        aria-hidden
-        style={{
-          backgroundImage:
-            "linear-gradient(to right, #1a2056 1px, transparent 1px), linear-gradient(to bottom, #1a2056 1px, transparent 1px)",
-          backgroundSize: "48px 48px",
-        }}
-      />
-
       {/* Scanline */}
       <div
         className="anim-scan-line pointer-events-none absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-barista-400/50 to-transparent"
