@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Barista } from "./Barista";
 
 type Stage = { label: string };
 
@@ -12,14 +11,15 @@ const STAGES: Stage[] = [
   { label: "Crema controleren" },
 ];
 
-const FILL_MS = 1300;
-const CONTENT_DELAY_MS = 1050;
-const STAGE_MS = 320;
-const POST_DELAY_MS = 400;
-const FADE_MS = 400;
+const FILL_MS = 1450;
+const CONTENT_DELAY_MS = 1150;
+const STAGE_MS = 340;
+const POST_DELAY_MS = 420;
+const FADE_MS = 500;
 const TYPE_MS = 55;
 
 const CHASE_DOTS = 9;
+const SPLASH_THEME_COLOR = "#1a2056";
 
 function greeting(now = new Date()): { hi: string; sub: string } {
   const h = now.getHours();
@@ -37,6 +37,22 @@ export function BootSplash() {
     "filling",
   );
   const [{ hi, sub }] = useState(greeting);
+
+  // Tijdens de splash zet de iOS status bar / safari chrome naar dezelfde
+  // navy als de bovenkant van de gradient — anders zie je een witte balk
+  // bovenaan die niet aansluit. Bij unmount zetten we 'm terug.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const meta = document.querySelector(
+      'meta[name="theme-color"]',
+    ) as HTMLMetaElement | null;
+    if (!meta) return;
+    const original = meta.content;
+    meta.content = SPLASH_THEME_COLOR;
+    return () => {
+      meta.content = original;
+    };
+  }, []);
 
   useEffect(() => {
     const t = window.setTimeout(() => setPhase("content"), CONTENT_DELAY_MS);
@@ -77,10 +93,14 @@ export function BootSplash() {
 
   return (
     <div
-      className="fixed inset-0 z-50 overflow-hidden bg-paper transition-opacity duration-400 ease-out"
+      className="fixed inset-0 z-50 overflow-hidden transition-opacity ease-out"
       style={{
         opacity: phase === "leaving" ? 0 : 1,
         pointerEvents: phase === "leaving" ? "none" : "auto",
+        backgroundColor: SPLASH_THEME_COLOR,
+        transitionDuration: `${FADE_MS}ms`,
+        paddingTop: "env(safe-area-inset-top)",
+        paddingBottom: "env(safe-area-inset-bottom)",
       }}
       aria-hidden={phase === "leaving"}
     >
@@ -146,7 +166,14 @@ export function BootSplash() {
         }`}
       >
         <div className="flex w-full max-w-sm flex-col items-center gap-6 text-paper">
-          <Barista size={120} />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/Barista%20wit.svg"
+            width={120}
+            alt=""
+            aria-hidden
+            className="barista-anim"
+          />
 
           <div className="flex flex-col items-center gap-2 text-center">
             <h1 className="flex items-baseline gap-2 font-display text-3xl tracking-tighter2 text-paper">
