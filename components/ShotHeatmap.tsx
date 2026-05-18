@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
 import type { ShotLog } from "@/lib/types";
 import { effectiveShots, formatDateOnly } from "@/lib/utils";
 
@@ -6,7 +9,10 @@ type Props = {
 };
 
 const MIN_WEEKS = 4;
-const MAX_WEEKS = 20;
+const MAX_WEEKS = 40;
+const CELL_PX = 16;
+const GAP_PX = 4;
+const COL_PX = CELL_PX + GAP_PX;
 const MONTHS_NL = [
   "jan",
   "feb",
@@ -34,24 +40,35 @@ function bucketClass(count: number): string {
 }
 
 export function ShotHeatmap({ shots }: Props) {
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [weeks, setWeeks] = useState(MIN_WEEKS);
+
+  useEffect(() => {
+    const el = gridRef.current;
+    if (!el) return;
+    const update = () => {
+      const w = el.clientWidth;
+      if (w <= 0) return;
+      // Hoeveel kolommen passen er in de beschikbare breedte? Eén kolom is
+      // CELL_PX breed + GAP_PX ertussen; voor de eerste kolom hoef je geen
+      // gap te reserveren.
+      const fits = Math.floor((w + GAP_PX) / COL_PX);
+      setWeeks(Math.max(MIN_WEEKS, Math.min(MAX_WEEKS, fits)));
+    };
+    update();
+    const obs = new ResizeObserver(update);
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
   const effective = effectiveShots(shots);
   if (effective.length === 0) return null;
 
   const today = startOfDay(new Date());
-  const dow = (today.getDay() + 6) % 7; // 0 = Monday
-
-  // Schaal het venster naar je oudste shot, met een buffer-week vóór die
-  // datum zodat de eerste cel niet helemaal in de hoek staat. Zo blijft de
-  // heatmap compact voor nieuwe gebruikers en groeit hij mee tot 12 weken.
-  const oldestMs = Math.min(
-    ...effective.map((s) => +startOfDay(new Date(s.createdAt))),
-  );
-  const daysSinceOldest = Math.floor((+today - oldestMs) / (1000 * 60 * 60 * 24));
-  const weeksSpan = Math.ceil((daysSinceOldest + 1) / 7) + 1;
-  const WEEKS = Math.min(MAX_WEEKS, Math.max(MIN_WEEKS, weeksSpan));
+  const dow = (today.getDay() + 6) % 7;
 
   const firstMonday = new Date(today);
-  firstMonday.setDate(today.getDate() - dow - (WEEKS - 1) * 7);
+  firstMonday.setDate(today.getDate() - dow - (weeks - 1) * 7);
 
   const countByKey = new Map<string, number>();
   let total = 0;
@@ -72,7 +89,7 @@ export function ShotHeatmap({ shots }: Props) {
     monthLabel: string | null;
   }[][] = [];
   let lastLabeledMonth = -1;
-  for (let c = 0; c < WEEKS; c++) {
+  for (let c = 0; c < weeks; c++) {
     const col: {
       date: Date;
       count: number;
@@ -90,10 +107,6 @@ export function ShotHeatmap({ shots }: Props) {
         monthLabel: null,
       });
     }
-    // Label de kolom met zijn maand zodra hij in een nieuwe maand begint
-    // t.o.v. de vorige label. Vergelijken tegen de vorige *gelabelde* maand
-    // voorkomt dat opeenvolgende kolommen in dezelfde maand allebei het
-    // label krijgen.
     const colMonth = col[0].date.getMonth();
     if (colMonth !== lastLabeledMonth) {
       col[0] = { ...col[0], monthLabel: MONTHS_NL[colMonth] };
@@ -106,8 +119,8 @@ export function ShotHeatmap({ shots }: Props) {
     <div>
       <p className="mb-3 text-xs text-ink-400">
         <span className="numeric text-ink-700">{total}</span>{" "}
-        {total === 1 ? "shot" : "shots"} in {WEEKS}{" "}
-        {WEEKS === 1 ? "week" : "weken"}
+        {total === 1 ? "shot" : "shots"} in {weeks}{" "}
+        {weeks === 1 ? "week" : "weken"}
       </p>
 
       <div className="flex items-start gap-2">
@@ -120,7 +133,7 @@ export function ShotHeatmap({ shots }: Props) {
           <span className="h-4 leading-4">za</span>
           <span className="h-4 leading-4">zo</span>
         </div>
-        <div className="min-w-0 overflow-x-auto">
+        <div ref={gridRef} className="min-w-0 flex-1 overflow-hidden">
           <div className="flex gap-1">
             {columns.map((col, ci) => (
               <div key={ci} className="flex flex-col gap-1">
