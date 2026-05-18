@@ -11,9 +11,10 @@ import { average, effectiveShots } from "@/lib/utils";
 import { globalTips } from "@/lib/tips";
 import { useCountUp } from "@/lib/useCountUp";
 
-// Boot-splash duurt ~3.3s. Tellers starten kort voor het fade-out
-// moment zodat de count-up zichtbaar afloopt zodra de splash wegvalt.
-const COUNT_DELAY = 2900;
+// Boot-splash duurt ~2.4s (geen rising fill meer). Tellers starten
+// kort voor het fade-out moment zodat ze zichtbaar aflopen terwijl
+// de splash wegfade.
+const COUNT_DELAY = 2200;
 
 export default function DashboardPage() {
   const { ready, beans, shots } = useKoffie();

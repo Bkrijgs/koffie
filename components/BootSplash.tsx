@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Barista } from "./Barista";
 
 type Stage = { label: string };
 
@@ -11,15 +12,13 @@ const STAGES: Stage[] = [
   { label: "Crema controleren" },
 ];
 
-const FILL_MS = 1450;
-const CONTENT_DELAY_MS = 1150;
-const STAGE_MS = 340;
-const POST_DELAY_MS = 420;
-const FADE_MS = 500;
+const CONTENT_REVEAL_MS = 350;
+const STAGE_MS = 380;
+const POST_DELAY_MS = 500;
+const FADE_MS = 600;
 const TYPE_MS = 55;
 
 const CHASE_DOTS = 9;
-const SPLASH_THEME_COLOR = "#1a2056";
 
 function greeting(now = new Date()): { hi: string; sub: string } {
   const h = now.getHours();
@@ -33,34 +32,18 @@ function greeting(now = new Date()): { hi: string; sub: string } {
 export function BootSplash() {
   const [stage, setStage] = useState(0);
   const [typed, setTyped] = useState("");
-  const [phase, setPhase] = useState<"filling" | "content" | "leaving" | "gone">(
-    "filling",
+  const [phase, setPhase] = useState<"reveal" | "content" | "leaving" | "gone">(
+    "reveal",
   );
   const [{ hi, sub }] = useState(greeting);
 
-  // Tijdens de splash zet de iOS status bar / safari chrome naar dezelfde
-  // navy als de bovenkant van de gradient — anders zie je een witte balk
-  // bovenaan die niet aansluit. Bij unmount zetten we 'm terug.
   useEffect(() => {
-    if (typeof document === "undefined") return;
-    const meta = document.querySelector(
-      'meta[name="theme-color"]',
-    ) as HTMLMetaElement | null;
-    if (!meta) return;
-    const original = meta.content;
-    meta.content = SPLASH_THEME_COLOR;
-    return () => {
-      meta.content = original;
-    };
-  }, []);
-
-  useEffect(() => {
-    const t = window.setTimeout(() => setPhase("content"), CONTENT_DELAY_MS);
+    const t = window.setTimeout(() => setPhase("content"), CONTENT_REVEAL_MS);
     return () => window.clearTimeout(t);
   }, []);
 
   useEffect(() => {
-    if (phase === "filling") return;
+    if (phase === "reveal") return;
     if (typed.length >= hi.length) return;
     const t = window.setTimeout(
       () => setTyped(hi.slice(0, typed.length + 1)),
@@ -97,73 +80,36 @@ export function BootSplash() {
       style={{
         opacity: phase === "leaving" ? 0 : 1,
         pointerEvents: phase === "leaving" ? "none" : "auto",
-        backgroundColor: SPLASH_THEME_COLOR,
         transitionDuration: `${FADE_MS}ms`,
+        transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
+        backgroundImage:
+          "radial-gradient(ellipse 80% 60% at 50% 35%, rgba(255, 255, 255, 0.7), transparent 70%), linear-gradient(to bottom, #f4f6fb 0%, #e1e7f5 55%, #c5d0ef 100%)",
         paddingTop: "env(safe-area-inset-top)",
         paddingBottom: "env(safe-area-inset-bottom)",
       }}
       aria-hidden={phase === "leaving"}
     >
-      {/* Vloeistof stort van bovenaf naar beneden — espresso die in de
-          cup wordt gegoten. Donkere navy bovenin, helderder blauw onder.
-          Subtiele radial highlight + grid-pattern voor een Jarvis-achtige
-          console-vibe. */}
+      {/* Subtiele tech-grid — alleen voelbaar, niet opdringerig */}
       <div
-        className="anim-liquid-fill absolute inset-0 will-change-transform"
-        style={{ animationDuration: `${FILL_MS}ms` }}
-      >
-        <div
-          className="absolute inset-0"
-          style={{
-            backgroundImage:
-              "radial-gradient(ellipse 80% 60% at 50% 40%, rgba(220, 228, 255, 0.18), transparent 70%), linear-gradient(to bottom, #1a2056 0%, #2c3a8a 45%, #4757d8 85%, #6c7be8 100%)",
-          }}
-        />
+        className="pointer-events-none absolute inset-0 opacity-[0.035]"
+        aria-hidden
+        style={{
+          backgroundImage:
+            "linear-gradient(to right, #1a2056 1px, transparent 1px), linear-gradient(to bottom, #1a2056 1px, transparent 1px)",
+          backgroundSize: "48px 48px",
+        }}
+      />
 
-        {/* Subtiele tech-grid — alleen voelbaar, niet opdringerig */}
-        <div
-          className="absolute inset-0 opacity-[0.06]"
-          style={{
-            backgroundImage:
-              "linear-gradient(to right, #fff 1px, transparent 1px), linear-gradient(to bottom, #fff 1px, transparent 1px)",
-            backgroundSize: "48px 48px",
-          }}
-        />
-
-        {/* Scanline die één keer van boven naar beneden veegt — Jarvis */}
-        <div className="anim-scan-line pointer-events-none absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-paper to-transparent" />
-
-        {/* Waves aan de ONDERkant van de afdalende vloeistof — de
-            leading edge die over het scherm zakt. Twee SVGs naast elkaar
-            in een 200%-brede container; CSS translate van 0 → -50%
-            schuift de tiles naadloos door. Werkt betrouwbaar op iOS. */}
-        <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-10 overflow-hidden"
-          style={{ transform: "translateY(50%)" }}
-          aria-hidden
-        >
-          <div
-            className="anim-wave-back absolute inset-y-0 left-0 flex h-full"
-            style={{ width: "200%" }}
-          >
-            <WaveSvg amplitude="low" />
-            <WaveSvg amplitude="low" />
-          </div>
-          <div
-            className="anim-wave-front absolute inset-y-0 left-0 flex h-full"
-            style={{ width: "200%" }}
-          >
-            <WaveSvg amplitude="high" />
-            <WaveSvg amplitude="high" />
-          </div>
-        </div>
-      </div>
-
-      {/* Corner tech widgets — buiten het midden om de Jarvis-vibe zonder
-          de content te doorkruisen. Klein, low-opacity, monospace. */}
+      {/* Scanline */}
       <div
-        className="pointer-events-none absolute inset-0 font-mono uppercase tracking-wider text-paper/40 anim-fade-in"
-        style={{ animationDelay: "0.7s" }}
+        className="anim-scan-line pointer-events-none absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-barista-400/50 to-transparent"
+        aria-hidden
+      />
+
+      {/* Corner widgets — Jarvis-vibe in donkerblauw op de lichte bg */}
+      <div
+        className="pointer-events-none absolute inset-0 font-mono uppercase tracking-wider text-ink-400 anim-fade-in"
+        style={{ animationDelay: "0.5s" }}
         aria-hidden
       >
         <div className="absolute left-4 top-4 flex flex-col gap-1 text-[9px]">
@@ -173,71 +119,67 @@ export function BootSplash() {
         </div>
 
         <div className="absolute right-4 top-4 w-20 text-[8px]">
-          <div className="flex items-center justify-between text-paper/45">
+          <div className="flex items-center justify-between text-ink-400">
             <span>SYS.LOAD</span>
-            <span className="numeric text-paper/55">RUN</span>
+            <span className="numeric text-barista-400">RUN</span>
           </div>
-          <div className="mt-1 h-px w-full bg-paper/15">
-            <div className="anim-bar-fill h-full bg-paper/65" />
+          <div className="mt-1 h-px w-full bg-ink-200">
+            <div className="anim-bar-fill h-full bg-barista-400" />
           </div>
         </div>
 
         <div className="absolute bottom-4 left-4 w-24 text-[8px]">
-          <div className="flex items-center gap-1.5 text-paper/45">
-            <span className="h-1 w-1 rounded-full bg-paper/70 animate-pulse" />
+          <div className="flex items-center gap-1.5 text-ink-400">
+            <span className="h-1 w-1 rounded-full bg-barista-400 animate-pulse" />
             <span>DIAL-IN OK</span>
           </div>
-          <div className="mt-1 h-px w-full overflow-hidden bg-paper/15">
-            <div className="anim-bar-pulse h-full w-1/3 bg-paper/50" />
+          <div className="mt-1 h-px w-full overflow-hidden bg-ink-200">
+            <div className="anim-bar-pulse h-full w-1/3 bg-barista-400" />
           </div>
         </div>
 
-        <div className="absolute bottom-4 right-4 text-[9px] text-paper/45">
+        <div className="absolute bottom-4 right-4 text-[9px] text-ink-400">
           <BootTimer />
         </div>
       </div>
 
       {/* Content */}
       <div
-        className={`relative flex h-full w-full items-center justify-center px-6 transition-opacity duration-400 ${
-          showContent ? "opacity-100" : "opacity-0"
-        }`}
+        className="relative flex h-full w-full items-center justify-center px-6 transition-all ease-out"
+        style={{
+          opacity: showContent ? 1 : 0,
+          transform: showContent ? "translateY(0)" : "translateY(8px)",
+          transitionDuration: "700ms",
+          transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
+        }}
       >
-        <div className="flex w-full max-w-sm flex-col items-center gap-6 text-paper">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/Barista%20wit.svg"
-            width={120}
-            alt=""
-            aria-hidden
-            className="barista-anim"
-          />
+        <div className="flex w-full max-w-sm flex-col items-center gap-6 text-ink-800">
+          <Barista size={120} />
 
           <div className="flex flex-col items-center gap-2 text-center">
-            <h1 className="flex items-baseline gap-2 font-display text-3xl tracking-tighter2 text-paper">
-              <span className="text-paper/35">[</span>
+            <h1 className="flex items-baseline gap-2 font-display text-3xl tracking-tighter2 text-ink-800">
+              <span className="text-ink-300">[</span>
               <span>
                 {typed}
                 {!typingDone && (
                   <span
-                    className="ml-0.5 inline-block animate-blink"
+                    className="ml-0.5 inline-block animate-blink text-ink-700"
                     aria-hidden
                   >
                     |
                   </span>
                 )}
               </span>
-              <span className="text-paper/35">]</span>
+              <span className="text-ink-300">]</span>
             </h1>
             <p
-              className="text-[11px] uppercase tracking-[0.22em] text-paper/65 anim-fade-in"
+              className="text-[11px] uppercase tracking-[0.22em] text-ink-500 anim-fade-in"
               style={{ animationDelay: "0.35s" }}
             >
               {sub}
             </p>
           </div>
 
-          {/* Chase-light bar — sequenced pulse, Jarvis-style */}
           <div
             className="flex items-center gap-1.5 anim-fade-in"
             style={{ animationDelay: "0.5s" }}
@@ -246,13 +188,12 @@ export function BootSplash() {
             {Array.from({ length: CHASE_DOTS }, (_, i) => (
               <span
                 key={i}
-                className="anim-chase h-1 w-1 rounded-full bg-paper"
+                className="anim-chase h-1 w-1 rounded-full bg-barista-400"
                 style={{ animationDelay: `${i * 0.13}s` }}
               />
             ))}
           </div>
 
-          {/* Stages — gecentreerd, mono-spaced, met fade-up per regel */}
           <ul className="flex w-full flex-col items-center space-y-2.5 font-mono text-[11px] uppercase tracking-wider">
             {STAGES.map((s, i) => {
               const done = i < stage;
@@ -260,19 +201,19 @@ export function BootSplash() {
               return (
                 <li
                   key={s.label}
-                  className="anim-fade-up flex items-center justify-center gap-3 transition-colors duration-200"
+                  className="anim-fade-up flex items-center justify-center gap-3 transition-colors duration-300 ease-out"
                   style={{
                     color: done
-                      ? "rgba(244, 246, 251, 0.55)"
+                      ? "rgb(148, 156, 178)"
                       : active
-                      ? "rgb(244, 246, 251)"
-                      : "rgba(244, 246, 251, 0.3)",
+                      ? "rgb(36, 26, 16)"
+                      : "rgb(207, 213, 232)",
                     animationDelay: `${0.55 + i * 0.1}s`,
                   }}
                 >
                   <span className="relative inline-flex h-4 w-4 shrink-0 items-center justify-center">
                     {done ? (
-                      <span className="anim-curve-point absolute inset-0 flex items-center justify-center rounded-full bg-paper">
+                      <span className="anim-curve-point absolute inset-0 flex items-center justify-center rounded-full bg-barista-400">
                         <svg
                           viewBox="0 0 16 16"
                           className="h-2.5 w-2.5"
@@ -281,7 +222,7 @@ export function BootSplash() {
                           <path
                             d="M3.5 8 L6.8 11 L12.5 5.6"
                             fill="none"
-                            stroke="#1a2056"
+                            stroke="#f4f6fb"
                             strokeWidth="2.4"
                             strokeLinecap="round"
                             strokeLinejoin="round"
@@ -291,11 +232,11 @@ export function BootSplash() {
                       </span>
                     ) : active ? (
                       <>
-                        <span className="absolute inset-0 rounded-full border-2 border-paper" />
-                        <span className="absolute inset-0 rounded-full border-2 border-paper opacity-60 animate-ping" />
+                        <span className="absolute inset-0 rounded-full border-2 border-barista-400" />
+                        <span className="absolute inset-0 rounded-full border-2 border-barista-400 opacity-60 animate-ping" />
                       </>
                     ) : (
-                      <span className="absolute inset-0 rounded-full border border-paper/30" />
+                      <span className="absolute inset-0 rounded-full border border-ink-200" />
                     )}
                   </span>
                   <span>{s.label}</span>
@@ -313,7 +254,7 @@ function StatusDot({ label, delay }: { label: string; delay: number }) {
   return (
     <div className="flex items-center gap-1.5">
       <span
-        className="anim-chase h-1 w-1 rounded-full bg-paper"
+        className="anim-chase h-1 w-1 rounded-full bg-barista-400"
         style={{ animationDelay: `${delay}s` }}
       />
       <span>{label}</span>
@@ -334,26 +275,5 @@ function BootTimer() {
     <span className="numeric">
       T+{String(elapsed).padStart(4, "0")}MS
     </span>
-  );
-}
-
-function WaveSvg({ amplitude }: { amplitude: "low" | "high" }) {
-  const path =
-    amplitude === "high"
-      ? "M0 18 Q25 26 50 18 T100 18 V30 H0 Z"
-      : "M0 15 Q25 5 50 15 T100 15 V30 H0 Z";
-  const fill =
-    amplitude === "high"
-      ? "rgba(244, 246, 251, 0.32)"
-      : "rgba(244, 246, 251, 0.18)";
-  return (
-    <svg
-      viewBox="0 0 100 30"
-      preserveAspectRatio="none"
-      className="h-full"
-      style={{ width: "50%" }}
-    >
-      <path d={path} fill={fill} />
-    </svg>
   );
 }
