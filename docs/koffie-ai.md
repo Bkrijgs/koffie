@@ -71,14 +71,19 @@ we er altijd op terug kunnen vallen.
 - Anomalie-detectie ("tijd 18 s terwijl je norm 28 s is").
 - Feedback-loop UI: "vorige shot zei "fijner malen" — gedaan?".
 
-### Fase 3 — LLM-coach
-- `app/api/coach/route.ts` provider-agnostisch.
-- Prompt met: boon-info, setup, volledige shot-historie van die boon,
-  ratings + tags. Vraagt om één concreet, machine-specifiek advies.
-- Mooi UI-kaartje op de boon-detail ("Barista's advies voor je volgende
-  shot").
-- Prompt caching op de setup + systeem-instructie om kosten te drukken.
+### Fase 3 — LLM-coach ✅
+- Provider: **OpenAI**, model `gpt-4.1-mini` (override via env-var
+  `OPENAI_MODEL`). Key staat als `OPENAI_API_KEY` in de Vercel env vars.
+- `app/api/coach/route.ts` — Next.js API-route (Node runtime). Krijgt
+  boon + setup + shot-historie, bouwt een NL-prompt, vraagt OpenAI om
+  gestructureerd advies (json_schema, strict) en geeft dat terug. De
+  maalgraad wordt geklemd binnen de maler-schaal.
+- `components/CoachCard.tsx` — UI-kaart op de boon-detail (bij ≥2 shots).
+  Knop "Analyseer mijn shots" → headline, recept (maalgraad/dose/yield/
+  tijd), redenering-bullets, "let op" en een zekerheidsbadge.
+- Advies-type gedeeld via `lib/coach.ts` (`ShotAdvice`).
+- Toekomst: prompt caching, advies cachen per boon-hash, evt. naar
+  een nieuwer model als dat er is.
 
-## Openstaand / nodig van de gebruiker
-- [ ] Provider definitief kiezen (Claude vs OpenAI) — vóór Fase 3.
-- [ ] Bijbehorende API-key in Vercel env vars zetten.
+## Openstaand
+- Fase 2 (slimmere heuristiek) staat nog open — kan los van de LLM.

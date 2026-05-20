@@ -8,6 +8,7 @@ import { ShotCard } from "@/components/ShotCard";
 import { StarRating } from "@/components/StarRating";
 import { EmptyState } from "@/components/EmptyState";
 import { BaristaTips } from "@/components/BaristaTips";
+import { CoachCard } from "@/components/CoachCard";
 import { RatingCurve } from "@/components/RatingCurve";
 import { average, effectiveShots, formatDateOnly, mode } from "@/lib/utils";
 import { tipsForBean } from "@/lib/tips";
@@ -18,7 +19,7 @@ type SortKey = "date" | "rating" | "time";
 export default function BeanDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id;
-  const { ready, beans, shots } = useKoffie();
+  const { ready, beans, shots, setup } = useKoffie();
   const [sortBy, setSortBy] = useState<SortKey>("date");
 
   const bean = useMemo(() => beans.find((b) => b.id === id), [beans, id]);
@@ -125,6 +126,10 @@ export default function BeanDetailPage() {
       </header>
 
       <BaristaTips tips={tips} />
+
+      {beanShots.length >= 2 && (
+        <CoachCard bean={bean} setup={setup} shots={beanShots} />
+      )}
 
       {beanShots.length > 0 && (
         <section>
