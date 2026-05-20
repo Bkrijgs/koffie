@@ -25,14 +25,16 @@ const HARD_DEFAULTS = {
 
 export function ShotForm({ initialBeanId, shot }: Props) {
   const router = useRouter();
-  const { beans, shots, addShot, updateShot, ready } = useKoffie();
+  const { beans, shots, setup, addShot, updateShot, ready } = useKoffie();
   const isEdit = Boolean(shot);
 
   const [beanId, setBeanId] = useState<string>(
     shot?.beanId ?? initialBeanId ?? "",
   );
   const [showNewBean, setShowNewBean] = useState(false);
-  const [grindSize, setGrindSize] = useState(shot?.grindSize ?? "");
+  const [grindSize, setGrindSize] = useState<string>(
+    shot ? String(shot.grindSize) : "",
+  );
   const [doseGrams, setDoseGrams] = useState<string>(
     shot ? String(shot.doseGrams) : "",
   );
@@ -90,7 +92,7 @@ export function ShotForm({ initialBeanId, shot }: Props) {
           (a, b) => +new Date(b.createdAt) - +new Date(a.createdAt),
         )[0];
     return {
-      grindSize: source.grindSize,
+      grindSize: String(source.grindSize),
       doseGrams: String(source.doseGrams),
       yieldGrams: String(source.yieldGrams),
       extractionTimeSeconds: String(source.extractionTimeSeconds),
@@ -113,10 +115,10 @@ export function ShotForm({ initialBeanId, shot }: Props) {
     e.preventDefault();
     setError(null);
 
-    const grind = grindSize.trim() || placeholders.grindSize;
+    const grind = parseFloat(grindSize || placeholders.grindSize);
 
     if (!beanId) return setError("Kies een boon");
-    if (!grind) return setError("Maalgraad vereist");
+    if (!isFinite(grind) || grind <= 0) return setError("Maalgraad vereist");
     if (!isFinite(dose) || dose <= 0) return setError("Dose vereist");
     if (!isFinite(yld) || yld <= 0) return setError("Yield vereist");
     if (!isFinite(time) || time <= 0) return setError("Tijd vereist");
@@ -211,14 +213,23 @@ export function ShotForm({ initialBeanId, shot }: Props) {
         </div>
       </Field>
 
-      <Field label="Maalgraad" htmlFor="shot-grind" required>
+      <Field
+        label="Maalgraad"
+        htmlFor="shot-grind"
+        hint={`${setup.grinder} · schaal ${setup.grindMin}–${setup.grindMax}`}
+        required
+      >
         <input
           id="shot-grind"
-          className={inputClass}
+          type="number"
+          inputMode="decimal"
+          step={setup.grindStep}
+          min={setup.grindMin}
+          max={setup.grindMax}
+          className={`${inputClass} numeric`}
           value={grindSize}
           onChange={(e) => setGrindSize(e.target.value)}
           placeholder={placeholders.grindSize}
-          inputMode="text"
         />
       </Field>
 

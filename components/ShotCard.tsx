@@ -55,7 +55,7 @@ export function ShotCard({ shot, bean, showBean = true }: Props) {
       <dl
         className={`mt-4 grid grid-cols-3 gap-x-4 gap-y-3 sm:grid-cols-5 ${dimmed}`}
       >
-        <Stat label="Maalgraad" value={shot.grindSize} />
+        <Stat label="Maalgraad" value={String(shot.grindSize)} />
         <Stat label="Dose" value={`${formatNum(shot.doseGrams)} g`} />
         <Stat label="Yield" value={`${formatNum(shot.yieldGrams)} g`} />
         <Stat label="Ratio" value={`1:${shot.brewRatio.toFixed(2)}`} />

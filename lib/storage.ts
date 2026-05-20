@@ -4,11 +4,13 @@ import type {
   BagInput,
   Bean,
   BeanInput,
+  Setup,
   ShotInput,
   ShotLog,
 } from "./types";
 import { calcBrewRatio, uid } from "./utils";
 import { sanitizeTags } from "./tags";
+import { DEFAULT_SETUP } from "./setup";
 
 /**
  * Storage abstraction. The app uses Supabase when configured, and falls back
@@ -29,11 +31,23 @@ export interface KoffieStorage {
   listBags(): Promise<Bag[]>;
   addBag(input: BagInput): Promise<Bag>;
   updateBag(id: string, input: BagInput): Promise<Bag>;
+
+  getSetup(): Promise<Setup>;
+  saveSetup(setup: Setup): Promise<Setup>;
 }
 
 const BEANS_KEY = "koffie:beans:v1";
 const SHOTS_KEY = "koffie:shots:v1";
 const BAGS_KEY = "koffie:bags:v1";
+const SETUP_KEY = "koffie:setup:v1";
+
+/** Oudere shots hadden grindSize als string. Bij het lezen normaliseren we
+ *  naar een getal zodat de rest van de app er consistent mee kan rekenen. */
+function normalizeShot(s: ShotLog): ShotLog {
+  if (typeof s.grindSize === "number") return s;
+  const parsed = parseFloat(String(s.grindSize));
+  return { ...s, grindSize: Number.isFinite(parsed) ? parsed : 5 };
+}
 
 function read<T>(key: string): T[] {
   if (typeof window === "undefined") return [];
@@ -82,9 +96,9 @@ export const localStorageBackend: KoffieStorage = {
     return read<Bean>(BEANS_KEY).find((b) => b.id === id);
   },
   async listShots() {
-    return read<ShotLog>(SHOTS_KEY).sort(
-      (a, b) => +new Date(b.createdAt) - +new Date(a.createdAt),
-    );
+    return read<ShotLog>(SHOTS_KEY)
+      .map(normalizeShot)
+      .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
   },
   async addShot(input) {
     const tags = sanitizeTags(input.tags);
@@ -119,6 +133,7 @@ export const localStorageBackend: KoffieStorage = {
   },
   async shotsForBean(beanId) {
     return read<ShotLog>(SHOTS_KEY)
+      .map(normalizeShot)
       .filter((s) => s.beanId === beanId)
       .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
   },
@@ -147,6 +162,22 @@ export const localStorageBackend: KoffieStorage = {
     write(BAGS_KEY, all);
     return updated;
   },
+  async getSetup() {
+    if (typeof window === "undefined") return DEFAULT_SETUP;
+    try {
+      const raw = window.localStorage.getItem(SETUP_KEY);
+      if (!raw) return DEFAULT_SETUP;
+      return { ...DEFAULT_SETUP, ...(JSON.parse(raw) as Partial<Setup>) };
+    } catch {
+      return DEFAULT_SETUP;
+    }
+  },
+  async saveSetup(setup) {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(SETUP_KEY, JSON.stringify(setup));
+    }
+    return setup;
+  },
 };
 
 type BeanRow = {
@@ -163,7 +194,7 @@ type BeanRow = {
 type ShotRow = {
   id: string;
   bean_id: string;
-  grind_size: string;
+  grind_size: number | string;
   dose_grams: number;
   yield_grams: number;
   brew_ratio: number;
@@ -216,7 +247,7 @@ function shotFromRow(row: ShotRow): ShotLog {
   return {
     id: row.id,
     beanId: row.bean_id,
-    grindSize: row.grind_size,
+    grindSize: Number(row.grind_size),
     doseGrams: Number(row.dose_grams),
     yieldGrams: Number(row.yield_grams),
     brewRatio: Number(row.brew_ratio),
@@ -382,7 +413,74 @@ export const supabaseBackend: KoffieStorage = {
     if (error) throw error;
     return bagFromRow(data as BagRow);
   },
+  async getSetup() {
+    const { data, error } = await getSupabase()
+      .from("setup")
+      .select("*")
+      .eq("id", 1)
+      .maybeSingle();
+    if (error) throw error;
+    return data ? setupFromRow(data as SetupRow) : DEFAULT_SETUP;
+  },
+  async saveSetup(setup) {
+    const { data, error } = await getSupabase()
+      .from("setup")
+      .upsert({
+        id: 1,
+        machine: setup.machine,
+        grinder: setup.grinder,
+        grind_min: setup.grindMin,
+        grind_max: setup.grindMax,
+        grind_step: setup.grindStep,
+        default_basket: setup.defaultBasket,
+        pressurized: setup.pressurized,
+        pressure_gauge: setup.pressureGauge,
+        pre_infusion: setup.preInfusion,
+        pid: setup.pid,
+        weighs: setup.weighs,
+        notes: setup.notes ?? null,
+        updated_at: new Date().toISOString(),
+      })
+      .select("*")
+      .single();
+    if (error) throw error;
+    return setupFromRow(data as SetupRow);
+  },
 };
+
+type SetupRow = {
+  id: number;
+  machine: string;
+  grinder: string;
+  grind_min: number;
+  grind_max: number;
+  grind_step: number;
+  default_basket: string;
+  pressurized: boolean;
+  pressure_gauge: boolean;
+  pre_infusion: boolean;
+  pid: boolean;
+  weighs: boolean;
+  notes: string | null;
+  updated_at: string;
+};
+
+function setupFromRow(row: SetupRow): Setup {
+  return {
+    machine: row.machine,
+    grinder: row.grinder,
+    grindMin: Number(row.grind_min),
+    grindMax: Number(row.grind_max),
+    grindStep: Number(row.grind_step),
+    defaultBasket: row.default_basket === "single" ? "single" : "double",
+    pressurized: row.pressurized,
+    pressureGauge: row.pressure_gauge,
+    preInfusion: row.pre_infusion,
+    pid: row.pid,
+    weighs: row.weighs,
+    notes: row.notes ?? undefined,
+  };
+}
 
 export const storage: KoffieStorage = isSupabaseConfigured
   ? supabaseBackend

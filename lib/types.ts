@@ -25,7 +25,7 @@ export type ShotLog = {
   id: string;
   beanId: string;
   createdAt: string;
-  grindSize: string;
+  grindSize: number;
   doseGrams: number;
   yieldGrams: number;
   brewRatio: number;
@@ -35,6 +35,23 @@ export type ShotLog = {
   rating: Rating;
   dialIn: boolean;
   tags?: string[];
+};
+
+/** Apparatuur-setup. Eén record per installatie; voedt de coffee-AI met
+ *  machine-specifieke context (maler-schaal, basket, drukmeter, ...). */
+export type Setup = {
+  machine: string;
+  grinder: string;
+  grindMin: number;
+  grindMax: number;
+  grindStep: number;
+  defaultBasket: "single" | "double";
+  pressurized: boolean;
+  pressureGauge: boolean;
+  preInfusion: boolean;
+  pid: boolean;
+  weighs: boolean;
+  notes?: string;
 };
 
 export type Bag = {

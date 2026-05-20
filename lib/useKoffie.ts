@@ -2,11 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { storage } from "./storage";
+import { DEFAULT_SETUP } from "./setup";
 import type {
   Bag,
   BagInput,
   Bean,
   BeanInput,
+  Setup,
   ShotInput,
   ShotLog,
 } from "./types";
@@ -15,24 +17,33 @@ type State = {
   beans: Bean[];
   shots: ShotLog[];
   bags: Bag[];
+  setup: Setup;
   ready: boolean;
 };
 
 const listeners = new Set<() => void>();
-const state: State = { beans: [], shots: [], bags: [], ready: false };
+const state: State = {
+  beans: [],
+  shots: [],
+  bags: [],
+  setup: DEFAULT_SETUP,
+  ready: false,
+};
 let initStarted = false;
 
 async function init() {
   if (initStarted) return;
   initStarted = true;
-  const [beans, shots, bags] = await Promise.all([
+  const [beans, shots, bags, setup] = await Promise.all([
     storage.listBeans(),
     storage.listShots(),
     storage.listBags(),
+    storage.getSetup(),
   ]);
   state.beans = beans;
   state.shots = shots;
   state.bags = bags;
+  state.setup = setup;
   state.ready = true;
   listeners.forEach((l) => l());
 }
@@ -95,16 +106,25 @@ export function useKoffie() {
     return bag;
   }, []);
 
+  const updateSetup = useCallback(async (input: Setup) => {
+    const setup = await storage.saveSetup(input);
+    state.setup = setup;
+    notify();
+    return setup;
+  }, []);
+
   return {
     ready: state.ready,
     beans: state.beans,
     shots: state.shots,
     bags: state.bags,
+    setup: state.setup,
     addBean,
     updateBean,
     addShot,
     updateShot,
     addBag,
     updateBag,
+    updateSetup,
   };
 }
