@@ -50,6 +50,63 @@ function daysBetween(iso: string, now = Date.now()): number {
   return Math.floor((now - +new Date(iso)) / (1000 * 60 * 60 * 24));
 }
 
+function fmtNum(n: number): string {
+  return Number.isInteger(n) ? String(n) : n.toFixed(1);
+}
+
+function median(nums: number[]): number {
+  if (nums.length === 0) return 0;
+  const sorted = [...nums].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0
+    ? (sorted[mid - 1] + sorted[mid]) / 2
+    : sorted[mid];
+}
+
+type SweetSpot = {
+  timeLow: number;
+  timeHigh: number;
+  ratioLow: number;
+  ratioHigh: number;
+  /** Range observed in this bean's own ≥4★ shots. */
+  obsTimeLow: number;
+  obsTimeHigh: number;
+  learned: boolean;
+};
+
+/**
+ * Leert de optimale tijd- en ratio-range van een boon uit z'n eigen
+ * hoog-beoordeelde shots (≥4★). Bij te weinig data valt het terug op de
+ * algemene espresso-vuistregels, zodat advies altijd iets oplevert.
+ */
+function beanSweetSpot(effective: ShotLog[]): SweetSpot {
+  const good = effective.filter((s) => s.rating >= 4);
+  if (good.length < 3) {
+    return {
+      timeLow: TIME_MIN,
+      timeHigh: TIME_MAX,
+      ratioLow: RATIO_MIN,
+      ratioHigh: RATIO_MAX,
+      obsTimeLow: TIME_MIN,
+      obsTimeHigh: TIME_MAX,
+      learned: false,
+    };
+  }
+  const times = good.map((s) => s.extractionTimeSeconds);
+  const ratios = good.map((s) => s.brewRatio);
+  const obsTimeLow = Math.min(...times);
+  const obsTimeHigh = Math.max(...times);
+  return {
+    timeLow: obsTimeLow - 2,
+    timeHigh: obsTimeHigh + 2,
+    ratioLow: Math.min(...ratios) - 0.15,
+    ratioHigh: Math.max(...ratios) + 0.15,
+    obsTimeLow,
+    obsTimeHigh,
+    learned: true,
+  };
+}
+
 type TodBucket = "ochtend" | "middag" | "avond";
 
 function hourBucket(iso: string): TodBucket {
@@ -126,37 +183,48 @@ export function tipsForBean(bean: Bean, shots: ShotLog[]): Tip[] {
   const recent = effective.slice(0, 3);
   const last = recent[0];
 
+  // Vergelijk de recente shots tegen de optimale range van DEZE boon
+  // (geleerd uit z'n eigen topshots), niet tegen vaste vuistregels.
+  const spot = beanSweetSpot(effective);
+  const obsRange = `${Math.round(spot.obsTimeLow)}–${Math.round(spot.obsTimeHigh)}s`;
+
   const recentTimeAvg = average(recent.map((s) => s.extractionTimeSeconds));
-  if (recentTimeAvg && recentTimeAvg < TIME_MIN) {
+  if (recentTimeAvg && recentTimeAvg < spot.timeLow) {
+    const hard = recentTimeAvg < spot.timeLow - 6;
     tips.push({
       id: "time-fast",
       kind: "tweak",
-      text: `Laatste shots lopen door in ~${Math.round(recentTimeAvg)}s. ${
-        recentTimeAvg < 20 ? "Flink fijner malen." : "Een tikje fijner malen."
-      }`,
+      text: spot.learned
+        ? `Recent ~${Math.round(recentTimeAvg)}s; je topshots voor deze boon zitten op ${obsRange}. ${hard ? "Flink" : "Een tikje"} fijner malen.`
+        : `Laatste shots lopen door in ~${Math.round(recentTimeAvg)}s. ${hard ? "Flink fijner malen." : "Een tikje fijner malen."}`,
     });
-  } else if (recentTimeAvg && recentTimeAvg > TIME_MAX) {
+  } else if (recentTimeAvg && recentTimeAvg > spot.timeHigh) {
+    const hard = recentTimeAvg > spot.timeHigh + 8;
     tips.push({
       id: "time-slow",
       kind: "tweak",
-      text: `Doorlooptijd ~${Math.round(recentTimeAvg)}s. ${
-        recentTimeAvg > 40 ? "Flink grover malen." : "Een tikje grover malen."
-      }`,
+      text: spot.learned
+        ? `Recent ~${Math.round(recentTimeAvg)}s; je topshots voor deze boon zitten op ${obsRange}. ${hard ? "Flink" : "Een tikje"} grover malen.`
+        : `Doorlooptijd ~${Math.round(recentTimeAvg)}s. ${hard ? "Flink grover malen." : "Een tikje grover malen."}`,
     });
   }
 
   const ratioAvg = average(recent.map((s) => s.brewRatio));
-  if (ratioAvg && ratioAvg < RATIO_MIN) {
+  if (ratioAvg && ratioAvg < spot.ratioLow) {
     tips.push({
       id: "ratio-low",
       kind: "tweak",
-      text: `Brew ratio gemiddeld 1:${ratioAvg.toFixed(2)} — kort. Probeer langer door te laten lopen voor meer extractie.`,
+      text: spot.learned
+        ? `Brew ratio gemiddeld 1:${ratioAvg.toFixed(2)} — korter dan je topshots voor deze boon. Laat 'm langer doorlopen.`
+        : `Brew ratio gemiddeld 1:${ratioAvg.toFixed(2)} — kort. Probeer langer door te laten lopen voor meer extractie.`,
     });
-  } else if (ratioAvg && ratioAvg > RATIO_MAX) {
+  } else if (ratioAvg && ratioAvg > spot.ratioHigh) {
     tips.push({
       id: "ratio-high",
       kind: "tweak",
-      text: `Brew ratio gemiddeld 1:${ratioAvg.toFixed(2)} — lang. Stop eerder voor meer body.`,
+      text: spot.learned
+        ? `Brew ratio gemiddeld 1:${ratioAvg.toFixed(2)} — langer dan je topshots voor deze boon. Stop eerder voor meer body.`
+        : `Brew ratio gemiddeld 1:${ratioAvg.toFixed(2)} — lang. Stop eerder voor meer body.`,
     });
   }
 
@@ -166,12 +234,10 @@ export function tipsForBean(bean: Bean, shots: ShotLog[]): Tip[] {
   );
   const top = sortedByRating[0];
   if (top) {
-    const fmt = (n: number) =>
-      Number.isInteger(n) ? String(n) : n.toFixed(1);
     tips.unshift({
       id: "best-shot",
       kind: "info",
-      text: `Beste shot tot nu toe (${top.rating}★) — maalgraad ${top.grindSize}, ${fmt(top.doseGrams)} g in / ${fmt(top.yieldGrams)} g uit, ${top.extractionTimeSeconds}s.`,
+      text: `Beste shot tot nu toe (${top.rating}★) — maalgraad ${fmtNum(top.grindSize)}, ${fmtNum(top.doseGrams)} g in / ${fmtNum(top.yieldGrams)} g uit, ${top.extractionTimeSeconds}s.`,
     });
   }
   if (
@@ -181,11 +247,33 @@ export function tipsForBean(bean: Bean, shots: ShotLog[]): Tip[] {
     top.rating >= 4 &&
     top.grindSize !== last.grindSize
   ) {
+    const delta = last.grindSize - top.grindSize;
+    const steps = Math.abs(delta);
+    const direction = delta > 0 ? "fijner" : "grover";
+    const stepWord = steps === 1 ? "stap" : "stappen";
     tips.push({
       id: "grind-drift",
       kind: "tweak",
-      text: `Top shot (${top.rating}★) had maalgraad ${top.grindSize}, laatste was ${last.grindSize}. Terug richting ${top.grindSize}.`,
+      text: `Topshot (${top.rating}★) zat op maalgraad ${fmtNum(top.grindSize)}, je laatste op ${fmtNum(last.grindSize)}. Ga ${fmtNum(steps)} ${stepWord} ${direction} terug.`,
     });
+  }
+
+  // Anomalie: de laatste shot wijkt sterk af van de norm van deze boon.
+  if (effective.length >= 5 && last) {
+    const baseline = effective.filter((s) => s.id !== last.id);
+    const medTime = median(baseline.map((s) => s.extractionTimeSeconds));
+    const diff = last.extractionTimeSeconds - medTime;
+    if (medTime && Math.abs(diff) >= 8) {
+      tips.push({
+        id: "anomaly-time",
+        kind: "warn",
+        text: `Je laatste shot liep in ${last.extractionTimeSeconds}s, terwijl deze boon normaal rond ${Math.round(medTime)}s zit. ${
+          diff > 0
+            ? "Te fijn gemalen of te veel dose?"
+            : "Te grof gemalen of te weinig dose?"
+        }`,
+      });
+    }
   }
 
   if (bean.roastDate) {
@@ -515,10 +603,14 @@ export function tipsForShot(
       topShot.rating >= 4 &&
       topShot.grindSize !== shot.grindSize
     ) {
+      const delta = shot.grindSize - topShot.grindSize;
+      const steps = Math.abs(delta);
+      const stepWord = steps === 1 ? "stap" : "stappen";
+      const rel = delta > 0 ? "grover" : "fijner";
       tips.push({
         id: "shot-grind-vs-best",
         kind: "info",
-        text: `Beste shot voor ${bean.name} (${topShot.rating}★) had maalgraad ${topShot.grindSize}, deze ${shot.grindSize}.`,
+        text: `Beste shot voor ${bean.name} (${topShot.rating}★) zat op maalgraad ${fmtNum(topShot.grindSize)}; deze stond ${fmtNum(steps)} ${stepWord} ${rel} (${fmtNum(shot.grindSize)}).`,
       });
     }
   }

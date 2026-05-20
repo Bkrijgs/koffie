@@ -63,13 +63,15 @@ we er altijd op terug kunnen vallen.
 - `Setup`-type + `setup`-tabel + `/instellingen` UI.
 - Numerieke maalgraad-stepper in de shot-form, begrensd door de setup-schaal.
 
-### Fase 2 — Slimmere heuristiek (offline, gratis)
-- Per boon eigen optimale ranges leren uit de eigen topshots i.p.v. vaste
-  drempels (25–32 s, ratio 1.6–2.6).
-- Grind-drift advies wordt exact ("ga 2 stappen fijner") nu maalgraad een
-  getal is.
-- Anomalie-detectie ("tijd 18 s terwijl je norm 28 s is").
-- Feedback-loop UI: "vorige shot zei "fijner malen" — gedaan?".
+### Fase 2 — Slimmere heuristiek (offline, gratis) ✅
+- `beanSweetSpot()` leert per boon de tijd- en ratio-range uit de eigen
+  ≥4★ shots; valt terug op de algemene vuistregels bij <3 goede shots.
+  De time-/ratio-tips vergelijken nu daartegen i.p.v. vaste 25–32 s.
+- Grind-drift is exact: "ga N stappen fijner/grover" op de maler-schaal.
+- Anomalie-tip: laatste shot wijkt ≥8 s af van de mediaan van de boon.
+- Feedback-loop: de shot-form toont het `nextAdjustment` van de vorige
+  shot als reminder-banner. Of de aanpassing is uitgevoerd leidt de
+  engine af uit de instellingen-delta (geen los ja/nee-veld nodig).
 
 ### Fase 3 — LLM-coach ✅
 - Provider: **OpenAI**, model `gpt-4.1-mini` (override via env-var
@@ -86,4 +88,6 @@ we er altijd op terug kunnen vallen.
   een nieuwer model als dat er is.
 
 ## Openstaand
-- Fase 2 (slimmere heuristiek) staat nog open — kan los van de LLM.
+- Alle drie de fases staan. Mogelijke vervolgstappen: prompt caching,
+  advies cachen per boon-hash, een nieuwer/goedkoper model, en de
+  heuristiek verder verfijnen op basis van gebruik.

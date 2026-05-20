@@ -99,6 +99,16 @@ export function ShotForm({ initialBeanId, shot }: Props) {
     };
   }, [beanId, shots]);
 
+  // Feedback-loop: toon wat je bij de vorige shot voor deze boon van
+  // plan was, zodat je het niet vergeet. Alleen bij een nieuwe shot.
+  const lastAdjustment = useMemo(() => {
+    if (isEdit || !beanId) return null;
+    const recent = shots
+      .filter((s) => s.beanId === beanId)
+      .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt))[0];
+    return recent?.nextAdjustment ?? null;
+  }, [isEdit, beanId, shots]);
+
   // For the live ratio preview and submit fallback, fall through to the
   // placeholder when an input is empty.
   const dose = parseFloat(doseGrams || placeholders.doseGrams);
@@ -212,6 +222,19 @@ export function ShotForm({ initialBeanId, shot }: Props) {
           </button>
         </div>
       </Field>
+
+      {lastAdjustment && (
+        <div className="anim-fade-up flex gap-2.5 rounded-lg border border-barista-100 bg-card px-4 py-3 text-sm">
+          <span
+            className="mt-1.5 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-barista-400"
+            aria-hidden
+          />
+          <span className="min-w-0">
+            <span className="text-ink-400">Vorige keer was je plan:</span>{" "}
+            <span className="text-ink-700">{lastAdjustment}</span>
+          </span>
+        </div>
+      )}
 
       <Field
         label="Maalgraad"
