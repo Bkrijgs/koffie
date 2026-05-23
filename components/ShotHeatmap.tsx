@@ -49,10 +49,10 @@ export function ShotHeatmap({ shots }: Props) {
     const update = () => {
       const w = el.clientWidth;
       if (w <= 0) return;
-      // Hoeveel kolommen passen er in de beschikbare breedte? Eén kolom is
-      // CELL_PX breed + GAP_PX ertussen; voor de eerste kolom hoef je geen
-      // gap te reserveren.
-      const fits = Math.floor((w + GAP_PX) / COL_PX);
+      // Hoeveel kolommen passen er binnen de beschikbare breedte? Iets
+      // conservatief (− GAP_PX) zodat sub-pixel rendering niet alsnog
+      // overflow geeft.
+      const fits = Math.floor((w - GAP_PX) / COL_PX);
       setWeeks(Math.max(MIN_WEEKS, Math.min(MAX_WEEKS, fits)));
     };
     update();
@@ -134,7 +134,7 @@ export function ShotHeatmap({ shots }: Props) {
           <span className="h-4 leading-4">zo</span>
         </div>
         <div ref={gridRef} className="min-w-0 flex-1 overflow-hidden">
-          <div className="flex gap-1">
+          <div className="flex justify-end gap-1">
             {columns.map((col, ci) => (
               <div key={ci} className="flex flex-col gap-1">
                 <div className="h-4 text-[10px] uppercase tracking-wider text-ink-400">
