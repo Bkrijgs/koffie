@@ -23,6 +23,17 @@ const HARD_DEFAULTS = {
   extractionTimeSeconds: "28",
 };
 
+const RATIO_PRESETS = [
+  { label: "Ristretto", ratio: 1.5 },
+  { label: "Espresso", ratio: 2 },
+  { label: "Normale", ratio: 2.5 },
+  { label: "Lungo", ratio: 3 },
+] as const;
+
+function fmtGrams(n: number): string {
+  return Number.isInteger(n) ? String(n) : n.toFixed(1);
+}
+
 export function ShotForm({ initialBeanId, shot }: Props) {
   const router = useRouter();
   const { beans, shots, setup, addShot, updateShot, ready } = useKoffie();
@@ -120,6 +131,18 @@ export function ShotForm({ initialBeanId, shot }: Props) {
     () => (isFinite(dose) && isFinite(yld) ? calcBrewRatio(yld, dose) : 0),
     [dose, yld],
   );
+
+  // Compacte verhouding-tabel: gegeven de huidige (of placeholder-)dose
+  // laten zien hoeveel er uit zou moeten komen voor de standaard
+  // verhoudingen. Klikken vult het yield-veld in.
+  const ratioTargets = useMemo(() => {
+    if (!isFinite(dose) || dose <= 0) return null;
+    return RATIO_PRESETS.map((p) => ({
+      label: p.label,
+      ratio: p.ratio,
+      yield: dose * p.ratio,
+    }));
+  }, [dose]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -284,6 +307,42 @@ export function ShotForm({ initialBeanId, shot }: Props) {
           />
         </Field>
       </div>
+
+      {ratioTargets && (
+        <div>
+          <span className="mb-1.5 block text-[11px] font-medium uppercase tracking-[0.14em] text-ink-400">
+            Doel-yield
+          </span>
+          <div className="grid grid-cols-4 gap-1.5">
+            {ratioTargets.map((t) => {
+              const target = fmtGrams(Number(t.yield.toFixed(1)));
+              const isActive = yieldGrams === target;
+              return (
+                <button
+                  key={t.label}
+                  type="button"
+                  onClick={() => setYieldGrams(target)}
+                  className={`rounded-md border px-2 py-1.5 text-center transition-all duration-150 active:scale-95 ${
+                    isActive
+                      ? "border-barista-400 bg-barista-100/40"
+                      : "border-line bg-card hover:border-barista-300"
+                  }`}
+                >
+                  <p className="text-[10px] uppercase tracking-wider text-ink-400">
+                    {t.label}
+                  </p>
+                  <p className="numeric text-[9px] text-ink-300">
+                    1:{t.ratio}
+                  </p>
+                  <p className="numeric mt-0.5 text-sm font-medium text-ink-800">
+                    {fmtGrams(t.yield)} g
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="flex items-center justify-between rounded-lg border border-barista-100 bg-card px-4 py-3 text-sm">
         <span className="text-[11px] uppercase tracking-[0.14em] text-ink-400">
