@@ -310,10 +310,15 @@ export function ShotForm({ initialBeanId, shot }: Props) {
 
       {ratioTargets && (
         <div>
-          <span className="mb-1.5 block text-[11px] font-medium uppercase tracking-[0.14em] text-ink-400">
-            Doel-yield
-          </span>
-          <div className="grid grid-cols-4 gap-1.5">
+          <div className="mb-2 flex items-baseline justify-between">
+            <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-ink-400">
+              Verhoudingen
+            </span>
+            <span className="numeric text-[10px] uppercase tracking-wider text-ink-300">
+              vanaf {fmtGrams(dose)} g
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {ratioTargets.map((t) => {
               const target = fmtGrams(Number(t.yield.toFixed(1)));
               const isActive = yieldGrams === target;
@@ -322,21 +327,33 @@ export function ShotForm({ initialBeanId, shot }: Props) {
                   key={t.label}
                   type="button"
                   onClick={() => setYieldGrams(target)}
-                  className={`rounded-md border px-2 py-1.5 text-center transition-all duration-150 active:scale-95 ${
+                  className={`flex flex-col items-center gap-0.5 rounded-lg border px-3 py-3 transition-all duration-150 active:scale-95 ${
                     isActive
-                      ? "border-barista-400 bg-barista-100/40"
-                      : "border-line bg-card hover:border-barista-300"
+                      ? "border-barista-400 bg-barista-400 text-paper shadow-soft"
+                      : "border-line bg-paper hover:border-barista-300 hover:bg-barista-100/40"
                   }`}
                 >
-                  <p className="text-[10px] uppercase tracking-wider text-ink-400">
+                  <span
+                    className={`text-[10px] font-medium uppercase tracking-wider ${
+                      isActive ? "text-paper/85" : "text-ink-500"
+                    }`}
+                  >
                     {t.label}
-                  </p>
-                  <p className="numeric text-[9px] text-ink-300">
+                  </span>
+                  <span
+                    className={`numeric text-[10px] ${
+                      isActive ? "text-paper/65" : "text-ink-300"
+                    }`}
+                  >
                     1:{t.ratio}
-                  </p>
-                  <p className="numeric mt-0.5 text-sm font-medium text-ink-800">
+                  </span>
+                  <span
+                    className={`numeric mt-0.5 font-display text-base tracking-tightish ${
+                      isActive ? "text-paper" : "text-ink-800"
+                    }`}
+                  >
                     {fmtGrams(t.yield)} g
-                  </p>
+                  </span>
                 </button>
               );
             })}
