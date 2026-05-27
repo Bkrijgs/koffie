@@ -42,6 +42,12 @@ button {
   -webkit-tap-highlight-color: transparent;
 }
 
+.no-touch-select {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 @keyframes barista-bob {
   0%, 100% {
     transform: translateY(0) rotate(-1.5deg);

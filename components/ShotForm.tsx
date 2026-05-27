@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useKoffie } from "@/lib/useKoffie";
 import { calcBrewRatio, effectiveShots } from "@/lib/utils";
@@ -24,10 +24,30 @@ const HARD_DEFAULTS = {
 };
 
 const RATIO_PRESETS = [
-  { label: "Ristretto", ratio: 1.5 },
-  { label: "Espresso", ratio: 2 },
-  { label: "Normale", ratio: 2.5 },
-  { label: "Lungo", ratio: 3 },
+  {
+    label: "Ristretto",
+    ratio: 1.5,
+    description:
+      "Kort getrokken, geconcentreerd. Veel body en zoetheid, weinig zuur — intens en siroopachtig.",
+  },
+  {
+    label: "Espresso",
+    ratio: 2,
+    description:
+      "De klassieke verhouding. Balans tussen body, zoet en zuur — het standaard-recept.",
+  },
+  {
+    label: "Normale",
+    ratio: 2.5,
+    description:
+      "Iets langer doorgetrokken. Meer helderheid en aroma, lichter in body. Werkt goed bij lichter gebrande bonen.",
+  },
+  {
+    label: "Lungo",
+    ratio: 3,
+    description:
+      "Lange shot. Lichter en meer caffeine, kan richting bitter gaan bij te ver doortrekken.",
+  },
 ] as const;
 
 function fmtGrams(n: number): string {
@@ -69,6 +89,39 @@ export function ShotForm({ initialBeanId, shot }: Props) {
     setTags((prev) =>
       prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
     );
+  }
+
+  // Long-press op een verhouding-cel toont de uitleg-tooltip; release
+  // verbergt 'm weer. Korte tap (<450ms) vult het yield-veld in.
+  const [tooltipFor, setTooltipFor] = useState<string | null>(null);
+  const pressTimerRef = useRef<number | null>(null);
+  const wasLongPressRef = useRef(false);
+
+  function startPress(label: string) {
+    wasLongPressRef.current = false;
+    if (pressTimerRef.current !== null) {
+      window.clearTimeout(pressTimerRef.current);
+    }
+    pressTimerRef.current = window.setTimeout(() => {
+      setTooltipFor(label);
+      wasLongPressRef.current = true;
+    }, 450);
+  }
+
+  function endPress() {
+    if (pressTimerRef.current !== null) {
+      window.clearTimeout(pressTimerRef.current);
+      pressTimerRef.current = null;
+    }
+    setTooltipFor(null);
+  }
+
+  function handleRatioClick(target: string) {
+    if (wasLongPressRef.current) {
+      wasLongPressRef.current = false;
+      return;
+    }
+    setYieldGrams(target);
   }
 
   // Bij een verse nieuwe shot zonder URL-param: pak de boon van de meest
@@ -309,25 +362,32 @@ export function ShotForm({ initialBeanId, shot }: Props) {
       </div>
 
       {ratioTargets && (
-        <div>
+        <div className="relative">
           <div className="mb-2 flex items-baseline justify-between">
             <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-ink-400">
               Verhoudingen
             </span>
             <span className="numeric text-[10px] uppercase tracking-wider text-ink-300">
-              vanaf {fmtGrams(dose)} g
+              vanaf {fmtGrams(dose)} g · houd ingedrukt voor uitleg
             </span>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {ratioTargets.map((t) => {
+              const preset = RATIO_PRESETS.find((p) => p.label === t.label);
               const target = fmtGrams(Number(t.yield.toFixed(1)));
               const isActive = yieldGrams === target;
               return (
                 <button
                   key={t.label}
                   type="button"
-                  onClick={() => setYieldGrams(target)}
-                  className={`flex flex-col items-center gap-0.5 rounded-lg border px-3 py-3 transition-all duration-150 active:scale-95 ${
+                  title={preset?.description}
+                  onPointerDown={() => startPress(t.label)}
+                  onPointerUp={endPress}
+                  onPointerLeave={endPress}
+                  onPointerCancel={endPress}
+                  onContextMenu={(e) => e.preventDefault()}
+                  onClick={() => handleRatioClick(target)}
+                  className={`no-touch-select flex flex-col items-center gap-0.5 rounded-lg border px-3 py-3 transition-all duration-150 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-barista-400/40 ${
                     isActive
                       ? "border-barista-400 bg-barista-400 text-paper shadow-soft"
                       : "border-line bg-paper hover:border-barista-300 hover:bg-barista-100/40"
@@ -358,6 +418,26 @@ export function ShotForm({ initialBeanId, shot }: Props) {
               );
             })}
           </div>
+
+          {tooltipFor && (
+            <div
+              className="anim-fade-up pointer-events-none absolute left-0 right-0 top-full z-20 mt-2 rounded-lg bg-ink-800 px-3.5 py-2.5 text-[12px] leading-snug text-paper shadow-lift"
+              role="tooltip"
+            >
+              <div className="flex items-baseline gap-2">
+                <span className="font-display text-sm tracking-tightish text-paper">
+                  {tooltipFor}
+                </span>
+                <span className="numeric text-[10px] uppercase tracking-wider text-paper/55">
+                  1:
+                  {RATIO_PRESETS.find((p) => p.label === tooltipFor)?.ratio}
+                </span>
+              </div>
+              <p className="mt-1 text-paper/85">
+                {RATIO_PRESETS.find((p) => p.label === tooltipFor)?.description}
+              </p>
+            </div>
+          )}
         </div>
       )}
 
