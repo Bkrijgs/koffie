@@ -31,15 +31,16 @@ uniform vec2  uResolution;
 uniform vec3  uColor1;
 uniform vec3  uColor2;
 uniform vec3  uColor3;
-uniform float uProportion;   // 0..1: mengverhouding tussen kleurpaar
-uniform float uSoftness;     // 0..1: zachte vs harde overgangen
-uniform float uDistortion;   // 0..1: domain-warp sterkte
-uniform float uSwirl;        // 0..1: polar swirl sterkte
-uniform float uScale;        // pattern-scale
-uniform float uRotation;     // basis-rotatie (radialen)
-uniform float uSpeed;        // animatie-snelheid multiplier
-
-const int SWIRL_ITERATIONS = 8;
+uniform float uProportion;        // 0..1: mengverhouding tussen kleurpaar
+uniform float uSoftness;          // 0..1: zachte vs harde overgangen
+uniform float uDistortion;        // 0..1: domain-warp sterkte
+uniform float uSwirl;             // 0..1: polar swirl sterkte
+uniform float uSwirlIterations;   // aantal iteraties (max 12)
+uniform float uScale;             // pattern-scale
+uniform float uRotation;          // basis-rotatie (radialen)
+uniform float uSpeed;             // animatie-snelheid multiplier
+uniform float uShape;             // 0 = vlak veld, 1 = stripes
+uniform float uShapeScale;        // 0..1: stripe-frequentie
 
 vec2 rotate(vec2 v, float a) {
   float c = cos(a), s = sin(a);
@@ -51,7 +52,7 @@ void main() {
   vec2 uv = vUv - 0.5;
   uv.x *= uResolution.x / uResolution.y;
   uv = rotate(uv, uRotation);
-  uv *= uScale;
+  uv *= max(uScale, 0.001);
 
   float t = uTime * uSpeed;
 
@@ -63,8 +64,11 @@ void main() {
   );
 
   // Polar swirl: per iteratie roteren we uv rond het centrum met een
-  // hoek die schaalt met de afstand — geeft het 'getorste' effect.
-  for (int i = 0; i < SWIRL_ITERATIONS; i++) {
+  // hoek die schaalt met de afstand — geeft het 'getorste' effect. Loop
+  // bound is constant zoals WebGL eist; uniforme iteratie-count breekt
+  // 'm eerder.
+  for (int i = 0; i < 12; i++) {
+    if (float(i) >= uSwirlIterations) break;
     float r = length(uv);
     float angle = uSwirl * (1.0 - r) + t * 0.07;
     uv = rotate(uv, angle);
@@ -73,15 +77,23 @@ void main() {
 
   // Field-waarde uit de getortste uv bepaalt het kleur-mengpunt.
   float field = uv.x * 0.5 + 0.5;
+
+  // Stripes-shape: golf het veld zodat het kleur-patroon zich herhaalt
+  // over de getortste uv — dat geeft de typische 'vortex met strepen'.
+  if (uShape > 0.5) {
+    float reps = mix(2.0, 18.0, clamp(uShapeScale, 0.0, 1.0));
+    field = sin(field * reps * 3.14159265) * 0.5 + 0.5;
+  }
+
   field = clamp(field, 0.0, 1.0);
 
-  // Zachte overgang tussen drie kleuren via twee smoothsteps rond
-  // het 'proportion' breekpunt; softness verbreedt de overgangs-zone.
+  // Zachte overgang tussen drie kleuren via één smoothstep rond het
+  // 'proportion' breekpunt; softness verbreedt de overgangs-zone.
   float p = clamp(uProportion, 0.05, 0.95);
-  float s = mix(0.02, 0.5, uSoftness);
+  float s = mix(0.015, 0.5, uSoftness);
   float t1 = smoothstep(p - s, p + s, field);
   vec3 col = mix(uColor1, uColor3, t1);
-  // Kleur2 als 'tussenkleur' rond het breekpunt
+  // Kleur2 als 'tussenkleur' rond het breekpunt (Gaussisch piekje)
   float band = exp(-pow((field - p) / max(s, 0.01), 2.0));
   col = mix(col, uColor2, band * 0.7);
 
@@ -97,25 +109,31 @@ type ShaderParams = {
   softness: number;
   distortion: number;
   swirl: number;
+  swirlIterations: number;
   scale: number;
   rotation: number;
   speed: number;
+  shape: 0 | 1; // 0 = vlak, 1 = stripes
+  shapeScale: number;
 };
 
-// Barista-palette "Prism"-achtige preset: paper → barista-300 → barista-500.
-// Subtiele beweging, lichte distortie en flinke swirl voor het organische
-// effect.
+// "Vortex"-preset uit Framer's AnimatedGradientBackground, omgezet naar
+// barista-palette: maximale swirl, sharp softness, stripes-shape. Geeft
+// een getorste lichtband over een diepblauwe achtergrond.
 const DEFAULT_PARAMS: ShaderParams = {
-  color1: [0.086, 0.133, 0.722], // barista-500 #1622b8
-  color2: [0.357, 0.4, 0.929], // barista-300 #5b66ed
-  color3: [0.957, 0.965, 0.984], // paper #f4f6fb
-  proportion: 0.5,
-  softness: 0.75,
-  distortion: 0.12,
-  swirl: 0.55,
-  scale: 1.0,
-  rotation: -0.6,
-  speed: 0.35,
+  color1: [0.086, 0.133, 0.722], // barista-500 #1622b8 (was zwart)
+  color2: [0.957, 0.965, 0.984], // paper #f4f6fb       (was wit)
+  color3: [0.086, 0.133, 0.722], // barista-500 #1622b8 (was zwart)
+  proportion: 0.41,
+  softness: 0.05,
+  distortion: 0,
+  swirl: 1.0,
+  swirlIterations: 3,
+  scale: 0.4,
+  rotation: (50 * Math.PI) / 180,
+  speed: 0.45,
+  shape: 1,
+  shapeScale: 0.8,
 };
 
 function compile(gl: WebGLRenderingContext, type: number, src: string) {
@@ -193,9 +211,12 @@ export function AnimatedGradientBackground({
       softness: gl.getUniformLocation(program, "uSoftness"),
       distortion: gl.getUniformLocation(program, "uDistortion"),
       swirl: gl.getUniformLocation(program, "uSwirl"),
+      swirlIterations: gl.getUniformLocation(program, "uSwirlIterations"),
       scale: gl.getUniformLocation(program, "uScale"),
       rotation: gl.getUniformLocation(program, "uRotation"),
       speed: gl.getUniformLocation(program, "uSpeed"),
+      shape: gl.getUniformLocation(program, "uShape"),
+      shapeScale: gl.getUniformLocation(program, "uShapeScale"),
     };
 
     function pushParams() {
@@ -207,9 +228,12 @@ export function AnimatedGradientBackground({
       gl.uniform1f(u.softness, p.softness);
       gl.uniform1f(u.distortion, p.distortion);
       gl.uniform1f(u.swirl, p.swirl);
+      gl.uniform1f(u.swirlIterations, p.swirlIterations);
       gl.uniform1f(u.scale, p.scale);
       gl.uniform1f(u.rotation, p.rotation);
       gl.uniform1f(u.speed, p.speed);
+      gl.uniform1f(u.shape, p.shape);
+      gl.uniform1f(u.shapeScale, p.shapeScale);
     }
     pushParams();
 
