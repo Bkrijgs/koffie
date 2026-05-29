@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Barista } from "./Barista";
+import { AnimatedGradientBackground } from "./AnimatedGradientBackground";
 
 type Stage = { label: string };
 
@@ -87,29 +88,10 @@ export function BootSplash() {
       }}
       aria-hidden={phase === "leaving"}
     >
-      {/* Animated liquid background — soft blurred blobs in barista
-          palette die organisch over elkaar drijven. */}
-      <div
-        className="pointer-events-none absolute inset-0 overflow-hidden"
-        aria-hidden
-      >
-        <div
-          className="anim-blob-a absolute -left-[15vmin] -top-[10vmin] h-[60vmin] w-[60vmin] rounded-full opacity-70 will-change-transform"
-          style={{ background: "#5b66ed", filter: "blur(80px)" }}
-        />
-        <div
-          className="anim-blob-b absolute right-[-18vmin] top-[18%] h-[55vmin] w-[55vmin] rounded-full opacity-55 will-change-transform"
-          style={{ background: "#1e2ceb", filter: "blur(85px)" }}
-        />
-        <div
-          className="anim-blob-c absolute bottom-[-15vmin] left-[15%] h-[70vmin] w-[70vmin] rounded-full opacity-80 will-change-transform"
-          style={{ background: "#dde0fb", filter: "blur(90px)" }}
-        />
-        <div
-          className="anim-blob-d absolute right-[5%] bottom-[10%] h-[40vmin] w-[40vmin] rounded-full opacity-50 will-change-transform"
-          style={{ background: "#1622b8", filter: "blur(75px)" }}
-        />
-      </div>
+      {/* Warp-style achtergrond (Framer-AnimatedGradientBackground in
+          barista-palette). Procedurele gradient van paper → barista-300
+          → barista-500 met polar swirl + lichte distortion. */}
+      <AnimatedGradientBackground />
 
       {/* Scanline */}
       <div

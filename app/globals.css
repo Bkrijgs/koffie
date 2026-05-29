@@ -253,31 +253,6 @@ button {
   animation: bar-pulse 1.4s ease-in-out infinite;
 }
 
-@keyframes blob-a {
-  0%, 100% { transform: translate(-12%, -8%) scale(1); }
-  50%      { transform: translate(18%, 6%) scale(1.12); }
-}
-
-@keyframes blob-b {
-  0%, 100% { transform: translate(10%, 12%) scale(1.05); }
-  50%      { transform: translate(-18%, -10%) scale(0.95); }
-}
-
-@keyframes blob-c {
-  0%, 100% { transform: translate(0%, 0%) scale(1); }
-  33%      { transform: translate(-12%, 18%) scale(1.1); }
-  66%      { transform: translate(14%, -14%) scale(0.92); }
-}
-
-@keyframes blob-d {
-  0%, 100% { transform: translate(8%, -10%) scale(0.95); }
-  50%      { transform: translate(-10%, 12%) scale(1.1); }
-}
-
-.anim-blob-a { animation: blob-a 18s ease-in-out infinite; }
-.anim-blob-b { animation: blob-b 22s ease-in-out infinite; }
-.anim-blob-c { animation: blob-c 26s ease-in-out infinite; }
-.anim-blob-d { animation: blob-d 30s ease-in-out infinite; }
 
 @keyframes scan-line {
   0% {
@@ -323,11 +298,7 @@ button {
   .anim-chase,
   .anim-scan-line,
   .anim-bar-fill,
-  .anim-bar-pulse,
-  .anim-blob-a,
-  .anim-blob-b,
-  .anim-blob-c,
-  .anim-blob-d {
+  .anim-bar-pulse {
     animation: none;
     transform: none;
   }
