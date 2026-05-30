@@ -78,25 +78,28 @@ void main() {
   // Field-waarde uit de getortste uv bepaalt het kleur-mengpunt.
   float field = uv.x * 0.5 + 0.5;
 
-  // Stripes-shape: golf het veld zodat het kleur-patroon zich herhaalt
-  // over de getortste uv — dat geeft de typische 'vortex met strepen'.
+  // Stripes-shape: sawtooth herhaling van het veld zodat het patroon
+  // crisp blokjes worden i.p.v. een sinus-fade. Geeft scherpe randen.
   if (uShape > 0.5) {
     float reps = mix(2.0, 18.0, clamp(uShapeScale, 0.0, 1.0));
-    field = sin(field * reps * 3.14159265) * 0.5 + 0.5;
+    field = fract(field * reps);
   }
 
   field = clamp(field, 0.0, 1.0);
 
-  // Zachte overgang tussen drie kleuren via één smoothstep rond het
-  // 'proportion' breekpunt; softness verbreedt de overgangs-zone.
+  // Harde sprong tussen color1 en color3 op het 'proportion' breekpunt
+  // (geen smoothstep meer — messcherpe lijnen).
   float p = clamp(uProportion, 0.05, 0.95);
-  float s = mix(0.015, 0.5, uSoftness);
-  float t1 = smoothstep(p - s, p + s, field);
+  float t1 = step(p, field);
   vec3 col = mix(uColor1, uColor3, t1);
-  // Kleur2 als 'tussenkleur' rond het breekpunt (Gaussisch piekje).
-  // Intensiteit getemperd zodat de band niet de voorgrond-tekst verdrukt.
-  float band = exp(-pow((field - p) / max(s, 0.01), 2.0));
-  col = mix(col, uColor2, band * 0.45);
+
+  // Optionele dunne color2-lijn rond het breekpunt; verdwijnt bij
+  // softness = 0. Twee step-functies vormen een vierkante puls.
+  float w = uSoftness * 0.06;
+  if (w > 0.0001) {
+    float band = step(p - w, field) - step(p + w, field);
+    col = mix(col, uColor2, band);
+  }
 
   gl_FragColor = vec4(col, 1.0);
 }
@@ -118,15 +121,14 @@ type ShaderParams = {
   shapeScale: number;
 };
 
-// Vortex-preset (Framer) omgezet naar de barista-palette én getemperd
-// zodat dark-ink-tekst op de voorgrond leesbaar blijft. Behoudt de
-// getorste stripe-structuur maar in pastel-blauw i.p.v. zwart/wit.
+// Vortex-preset (Framer) in barista-palette. Twee crisp tinten met
+// harde randen, geen blend. Color2 is ongebruikt zolang softness=0.
 const DEFAULT_PARAMS: ShaderParams = {
-  color1: [0.866, 0.878, 0.984], // barista-100 #dde0fb (was zwart)
-  color2: [0.357, 0.4, 0.929],   // barista-300 #5b66ed (was wit)  — de band
-  color3: [0.866, 0.878, 0.984], // barista-100 #dde0fb (was zwart)
+  color1: [0.866, 0.878, 0.984], // barista-100 #dde0fb
+  color2: [0.118, 0.173, 0.922], // barista-400 #1e2ceb (optionele dunne lijn)
+  color3: [0.357, 0.4, 0.929],   // barista-300 #5b66ed
   proportion: 0.5,
-  softness: 0.3,                 // zachter dan Vortex' default 0.05
+  softness: 0,                   // 0 = geen tussenlijn, pure 2-toon
   distortion: 0,
   swirl: 1.0,
   swirlIterations: 3,
