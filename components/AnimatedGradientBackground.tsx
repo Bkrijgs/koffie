@@ -56,43 +56,45 @@ void main() {
 
   float t = uTime * uSpeed;
 
-  // Domain warp: lichte sinusoïde verstoring zodat de strepen niet
-  // perfect rechtlijnig zijn maar 'ademen'.
-  uv += vec2(
-    sin(uv.y * 2.7 + t * 0.5) * uDistortion * 0.6,
-    cos(uv.x * 2.3 + t * 0.4) * uDistortion * 0.6
+  // Multi-octave warp: twee golven op verschillende frequentie + drift,
+  // geeft de organische dichtheids-variatie waar de lijnen clusteren
+  // en uitwaaieren. Altijd-aan (lichte basis), uDistortion versterkt.
+  float warpAmt = 0.06 + uDistortion * 0.15;
+  uv += warpAmt * vec2(
+    sin(uv.y * 3.0 + t * 0.45) + 0.5 * sin(uv.y * 7.5 + t * 0.7),
+    cos(uv.x * 3.4 + t * 0.35) + 0.5 * cos(uv.x * 8.0 + t * 0.55)
   );
 
-  // Polar swirl: per iteratie roteren we uv rond het centrum met een
-  // hoek die schaalt met de afstand — geeft het 'getorste' effect. Loop
-  // bound is constant zoals WebGL eist; uniforme iteratie-count breekt
-  // 'm eerder.
+  // Polar swirl met variabele iteratie-count (constant loop bound zoals
+  // WebGL eist; uniform breekt 'm eerder).
   for (int i = 0; i < 12; i++) {
     if (float(i) >= uSwirlIterations) break;
     float r = length(uv);
-    float angle = uSwirl * (1.0 - r) + t * 0.07;
+    float angle = uSwirl * (1.0 - r) + t * 0.06;
     uv = rotate(uv, angle);
-    uv += 0.05 * vec2(sin(uv.y * 3.0 + t * 0.3), cos(uv.x * 3.0 + t * 0.25)) * uDistortion;
+    uv += 0.04 * vec2(sin(uv.y * 3.0 + t * 0.3), cos(uv.x * 3.0 + t * 0.25));
   }
 
-  // Field-waarde uit de getortste uv. Sin gaat 0..1..0..1 over het
-  // gerepliceerde veld — door de polar swirl worden dat curving rivers.
+  // Sin-gemoduleerd veld geeft door de swirl heen curving rivers.
   float field = uv.x * 0.5 + 0.5;
 
+  float reps = 2.0;
   if (uShape > 0.5) {
-    float reps = mix(2.0, 26.0, clamp(uShapeScale, 0.0, 1.0));
+    reps = mix(2.0, 55.0, clamp(uShapeScale, 0.0, 1.0));
     field = sin(field * reps * 3.14159265) * 0.5 + 0.5;
   }
   field = clamp(field, 0.0, 1.0);
 
-  // Donkere basis = harde sprong tussen color1 en color3 (vaak dezelfde
-  // donkere kleur). Dan een smalle color2-band ('white river') die op
-  // proportion door het veld pulst, met messcherpe randen via step.
+  // Donkere basis (color1 ↔ color3) met scherpe sprong op proportion.
   float p = clamp(uProportion, 0.05, 0.95);
   float t1 = step(p, field);
   vec3 col = mix(uColor1, uColor3, t1);
 
-  float w = uSoftness * 0.12;
+  // Smalle color2-rivers met messcherpe randen. Bandbreedte als
+  // FRACTIE van de stripe-periode zodat ze bij hoge reps niet één
+  // witte vlek worden.
+  float period = 1.0 / max(reps, 1.0);
+  float w = uSoftness * period * 0.45;
   if (w > 0.0001) {
     float band = step(p - w, field) - step(p + w, field);
     col = mix(col, uColor2, band);
@@ -125,16 +127,16 @@ const DEFAULT_PARAMS: ShaderParams = {
   color1: [0.086, 0.133, 0.722], // barista-500 #1622b8  (donkere basis)
   color2: [0.957, 0.965, 0.984], // paper #f4f6fb        (de witte rivers)
   color3: [0.086, 0.133, 0.722], // barista-500 #1622b8  (= color1)
-  proportion: 0.41,
-  softness: 0.4,                 // bepaalt breedte van de rivers
-  distortion: 0,
+  proportion: 0.5,
+  softness: 0.55,                // fractie-van-periode → river breedte
+  distortion: 0.3,               // multi-octave warp = organische clusters
   swirl: 1.0,
-  swirlIterations: 3,
-  scale: 0.4,
+  swirlIterations: 5,            // meer iteraties = complexere rivieren
+  scale: 0.45,
   rotation: (50 * Math.PI) / 180,
-  speed: 0.4,
+  speed: 0.45,
   shape: 1,
-  shapeScale: 0.8,
+  shapeScale: 0.9,               // ~50 stripes; veel parallelle rivers
 };
 
 function compile(gl: WebGLRenderingContext, type: number, src: string) {
