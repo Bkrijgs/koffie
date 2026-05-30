@@ -88,21 +88,9 @@ export function BootSplash() {
       }}
       aria-hidden={phase === "leaving"}
     >
-      {/* Warp-style achtergrond (Framer Vortex-preset in barista-palette).
-          Polar swirl met stripes-shape, getemperd tot pastel-blauw. */}
+      {/* Warp-style achtergrond (Framer Vortex-preset): paper-basis met
+          barista-blauwe rivieren door de polar swirl. */}
       <AnimatedGradientBackground />
-
-      {/* Zachte paper-vignette zodat de content in het midden altijd
-          leesbaar blijft, terwijl de Vortex aan de randen levendig
-          blijft. */}
-      <div
-        className="pointer-events-none absolute inset-0"
-        aria-hidden
-        style={{
-          background:
-            "radial-gradient(ellipse 65% 50% at 50% 50%, rgba(250, 244, 232, 0.88), rgba(250, 244, 232, 0) 78%)",
-        }}
-      />
 
       {/* Scanline */}
       <div

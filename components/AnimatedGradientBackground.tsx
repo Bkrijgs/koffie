@@ -123,22 +123,21 @@ type ShaderParams = {
 // Vortex (Framer-preset) vertaald: donkere basis met smalle 'white
 // rivers' die door de polar swirl heen lopen — net als de screenshot.
 // In app-kleuren: barista-500 als donker, paper als highlight.
-// Espresso-palette: bijna-zwart espresso met warme crema-oranje
-// rivieren die door de polar swirl heen lopen.
+// Paper-bg met barista-blauwe rivieren door de polar swirl.
 const DEFAULT_PARAMS: ShaderParams = {
-  color1: [0.055, 0.039, 0.024], // #0e0a06 — diep espresso, warm zwart
-  color2: [0.902, 0.565, 0.204], // #e69034 — crema oranje
-  color3: [0.055, 0.039, 0.024], // = color1
+  color1: [0.957, 0.965, 0.984], // paper #f4f6fb (basis)
+  color2: [0.118, 0.173, 0.922], // barista-400 #1e2ceb (rivieren)
+  color3: [0.957, 0.965, 0.984], // = color1
   proportion: 0.5,
-  softness: 0.75,                // bredere rivieren
-  distortion: 0.55,              // sterkere warp → variatie in dikte
+  softness: 0.75,
+  distortion: 0.55,
   swirl: 1.0,
   swirlIterations: 5,
   scale: 0.45,
   rotation: (50 * Math.PI) / 180,
   speed: 0.45,
   shape: 1,
-  shapeScale: 0.55,              // ~30 stripes, dikkere bands per stripe
+  shapeScale: 0.55,
 };
 
 function compile(gl: WebGLRenderingContext, type: number, src: string) {
