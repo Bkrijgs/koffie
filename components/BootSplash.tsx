@@ -100,7 +100,7 @@ export function BootSplash() {
         aria-hidden
         style={{
           background:
-            "radial-gradient(ellipse 70% 55% at 50% 50%, rgba(244, 246, 251, 0.65), rgba(244, 246, 251, 0) 75%)",
+            "radial-gradient(ellipse 65% 50% at 50% 50%, rgba(244, 246, 251, 0.85), rgba(244, 246, 251, 0) 78%)",
         }}
       />
 

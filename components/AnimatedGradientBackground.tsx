@@ -75,27 +75,24 @@ void main() {
     uv += 0.05 * vec2(sin(uv.y * 3.0 + t * 0.3), cos(uv.x * 3.0 + t * 0.25)) * uDistortion;
   }
 
-  // Field-waarde uit de getortste uv bepaalt het kleur-mengpunt.
+  // Field-waarde uit de getortste uv. Sin gaat 0..1..0..1 over het
+  // gerepliceerde veld — door de polar swirl worden dat curving rivers.
   float field = uv.x * 0.5 + 0.5;
 
-  // Stripes-shape: sawtooth herhaling van het veld zodat het patroon
-  // crisp blokjes worden i.p.v. een sinus-fade. Geeft scherpe randen.
   if (uShape > 0.5) {
-    float reps = mix(2.0, 18.0, clamp(uShapeScale, 0.0, 1.0));
-    field = fract(field * reps);
+    float reps = mix(2.0, 26.0, clamp(uShapeScale, 0.0, 1.0));
+    field = sin(field * reps * 3.14159265) * 0.5 + 0.5;
   }
-
   field = clamp(field, 0.0, 1.0);
 
-  // Harde sprong tussen color1 en color3 op het 'proportion' breekpunt
-  // (geen smoothstep meer — messcherpe lijnen).
+  // Donkere basis = harde sprong tussen color1 en color3 (vaak dezelfde
+  // donkere kleur). Dan een smalle color2-band ('white river') die op
+  // proportion door het veld pulst, met messcherpe randen via step.
   float p = clamp(uProportion, 0.05, 0.95);
   float t1 = step(p, field);
   vec3 col = mix(uColor1, uColor3, t1);
 
-  // Optionele dunne color2-lijn rond het breekpunt; verdwijnt bij
-  // softness = 0. Twee step-functies vormen een vierkante puls.
-  float w = uSoftness * 0.06;
+  float w = uSoftness * 0.12;
   if (w > 0.0001) {
     float band = step(p - w, field) - step(p + w, field);
     col = mix(col, uColor2, band);
@@ -121,14 +118,15 @@ type ShaderParams = {
   shapeScale: number;
 };
 
-// Vortex-preset (Framer) in barista-palette. Twee crisp tinten met
-// harde randen, geen blend. Color2 is ongebruikt zolang softness=0.
+// Vortex (Framer-preset) vertaald: donkere basis met smalle 'white
+// rivers' die door de polar swirl heen lopen — net als de screenshot.
+// In app-kleuren: barista-500 als donker, paper als highlight.
 const DEFAULT_PARAMS: ShaderParams = {
-  color1: [0.866, 0.878, 0.984], // barista-100 #dde0fb
-  color2: [0.118, 0.173, 0.922], // barista-400 #1e2ceb (optionele dunne lijn)
-  color3: [0.357, 0.4, 0.929],   // barista-300 #5b66ed
-  proportion: 0.5,
-  softness: 0,                   // 0 = geen tussenlijn, pure 2-toon
+  color1: [0.086, 0.133, 0.722], // barista-500 #1622b8  (donkere basis)
+  color2: [0.957, 0.965, 0.984], // paper #f4f6fb        (de witte rivers)
+  color3: [0.086, 0.133, 0.722], // barista-500 #1622b8  (= color1)
+  proportion: 0.41,
+  softness: 0.4,                 // bepaalt breedte van de rivers
   distortion: 0,
   swirl: 1.0,
   swirlIterations: 3,
@@ -136,7 +134,7 @@ const DEFAULT_PARAMS: ShaderParams = {
   rotation: (50 * Math.PI) / 180,
   speed: 0.4,
   shape: 1,
-  shapeScale: 0.55,
+  shapeScale: 0.8,
 };
 
 function compile(gl: WebGLRenderingContext, type: number, src: string) {
