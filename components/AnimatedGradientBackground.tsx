@@ -93,9 +93,10 @@ void main() {
   float s = mix(0.015, 0.5, uSoftness);
   float t1 = smoothstep(p - s, p + s, field);
   vec3 col = mix(uColor1, uColor3, t1);
-  // Kleur2 als 'tussenkleur' rond het breekpunt (Gaussisch piekje)
+  // Kleur2 als 'tussenkleur' rond het breekpunt (Gaussisch piekje).
+  // Intensiteit getemperd zodat de band niet de voorgrond-tekst verdrukt.
   float band = exp(-pow((field - p) / max(s, 0.01), 2.0));
-  col = mix(col, uColor2, band * 0.7);
+  col = mix(col, uColor2, band * 0.45);
 
   gl_FragColor = vec4(col, 1.0);
 }
@@ -117,23 +118,23 @@ type ShaderParams = {
   shapeScale: number;
 };
 
-// "Vortex"-preset uit Framer's AnimatedGradientBackground, omgezet naar
-// barista-palette: maximale swirl, sharp softness, stripes-shape. Geeft
-// een getorste lichtband over een diepblauwe achtergrond.
+// Vortex-preset (Framer) omgezet naar de barista-palette én getemperd
+// zodat dark-ink-tekst op de voorgrond leesbaar blijft. Behoudt de
+// getorste stripe-structuur maar in pastel-blauw i.p.v. zwart/wit.
 const DEFAULT_PARAMS: ShaderParams = {
-  color1: [0.086, 0.133, 0.722], // barista-500 #1622b8 (was zwart)
-  color2: [0.957, 0.965, 0.984], // paper #f4f6fb       (was wit)
-  color3: [0.086, 0.133, 0.722], // barista-500 #1622b8 (was zwart)
-  proportion: 0.41,
-  softness: 0.05,
+  color1: [0.866, 0.878, 0.984], // barista-100 #dde0fb (was zwart)
+  color2: [0.357, 0.4, 0.929],   // barista-300 #5b66ed (was wit)  — de band
+  color3: [0.866, 0.878, 0.984], // barista-100 #dde0fb (was zwart)
+  proportion: 0.5,
+  softness: 0.3,                 // zachter dan Vortex' default 0.05
   distortion: 0,
   swirl: 1.0,
   swirlIterations: 3,
   scale: 0.4,
   rotation: (50 * Math.PI) / 180,
-  speed: 0.45,
+  speed: 0.4,
   shape: 1,
-  shapeScale: 0.8,
+  shapeScale: 0.55,
 };
 
 function compile(gl: WebGLRenderingContext, type: number, src: string) {

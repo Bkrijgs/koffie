@@ -88,10 +88,21 @@ export function BootSplash() {
       }}
       aria-hidden={phase === "leaving"}
     >
-      {/* Warp-style achtergrond (Framer-AnimatedGradientBackground in
-          barista-palette). Procedurele gradient van paper → barista-300
-          → barista-500 met polar swirl + lichte distortion. */}
+      {/* Warp-style achtergrond (Framer Vortex-preset in barista-palette).
+          Polar swirl met stripes-shape, getemperd tot pastel-blauw. */}
       <AnimatedGradientBackground />
+
+      {/* Zachte paper-vignette zodat de content in het midden altijd
+          leesbaar blijft, terwijl de Vortex aan de randen levendig
+          blijft. */}
+      <div
+        className="pointer-events-none absolute inset-0"
+        aria-hidden
+        style={{
+          background:
+            "radial-gradient(ellipse 70% 55% at 50% 50%, rgba(244, 246, 251, 0.65), rgba(244, 246, 251, 0) 75%)",
+        }}
+      />
 
       {/* Scanline */}
       <div
