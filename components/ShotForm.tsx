@@ -208,7 +208,7 @@ export function ShotForm({ initialBeanId, shot }: Props) {
     if (!isFinite(dose) || dose <= 0) return setError("Dose vereist");
     if (!isFinite(yld) || yld <= 0) return setError("Yield vereist");
     if (!isFinite(time) || time <= 0) return setError("Tijd vereist");
-    if (!rating) return setError("Rating vereist");
+    if (!dialIn && !rating) return setError("Rating vereist");
 
     setSubmitting(true);
     try {
@@ -464,7 +464,7 @@ export function ShotForm({ initialBeanId, shot }: Props) {
         />
       </Field>
 
-      <Field label="Rating" required>
+      <Field label="Rating" required={!dialIn}>
         <StarRating value={rating} onChange={(v) => setRating(v)} size="lg" />
       </Field>
 

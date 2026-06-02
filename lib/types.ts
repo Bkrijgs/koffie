@@ -32,7 +32,8 @@ export type ShotLog = {
   extractionTimeSeconds: number;
   notes?: string;
   nextAdjustment?: string;
-  rating: Rating;
+  /** 0 alleen toegestaan voor dial-in shots zonder rating. */
+  rating: Rating | 0;
   dialIn: boolean;
   tags?: string[];
 };
