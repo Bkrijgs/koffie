@@ -89,8 +89,11 @@ export function BootSplash() {
       aria-hidden={phase === "leaving"}
     >
       {/* Warp-style achtergrond (Framer Vortex-preset): paper-basis met
-          barista-blauwe rivieren door de polar swirl. */}
-      <AnimatedGradientBackground />
+          barista-blauwe rivieren door de polar swirl. Op 15% opacity
+          zodat 'ie subtiel achter de content blijft. */}
+      <div className="pointer-events-none absolute inset-0 opacity-15">
+        <AnimatedGradientBackground />
+      </div>
 
       {/* Scanline */}
       <div
