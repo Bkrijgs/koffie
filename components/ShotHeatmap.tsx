@@ -6,6 +6,8 @@ import { effectiveShots, formatDateOnly } from "@/lib/utils";
 
 type Props = {
   shots: ShotLog[];
+  selectedDateKey?: string | null;
+  onSelectDay?: (dateKey: string) => void;
 };
 
 const MIN_WEEKS = 4;
@@ -39,7 +41,7 @@ function bucketClass(count: number): string {
   return "bg-barista-500";
 }
 
-export function ShotHeatmap({ shots }: Props) {
+export function ShotHeatmap({ shots, selectedDateKey, onSelectDay }: Props) {
   const gridRef = useRef<HTMLDivElement>(null);
   const [weeks, setWeeks] = useState(MIN_WEEKS);
 
@@ -140,19 +142,38 @@ export function ShotHeatmap({ shots }: Props) {
                 <div className="h-4 text-[10px] uppercase tracking-wider text-ink-400">
                   {col[0].monthLabel ?? ""}
                 </div>
-                {col.map((cell, ri) =>
-                  cell.future ? (
-                    <div key={ri} className="h-4 w-4" />
-                  ) : (
-                    <div
+                {col.map((cell, ri) => {
+                  if (cell.future) return <div key={ri} className="h-4 w-4" />;
+                  const key = cell.date.toISOString().slice(0, 10);
+                  const isSelected = selectedDateKey === key;
+                  const baseCls = `h-4 w-4 rounded-sm transition-transform duration-150 ${bucketClass(cell.count)}`;
+                  const ringCls = isSelected
+                    ? " ring-2 ring-ink-800 ring-offset-1 ring-offset-paper"
+                    : "";
+                  const title = `${formatDateOnly(cell.date.toISOString())} — ${
+                    cell.count
+                  } shot${cell.count !== 1 ? "s" : ""}`;
+                  if (cell.count === 0 || !onSelectDay) {
+                    return (
+                      <div
+                        key={ri}
+                        className={`${baseCls} hover:scale-150${ringCls}`}
+                        title={title}
+                      />
+                    );
+                  }
+                  return (
+                    <button
                       key={ri}
-                      className={`h-4 w-4 rounded-sm transition-transform duration-150 hover:scale-150 ${bucketClass(cell.count)}`}
-                      title={`${formatDateOnly(cell.date.toISOString())} — ${
-                        cell.count
-                      } shot${cell.count !== 1 ? "s" : ""}`}
+                      type="button"
+                      onClick={() => onSelectDay(key)}
+                      className={`${baseCls} cursor-pointer hover:scale-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-barista-400${ringCls}`}
+                      title={title}
+                      aria-label={title}
+                      aria-pressed={isSelected}
                     />
-                  ),
-                )}
+                  );
+                })}
               </div>
             ))}
           </div>

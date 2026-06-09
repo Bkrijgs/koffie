@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useKoffie } from "@/lib/useKoffie";
 import { ShotCard } from "@/components/ShotCard";
 import { EmptyState } from "@/components/EmptyState";
 import { BaristaTips } from "@/components/BaristaTips";
 import { ShotHeatmap } from "@/components/ShotHeatmap";
 import { BootSplash } from "@/components/BootSplash";
-import { average, effectiveShots } from "@/lib/utils";
+import { average, effectiveShots, formatDateOnly } from "@/lib/utils";
 import { globalTips } from "@/lib/tips";
 import { useCountUp } from "@/lib/useCountUp";
 
@@ -18,6 +19,7 @@ const COUNT_DELAY = 2200;
 
 export default function DashboardPage() {
   const { ready, beans, shots } = useKoffie();
+  const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
 
   if (!ready) {
     return <p className="text-sm text-ink-300">Laden…</p>;
@@ -25,6 +27,13 @@ export default function DashboardPage() {
 
   const beanById = new Map(beans.map((b) => [b.id, b]));
   const effective = effectiveShots(shots);
+  const selectedDayShots = selectedDateKey
+    ? [...shots]
+        .filter((s) => s.createdAt.slice(0, 10) === selectedDateKey)
+        .sort(
+          (a, b) => +new Date(b.createdAt) - +new Date(a.createdAt),
+        )
+    : [];
   const dialInCount = shots.length - effective.length;
   const recent = shots.slice(0, 5);
   const top = [...effective]
@@ -62,7 +71,45 @@ export default function DashboardPage() {
       {shots.length > 0 && (
         <section>
           <SectionHeader title="Activiteit" />
-          <ShotHeatmap shots={shots} />
+          <ShotHeatmap
+            shots={shots}
+            selectedDateKey={selectedDateKey}
+            onSelectDay={(key) =>
+              setSelectedDateKey((cur) => (cur === key ? null : key))
+            }
+          />
+          {selectedDateKey && selectedDayShots.length > 0 && (
+            <div className="anim-fade-up mt-5 rounded-xl2 border border-line bg-card p-5 shadow-soft">
+              <header className="mb-4 flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-ink-300">
+                    Geselecteerde dag
+                  </p>
+                  <h3 className="font-display text-base tracking-tightish text-ink-800">
+                    {formatDateOnly(selectedDateKey)} —{" "}
+                    {selectedDayShots.length}{" "}
+                    {selectedDayShots.length === 1 ? "shot" : "shots"}
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedDateKey(null)}
+                  className="rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-ink-500 transition hover:bg-ink-50/40"
+                >
+                  Sluiten
+                </button>
+              </header>
+              <div className="space-y-3">
+                {selectedDayShots.map((s) => (
+                  <ShotCard
+                    key={s.id}
+                    shot={s}
+                    bean={beanById.get(s.beanId)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </section>
       )}
 
