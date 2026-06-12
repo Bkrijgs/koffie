@@ -54,6 +54,18 @@ function fmtGrams(n: number): string {
   return Number.isInteger(n) ? String(n) : n.toFixed(1);
 }
 
+// De meter loopt iets ruimer dan de presets (1.5–3.0), zodat een ratio net
+// buiten het aanbevolen bereik nog zichtbaar aan de rand uitslaat i.p.v. eraf.
+const METER_MIN = 1.25;
+const METER_MAX = 3.25;
+const RATIO_LOW = RATIO_PRESETS[0].ratio;
+const RATIO_HIGH = RATIO_PRESETS[RATIO_PRESETS.length - 1].ratio;
+
+function ratioToPct(r: number): number {
+  const pct = ((r - METER_MIN) / (METER_MAX - METER_MIN)) * 100;
+  return Math.max(0, Math.min(100, pct));
+}
+
 export function ShotForm({ initialBeanId, shot }: Props) {
   const router = useRouter();
   const { beans, shots, setup, addShot, updateShot, ready } = useKoffie();
@@ -371,53 +383,98 @@ export function ShotForm({ initialBeanId, shot }: Props) {
               vanaf {fmtGrams(dose)} g · houd ingedrukt voor uitleg
             </span>
           </div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {ratioTargets.map((t) => {
-              const preset = RATIO_PRESETS.find((p) => p.label === t.label);
-              const target = fmtGrams(Number(t.yield.toFixed(1)));
-              const isActive = yieldGrams === target;
-              return (
-                <button
-                  key={t.label}
-                  type="button"
-                  title={preset?.description}
-                  onPointerDown={() => startPress(t.label)}
-                  onPointerUp={endPress}
-                  onPointerLeave={endPress}
-                  onPointerCancel={endPress}
-                  onContextMenu={(e) => e.preventDefault()}
-                  onClick={() => handleRatioClick(target)}
-                  className={`no-touch-select flex flex-col items-center gap-0.5 rounded-lg border px-3 py-3 transition-all duration-150 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-barista-400/40 ${
-                    isActive
-                      ? "border-barista-400 bg-barista-400 text-paper shadow-soft"
-                      : "border-line bg-paper hover:border-barista-300 hover:bg-barista-100/40"
-                  }`}
-                >
-                  <span
-                    className={`text-[10px] font-medium uppercase tracking-wider ${
-                      isActive ? "text-paper/85" : "text-ink-500"
-                    }`}
-                  >
-                    {t.label}
-                  </span>
-                  <span
-                    className={`numeric text-[10px] ${
-                      isActive ? "text-paper/65" : "text-ink-300"
-                    }`}
-                  >
-                    1:{t.ratio}
-                  </span>
-                  <span
-                    className={`numeric mt-0.5 font-display text-base tracking-tightish ${
-                      isActive ? "text-paper" : "text-ink-800"
-                    }`}
-                  >
-                    {fmtGrams(t.yield)} g
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+          {/* Meter: laat zien waar de huidige brew ratio valt op de schaal
+              ristretto → lungo, i.p.v. losse blokken die alleen bij een
+              exacte match oplichten. */}
+          {(() => {
+            const ratioInRange = ratio >= RATIO_LOW && ratio <= RATIO_HIGH;
+            return (
+              <div className="px-1 pt-7">
+                {/* Baan met preset-ticks en de live knop */}
+                <div className="relative h-2.5 rounded-full bg-gradient-to-r from-barista-100 via-barista-300/55 to-barista-400/80">
+                  {ratioTargets.map((t) => (
+                    <span
+                      key={t.label}
+                      aria-hidden
+                      className="absolute top-1/2 h-3 w-px -translate-x-1/2 -translate-y-1/2 rounded-full bg-paper/80"
+                      style={{ left: `${ratioToPct(t.ratio)}%` }}
+                    />
+                  ))}
+                  {ratio > 0 && (
+                    <div
+                      className="absolute top-1/2 z-10 -translate-y-1/2 transition-[left] duration-300 ease-out"
+                      style={{ left: `${ratioToPct(ratio)}%` }}
+                    >
+                      <div
+                        className={`absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md px-1.5 py-0.5 text-[10px] font-medium shadow-soft numeric ${
+                          ratioInRange
+                            ? "bg-barista-400 text-paper"
+                            : "bg-clay-400 text-paper"
+                        }`}
+                      >
+                        1:{ratio.toFixed(2)}
+                      </div>
+                      <div
+                        className={`-translate-x-1/2 h-4 w-4 rounded-full border-2 bg-paper shadow-soft ${
+                          ratioInRange ? "border-barista-400" : "border-clay-400"
+                        }`}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Labels onder de baan, uitgelijnd met de ticks. Tik vult het
+                    yield-veld; ingedrukt houden toont de uitleg. */}
+                <div className="mt-2.5 grid grid-cols-4">
+                  {ratioTargets.map((t) => {
+                    const preset = RATIO_PRESETS.find(
+                      (p) => p.label === t.label,
+                    );
+                    const target = fmtGrams(Number(t.yield.toFixed(1)));
+                    const isActive = yieldGrams === target;
+                    return (
+                      <button
+                        key={t.label}
+                        type="button"
+                        title={preset?.description}
+                        onPointerDown={() => startPress(t.label)}
+                        onPointerUp={endPress}
+                        onPointerLeave={endPress}
+                        onPointerCancel={endPress}
+                        onContextMenu={(e) => e.preventDefault()}
+                        onClick={() => handleRatioClick(target)}
+                        className="no-touch-select flex flex-col items-center gap-0.5 rounded-lg px-1 py-1.5 transition-transform active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-barista-400/40"
+                      >
+                        <span
+                          className={`text-[10px] font-medium uppercase tracking-wider ${
+                            isActive
+                              ? "text-barista-400"
+                              : "text-ink-500"
+                          }`}
+                        >
+                          {t.label}
+                        </span>
+                        <span
+                          className={`numeric text-[10px] ${
+                            isActive ? "text-barista-400/75" : "text-ink-300"
+                          }`}
+                        >
+                          1:{t.ratio}
+                        </span>
+                        <span
+                          className={`numeric font-display text-sm tracking-tightish ${
+                            isActive ? "text-barista-400" : "text-ink-800"
+                          }`}
+                        >
+                          {fmtGrams(t.yield)} g
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
 
           {tooltipFor && (
             <div
