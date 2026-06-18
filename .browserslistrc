@@ -1,0 +1,11 @@
+# Bewust brede/oude targets zodat autoprefixer -webkit- prefixes meeneemt en
+# SWC naar ES5 transpileert. Doel: de app draaibaar krijgen op de oude WebKit
+# van een (geroote) Kobo e-reader, zonder de moderne browsers te raken.
+chrome >= 40
+safari >= 8
+ios_saf >= 8
+firefox >= 40
+edge >= 12
+last 4 versions
+> 0.2%
+not dead
