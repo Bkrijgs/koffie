@@ -426,7 +426,7 @@ export function globalTips(beans: Bean[], shots: ShotLog[]): Tip[] {
     tips.push({
       id: "inactive",
       kind: "info",
-      text: `Geen shot in ${daysSinceLast} dagen. Bonen hebben mogelijk een fijnere maling nodig.`,
+      text: `Geen shot in ${daysSinceLast} dagen. Een aangebroken zak ontgast verder en loopt daarna vaak sneller door — begin met een tikje fijner malen.`,
     });
   }
 
@@ -511,18 +511,59 @@ export function globalTips(beans: Bean[], shots: ShotLog[]): Tip[] {
     });
   }
 
+  // Welke boon presteert het best? Handig als default-keuze. Alleen tonen
+  // bij meerdere bonen met genoeg data én een duidelijk verschil, anders
+  // is het ruis.
+  const ranked = beans
+    .map((b) => {
+      const bs = effective.filter((s) => s.beanId === b.id);
+      return { bean: b, n: bs.length, avg: average(bs.map((s) => s.rating)) };
+    })
+    .filter((x) => x.n >= 3)
+    .sort((a, b) => b.avg - a.avg);
+  if (
+    ranked.length >= 2 &&
+    ranked[0].avg - ranked[ranked.length - 1].avg >= 0.5
+  ) {
+    const winner = ranked[0];
+    tips.push({
+      id: "best-bean",
+      kind: "info",
+      text: `${winner.bean.name} scoort het hoogst: gem. ${winner.avg.toFixed(1)}★ over ${winner.n} shots.`,
+    });
+  }
+
   if (tips.length === 0) {
     const beanWithMostShots = topBean(beans, effective);
     if (beanWithMostShots) {
       const beanShots = effective.filter(
         (s) => s.beanId === beanWithMostShots.id,
       );
-      const avg = average(beanShots.map((s) => s.rating));
-      tips.push({
-        id: "active-bean",
-        kind: "info",
-        text: `${beanWithMostShots.name} draait lekker (${avg.toFixed(1)}★ over ${beanShots.length}). Hou de instellingen vast.`,
-      });
+      // Pas een oordeel vellen bij genoeg shots, en het oordeel laten
+      // afhangen van de échte gemiddelde rating i.p.v. altijd "lekker".
+      if (beanShots.length >= 3) {
+        const avg = average(beanShots.map((s) => s.rating));
+        const n = beanShots.length;
+        if (avg >= 4) {
+          tips.push({
+            id: "active-bean",
+            kind: "praise",
+            text: `${beanWithMostShots.name} draait lekker: gem. ${avg.toFixed(1)}★ over ${n} shots. Hou de instellingen vast.`,
+          });
+        } else if (avg >= 3) {
+          tips.push({
+            id: "active-bean",
+            kind: "info",
+            text: `${beanWithMostShots.name} zit op gem. ${avg.toFixed(1)}★ over ${n} shots. Nog ruimte — varieer maalgraad of tijd in kleine stappen.`,
+          });
+        } else {
+          tips.push({
+            id: "active-bean",
+            kind: "tweak",
+            text: `${beanWithMostShots.name} blijft steken op gem. ${avg.toFixed(1)}★ over ${n} shots. Probeer een duidelijk andere maalgraad om uit de groef te komen.`,
+          });
+        }
+      }
     }
   }
 
