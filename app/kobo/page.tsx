@@ -1,14 +1,17 @@
 import Link from "next/link";
 import { supabaseBackend } from "@/lib/storage";
 import { isSupabaseConfigured } from "@/lib/supabase";
-import { DEFAULT_SETUP } from "@/lib/setup";
 import { effectiveShots, formatDateOnly } from "@/lib/utils";
-import type { Bean, Setup, ShotLog } from "@/lib/types";
+import type { Bean, ShotLog } from "@/lib/types";
 
 // Server-gerenderde, JS-loze variant voor de oude e-reader-browser (Kobo).
 // De data wordt hier op de server (Vercel) uit Supabase gehaald en als kale
 // HTML verstuurd; de Kobo hoeft zelf geen JavaScript te draaien en niet met
 // Supabase te praten. Loggen gebeurt via een klassiek formulier (/kobo/new).
+//
+// Layout-keuze: geen CSS-grid en geen flex-`gap` (niet ondersteund op oude
+// WebKit). Naast-elkaar wordt met flexbox + marges gedaan, en de
+// recept-waarden met inline-block "chips" die netjes afbreken.
 export const dynamic = "force-dynamic";
 
 export const metadata = {
@@ -25,6 +28,15 @@ function ratingLabel(r: number): string {
   return "★ " + r.toFixed(1);
 }
 
+function Chip({ label, value }: { label: string; value: string }) {
+  return (
+    <span className="mb-1.5 mr-1.5 inline-block rounded border border-line px-2.5 py-1 text-sm">
+      <span className="text-ink-400">{label} </span>
+      <strong className="text-ink-800">{value}</strong>
+    </span>
+  );
+}
+
 export default async function KoboPage() {
   if (!isSupabaseConfigured) {
     return (
@@ -38,13 +50,11 @@ export default async function KoboPage() {
 
   let beans: Bean[] = [];
   let shots: ShotLog[] = [];
-  let setup: Setup = DEFAULT_SETUP;
   let error: string | null = null;
   try {
-    [beans, shots, setup] = await Promise.all([
+    [beans, shots] = await Promise.all([
       supabaseBackend.listBeans(),
       supabaseBackend.listShots(),
-      supabaseBackend.getSetup(),
     ]);
   } catch (e) {
     error = e instanceof Error ? e.message : String(e);
@@ -79,27 +89,6 @@ export default async function KoboPage() {
         </div>
       )}
 
-      <Link
-        href="/kobo/new"
-        className="block rounded-lg border-2 border-ink-800 bg-ink-800 px-5 py-4 text-center text-lg font-medium text-paper"
-      >
-        + Shot loggen
-      </Link>
-
-      <section>
-        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-ink-400">
-          Installatie
-        </h2>
-        <div className="rounded-lg border border-line bg-card p-4 text-base text-ink-700">
-          <p className="font-medium text-ink-800">{setup.machine}</p>
-          <p className="mt-1 text-ink-500">{setup.grinder}</p>
-          <p className="mt-1 text-ink-500">
-            Maalschaal {setup.grindMin}–{setup.grindMax} (stap {setup.grindStep})
-            · {setup.defaultBasket === "double" ? "dubbele" : "enkele"} basket
-          </p>
-        </div>
-      </section>
-
       <section>
         <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-ink-400">
           Recept per boon
@@ -107,13 +96,13 @@ export default async function KoboPage() {
         {recipes.length === 0 ? (
           <p className="text-base text-ink-400">Nog geen beoordeelde shots.</p>
         ) : (
-          <ul className="space-y-2">
+          <ul className="space-y-3">
             {recipes.map(({ bean, shot }) => (
               <li
                 key={bean.id}
                 className="rounded-lg border border-line bg-card p-4"
               >
-                <div className="flex items-baseline justify-between gap-3">
+                <div className="mb-2 flex items-baseline justify-between">
                   <span className="text-lg font-medium text-ink-800">
                     {bean.name}
                   </span>
@@ -121,12 +110,16 @@ export default async function KoboPage() {
                     {ratingLabel(shot.rating)}
                   </span>
                 </div>
-                <p className="numeric mt-1 text-base text-ink-700">
-                  Maalgraad <strong>{shot.grindSize}</strong> ·{" "}
-                  {shot.doseGrams} g → {shot.yieldGrams} g (
-                  {ratio(shot.yieldGrams, shot.doseGrams)}) ·{" "}
-                  {shot.extractionTimeSeconds} s
-                </p>
+                <div className="numeric">
+                  <Chip label="Maalgraad" value={String(shot.grindSize)} />
+                  <Chip label="Dose" value={shot.doseGrams + " g"} />
+                  <Chip label="Yield" value={shot.yieldGrams + " g"} />
+                  <Chip
+                    label="Ratio"
+                    value={ratio(shot.yieldGrams, shot.doseGrams)}
+                  />
+                  <Chip label="Tijd" value={shot.extractionTimeSeconds + " s"} />
+                </div>
               </li>
             ))}
           </ul>
@@ -143,7 +136,7 @@ export default async function KoboPage() {
           <ul className="divide-y divide-line rounded-lg border border-line bg-card">
             {recent.map((s) => (
               <li key={s.id} className="p-4">
-                <div className="flex items-baseline justify-between gap-3">
+                <div className="flex items-baseline justify-between">
                   <span className="text-base font-medium text-ink-800">
                     {beanById.get(s.beanId)?.name ?? "Onbekende boon"}
                     {s.dialIn ? " · dial-in" : ""}
@@ -153,7 +146,7 @@ export default async function KoboPage() {
                   </span>
                 </div>
                 <p className="numeric mt-1 text-base text-ink-600">
-                  Maalgraad {s.grindSize} · {s.doseGrams} g → {s.yieldGrams} g (
+                  Maalgraad {s.grindSize} · {s.doseGrams}→{s.yieldGrams} g (
                   {ratio(s.yieldGrams, s.doseGrams)}) · {s.extractionTimeSeconds}{" "}
                   s · {ratingLabel(s.rating)}
                 </p>
@@ -169,7 +162,15 @@ export default async function KoboPage() {
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold text-ink-800">Koffie</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold text-ink-800">Koffie</h1>
+        <Link
+          href="/kobo/new"
+          className="rounded-lg border-2 border-ink-800 bg-ink-800 px-4 py-2 text-base font-medium text-paper"
+        >
+          + Shot loggen
+        </Link>
+      </div>
       {children}
     </div>
   );

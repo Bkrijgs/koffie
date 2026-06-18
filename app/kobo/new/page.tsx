@@ -7,6 +7,9 @@ import type { Bean, Setup, ShotLog } from "@/lib/types";
 // JS-loos log-formulier voor de Kobo. POST't naar de route handler /kobo/log,
 // die de shot in Supabase wegschrijft en terug naar /kobo stuurt. Werkt zonder
 // client-side JavaScript, dus ook op de oude e-reader-browser.
+//
+// Naast-elkaar velden via flexbox + marges (geen CSS-grid / flex-gap, want die
+// werken niet op oude WebKit).
 export const dynamic = "force-dynamic";
 
 export const metadata = {
@@ -16,7 +19,7 @@ export const metadata = {
 const inputClass =
   "w-full rounded-lg border border-line bg-paper px-4 py-3 text-lg text-ink-800";
 const labelClass =
-  "block text-sm font-semibold uppercase tracking-wide text-ink-400";
+  "mb-1.5 block text-sm font-semibold uppercase tracking-wide text-ink-400";
 
 // Rating-opties 0.5 t/m 5 in stappen van 0.5.
 const RATINGS = Array.from({ length: 10 }, (_, i) => (i + 1) * 0.5);
@@ -62,7 +65,15 @@ export default async function KoboNewPage({
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold text-ink-800">Shot loggen</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold text-ink-800">Shot loggen</h1>
+        <Link
+          href="/kobo"
+          className="rounded-lg border border-line bg-card px-4 py-2 text-base text-ink-700"
+        >
+          ← Terug
+        </Link>
+      </div>
 
       {searchParams.error && (
         <div className="rounded-lg border border-clay-400 bg-card p-4 text-base text-clay-500">
@@ -76,7 +87,7 @@ export default async function KoboNewPage({
         </p>
       ) : (
         <form method="post" action="/kobo/log" className="space-y-5">
-          <div className="space-y-1.5">
+          <div>
             <label className={labelClass} htmlFor="beanId">
               Boon
             </label>
@@ -96,24 +107,9 @@ export default async function KoboNewPage({
             </select>
           </div>
 
-          <div className="space-y-1.5">
-            <label className={labelClass} htmlFor="grindSize">
-              Maalgraad (schaal {setup.grindMin}–{setup.grindMax})
-            </label>
-            <input
-              id="grindSize"
-              name="grindSize"
-              type="number"
-              step={setup.grindStep}
-              min={setup.grindMin}
-              max={setup.grindMax}
-              defaultValue={def.grindSize}
-              className={inputClass}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
+          {/* Dose + Yield naast elkaar — de recept-verhouding hoort bij elkaar */}
+          <div className="flex">
+            <div className="flex-1 pr-2">
               <label className={labelClass} htmlFor="doseGrams">
                 Dose (g)
               </label>
@@ -127,7 +123,7 @@ export default async function KoboNewPage({
                 className={inputClass}
               />
             </div>
-            <div className="space-y-1.5">
+            <div className="flex-1 pl-2">
               <label className={labelClass} htmlFor="yieldGrams">
                 Yield (g)
               </label>
@@ -143,22 +139,43 @@ export default async function KoboNewPage({
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <label className={labelClass} htmlFor="extractionTimeSeconds">
-              Tijd (sec.)
-            </label>
-            <input
-              id="extractionTimeSeconds"
-              name="extractionTimeSeconds"
-              type="number"
-              step="1"
-              min="0"
-              defaultValue={def.extractionTimeSeconds}
-              className={inputClass}
-            />
+          {/* Maalgraad + Tijd naast elkaar */}
+          <div className="flex">
+            <div className="flex-1 pr-2">
+              <label className={labelClass} htmlFor="grindSize">
+                Maalgraad
+              </label>
+              <input
+                id="grindSize"
+                name="grindSize"
+                type="number"
+                step={setup.grindStep}
+                min={setup.grindMin}
+                max={setup.grindMax}
+                defaultValue={def.grindSize}
+                className={inputClass}
+              />
+              <p className="mt-1 text-xs text-ink-400">
+                schaal {setup.grindMin}–{setup.grindMax}
+              </p>
+            </div>
+            <div className="flex-1 pl-2">
+              <label className={labelClass} htmlFor="extractionTimeSeconds">
+                Tijd (sec.)
+              </label>
+              <input
+                id="extractionTimeSeconds"
+                name="extractionTimeSeconds"
+                type="number"
+                step="1"
+                min="0"
+                defaultValue={def.extractionTimeSeconds}
+                className={inputClass}
+              />
+            </div>
           </div>
 
-          <div className="space-y-1.5">
+          <div>
             <label className={labelClass} htmlFor="rating">
               Rating
             </label>
@@ -177,40 +194,42 @@ export default async function KoboNewPage({
             </select>
           </div>
 
-          <label className="flex items-center gap-3 rounded-lg border border-line bg-paper px-4 py-3 text-lg text-ink-800">
+          <label className="flex items-center rounded-lg border border-line bg-paper px-4 py-3 text-lg text-ink-800">
             <input
               type="checkbox"
               name="dialIn"
               value="1"
-              className="h-5 w-5"
+              className="mr-3 h-5 w-5"
             />
             Dial-in shot (telt niet mee in gemiddeldes)
           </label>
 
-          <div className="space-y-1.5">
-            <label className={labelClass} htmlFor="notes">
-              Smaak
-            </label>
-            <textarea
-              id="notes"
-              name="notes"
-              rows={2}
-              className={inputClass}
-              placeholder="balans, body, afdronk"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className={labelClass} htmlFor="nextAdjustment">
-              Volgende keer
-            </label>
-            <textarea
-              id="nextAdjustment"
-              name="nextAdjustment"
-              rows={2}
-              className={inputClass}
-              placeholder="bv. fijner malen"
-            />
+          {/* Smaak + Volgende keer naast elkaar */}
+          <div className="flex">
+            <div className="flex-1 pr-2">
+              <label className={labelClass} htmlFor="notes">
+                Smaak
+              </label>
+              <textarea
+                id="notes"
+                name="notes"
+                rows={3}
+                className={inputClass}
+                placeholder="balans, body, afdronk"
+              />
+            </div>
+            <div className="flex-1 pl-2">
+              <label className={labelClass} htmlFor="nextAdjustment">
+                Volgende keer
+              </label>
+              <textarea
+                id="nextAdjustment"
+                name="nextAdjustment"
+                rows={3}
+                className={inputClass}
+                placeholder="bv. fijner malen"
+              />
+            </div>
           </div>
 
           <button
@@ -221,8 +240,6 @@ export default async function KoboNewPage({
           </button>
         </form>
       )}
-
-      <Back />
     </div>
   );
 }
