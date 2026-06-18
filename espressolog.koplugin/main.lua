@@ -1,13 +1,16 @@
 --[[
 Espresso log — read-only KOReader-plugin
 
-Fullscreen dashboard van je espresso-shots uit Supabase: meters, grafiekjes
-en een compacte 2-koloms shotlijst. Praat rechtstreeks met de Supabase REST
-API (PostgREST) via de anon key — NIET via de supabase-js client.
+Fullscreen maand-dashboard van je espresso-shots uit Supabase: meters,
+grafiekjes en een compacte 2-koloms shotlijst met omlijnde shots. Praat
+rechtstreeks met de Supabase REST API (PostgREST) via de anon key — NIET via
+de supabase-js client.
 
 Ververst:
-  * vers bij openen (instant uit cache, daarna live bijgewerkt)
+  * vers bij elke keer openen (instant uit cache, daarna live bijgewerkt)
   * automatisch elk uur via wifi (CONFIG.refresh_minutes)
+
+Maandnavigatie via de knoppen onderaan de viewer (‹ Maand / Nu / Maand ›).
 
 Geregistreerd als:
   * menu-item onder "More tools"
@@ -24,19 +27,20 @@ local CONFIG = {
     base_url        = "https://wkbjugwavyebiurhuspa.supabase.co",
     anon_key        = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndrYmp1Z3dhdnllYml1cmh1c3BhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMzUyMzIsImV4cCI6MjA5MjkxMTIzMn0.w3K_QN2O3zqNFJa1-IfuA11zRxTYHFOFAmUkDxs8vsA",
     table           = "shots",
-    list_limit      = 12,    -- aantal shots in de detaillijst
-    fetch_limit     = 1000,  -- max rijen voor de stats-berekening
+    list_limit      = 12,    -- max shots in de detaillijst (per maand)
+    fetch_limit     = 2000,  -- max rijen die we ophalen (genoeg historie)
     refresh_minutes = 60,    -- automatische verversing via wifi (0 = uit)
     font_size       = 16,    -- viewer-lettergrootte (kleiner = meer per regel)
-    col_width       = 23,    -- breedte (tekens) per kolom in de shotlijst
-    spark_len       = 16,    -- aantal punten in de trend-sparkline
+    width_margin    = 0.92,  -- deel van schermbreedte dat we vullen (veiligheid)
 }
 -- ============================================================================
 
 local Dispatcher      = require("dispatcher")
 local Device          = require("device")
+local Font            = require("ui/font")
 local InfoMessage     = require("ui/widget/infomessage")
 local NetworkMgr      = require("ui/network/manager")
+local RenderText      = require("ui/rendertext")
 local TextViewer      = require("ui/widget/textviewer")
 local UIManager       = require("ui/uimanager")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
@@ -49,21 +53,29 @@ local rapidjson       = require("rapidjson")
 local _               = require("gettext")
 
 local Screen = Device.screen
-local SEP = string.rep("─", 40)
 local SPARK = { "▁", "▂", "▃", "▄", "▅", "▆", "▇", "█" }
+local MONTHS = {
+    "januari", "februari", "maart", "april", "mei", "juni",
+    "juli", "augustus", "september", "oktober", "november", "december",
+}
 
 local EspressoLog = WidgetContainer:extend{
     name = "espressolog",
     is_doc_only = false,
 }
 
--- Module-level state: er is altijd maar één actieve KOReader-UI.
-local cached_text = nil
-local viewer      = nil
-local auto_task   = nil
+-- Module-level state (er is altijd maar één actieve KOReader-UI).
+local cached_shots = nil   -- ruwe rijen van de laatste fetch
+local cached_text  = nil
+local viewer       = nil
+local auto_task    = nil
+local month_offset = 0      -- 0 = huidige maand, 1 = vorige, ...
+
+-- Forward declarations (onderlinge afhankelijkheid viewer <-> render).
+local openViewer, renderCurrent
 
 -- ---------------------------------------------------------------------------
--- Helpers
+-- Kleine helpers
 -- ---------------------------------------------------------------------------
 
 local function num(n)
@@ -73,28 +85,24 @@ local function num(n)
     return string.format("%.1f", n)
 end
 
--- "2026-06-18T08:30:00+00:00" -> "18-06 08:30"
-local function fmtShort(iso)
+local function fmtShort(iso)  -- -> "18-06 08:30"
     if type(iso) ~= "string" then return "?" end
     local _y, mo, d, h, mi = iso:match("(%d+)-(%d+)-(%d+)T(%d+):(%d+)")
     if not d then return iso end
     return string.format("%s-%s %s:%s", d, mo, h, mi)
 end
 
--- "2026-06-18T..." -> "18-06"
-local function fmtDay(iso)
+local function fmtDay(iso)  -- -> "18-06"
     if type(iso) ~= "string" then return "?" end
     local _y, mo, d = iso:match("(%d+)-(%d+)-(%d+)")
     if not d then return "?" end
     return string.format("%s-%s", d, mo)
 end
 
--- YYYY-MM-DD (UTC, zoals opgeslagen)
-local function dayKey(iso)
+local function dayKey(iso)  -- "YYYY-MM-DD" (UTC, zoals opgeslagen)
     return type(iso) == "string" and iso:sub(1, 10) or nil
 end
 
--- Splits een UTF-8 string in losse tekens (voor breedte-correcte padding).
 local function utf8chars(s)
     local t = {}
     for c in (s or ""):gmatch("[\1-\127\194-\244][\128-\191]*") do
@@ -103,7 +111,9 @@ local function utf8chars(s)
     return t
 end
 
--- Pad of kap een string op exact w tekens (ASCII-spaties als opvulling).
+local function charlen(s) return #utf8chars(s) end
+
+-- Pad of kap een string op exact w tekens.
 local function padTrunc(s, w)
     local chars = utf8chars(s)
     if #chars > w then
@@ -112,6 +122,12 @@ local function padTrunc(s, w)
         return table.concat(out) .. "…"
     end
     return s .. string.rep(" ", w - #chars)
+end
+
+local function center(s, w)
+    local n = charlen(s)
+    if n >= w then return s end
+    return string.rep(" ", math.floor((w - n) / 2)) .. s
 end
 
 local function bar(frac, width)
@@ -123,15 +139,6 @@ local function bar(frac, width)
     return string.rep("█", filled) .. string.rep("░", width - filled)
 end
 
-local function starGlyphs(r)
-    r = tonumber(r) or 0
-    local full = math.floor(r + 0.001)
-    local half = (r - full) >= 0.5
-    local empty = 5 - full - (half and 1 or 0)
-    if empty < 0 then empty = 0 end
-    return string.rep("★", full) .. (half and "½" or "") .. string.rep("☆", empty)
-end
-
 local function avg(t)
     if #t == 0 then return nil end
     local sum = 0
@@ -139,7 +146,6 @@ local function avg(t)
     return sum / #t
 end
 
--- Sparkline uit een chronologische reeks ratings (0.5..5).
 local function sparkline(vals, maxlen)
     local n = #vals
     if n == 0 then return "" end
@@ -153,8 +159,38 @@ local function sparkline(vals, maxlen)
     return table.concat(out)
 end
 
+-- Hoeveel monospace-tekens passen er (met veiligheidsmarge) op een regel?
+local function computeCols()
+    local ok, char_px = pcall(function()
+        local face = Font:getFace("infont", CONFIG.font_size)
+        local sz = RenderText:sizeUtf8Text(0, Screen:getWidth() * 4, face, "0000000000", true)
+        return sz.x / 10
+    end)
+    if not ok or not char_px or char_px <= 0 then return 44 end
+    local cols = math.floor(Screen:getWidth() * CONFIG.width_margin / char_px)
+    if cols < 32 then cols = 32 elseif cols > 96 then cols = 96 end
+    return cols
+end
+
 -- ---------------------------------------------------------------------------
--- Stats
+-- Maand-selectie
+-- ---------------------------------------------------------------------------
+
+local function targetMonth(offset)
+    local t = os.date("*t")
+    local y, m = t.year, t.month - offset
+    while m < 1 do m = m + 12; y = y - 1 end
+    while m > 12 do m = m - 12; y = y + 1 end
+    return y, m
+end
+
+local function inMonth(iso, y, m)
+    local yy, mm = (iso or ""):match("(%d+)-(%d+)")
+    return tonumber(yy) == y and tonumber(mm) == m
+end
+
+-- ---------------------------------------------------------------------------
+-- Statistiek
 -- ---------------------------------------------------------------------------
 
 local function computeStats(shots)
@@ -178,8 +214,7 @@ local function computeStats(shots)
             bean_counts[bn] = (bean_counts[bn] or 0) + 1
         end
 
-        -- Dial-in shots tellen niet mee in de gemiddelden (zoals de web-app).
-        if not s.dial_in then
+        if not s.dial_in then  -- dial-in telt niet mee in gemiddelden
             local r = tonumber(s.rating)
             if r then
                 table.insert(r_vals, r)
@@ -203,8 +238,7 @@ local function computeStats(shots)
         if c > top_n then top_n = c; top_name = name end
     end
 
-    -- Ratings chronologisch (data komt nieuwste-eerst binnen).
-    local ratings_chrono = {}
+    local ratings_chrono = {}  -- data komt nieuwste-eerst binnen
     for i = #ratings_desc, 1, -1 do
         ratings_chrono[#ratings_chrono + 1] = ratings_desc[i]
     end
@@ -217,134 +251,172 @@ local function computeStats(shots)
     }
 end
 
--- Telt shots per dag over de afgelopen 7 dagen (device-tijd).
-local function weekActivity(shots)
-    local now = os.time()
-    local days, counts = {}, {}
-    for i = 6, 0, -1 do
-        local t = now - i * 86400
-        local k = os.date("%Y-%m-%d", t)
-        days[#days + 1] = { key = k, label = os.date("%a", t) }
-        counts[k] = 0
-    end
-    local week, maxc = 0, 0
+-- Shots per week-van-de-maand (1..5).
+local function monthWeeks(shots)
+    local counts = { 0, 0, 0, 0, 0 }
+    local maxc = 0
     for _, s in ipairs(shots) do
-        local k = dayKey(s.created_at)
-        if k and counts[k] ~= nil then
-            counts[k] = counts[k] + 1
-            week = week + 1
-            if counts[k] > maxc then maxc = counts[k] end
+        local d = tonumber((s.created_at or ""):match("%d+%-%d+%-(%d+)"))
+        if d then
+            local wk = math.ceil(d / 7)
+            if wk < 1 then wk = 1 elseif wk > 5 then wk = 5 end
+            counts[wk] = counts[wk] + 1
+            if counts[wk] > maxc then maxc = counts[wk] end
         end
     end
-    local today = counts[days[#days].key]
-    return { days = days, counts = counts, week = week, today = today, max = maxc }
+    return { counts = counts, max = maxc }
 end
 
 -- ---------------------------------------------------------------------------
--- Compacte 2-koloms shotkaart
+-- Tekenen: meter, box, kaart
 -- ---------------------------------------------------------------------------
 
--- 3 regels, elk gepadt op CONFIG.col_width tekens.
+local function meterLine(cols, label, frac, value)
+    local Lw = 13
+    local bw = math.max(4, cols - Lw - #value - 1)
+    return string.format("%-" .. Lw .. "s%s %s", label, bar(frac, bw), value)
+end
+
+-- Omlijst 3 contentregels in een box van innerW breed.
+local function boxCard(lines, innerW)
+    local out = { "┌" .. string.rep("─", innerW) .. "┐" }
+    for _, ln in ipairs(lines) do
+        out[#out + 1] = "│" .. padTrunc(ln, innerW) .. "│"
+    end
+    out[#out + 1] = "└" .. string.rep("─", innerW) .. "┘"
+    return out
+end
+
 local function compactCard(s)
-    local W = CONFIG.col_width
     local r = tonumber(s.rating)
     local rstr = r and string.format("%.1f*", r) or "-"
-    local dial = s.dial_in and " d" or ""
-    local dose = num(s.dose_grams)
-    local yield = num(s.yield_grams)
+    local dial = s.dial_in and " (d)" or ""
     local ratio = tonumber(s.brew_ratio)
     local rt = ratio and string.format("1:%.1f", ratio) or "?"
     local tm = tonumber(s.extraction_time_seconds) or 0
-    local grind = num(s.grind_size)
     local bean = (type(s.beans) == "table" and s.beans.name) or "?"
-
     return {
-        padTrunc(string.format("%s   %s%s", fmtShort(s.created_at), rstr, dial), W),
-        padTrunc(bean, W),
-        padTrunc(string.format("%s->%s %s %ds m%s", dose, yield, rt, tm, grind), W),
+        string.format("%s   %s%s", fmtShort(s.created_at), rstr, dial),
+        bean,
+        string.format("%s->%s %s %ds m%s",
+            num(s.dose_grams), num(s.yield_grams), rt, tm, num(s.grind_size)),
     }
 end
 
 -- ---------------------------------------------------------------------------
--- Rapport
+-- Rapport (voor de huidige month_offset)
 -- ---------------------------------------------------------------------------
 
-local function buildReport(shots)
-    local st = computeStats(shots)
-    local act = weekActivity(shots)
-    local L = {}
-    local function add(line) L[#L + 1] = line end
+local function buildReport(shots_all)
+    local cols = computeCols()
+    local y, m = targetMonth(month_offset)
+    local label = string.format("%s %d", MONTHS[m], y)
 
-    add("☕  ESPRESSO LOG")
-    add("Bijgewerkt: " .. os.date("%d-%m-%Y %H:%M"))
-    add(SEP)
+    local shots = {}
+    for _, s in ipairs(shots_all or {}) do
+        if inMonth(s.created_at, y, m) then shots[#shots + 1] = s end
+    end
+
+    local L = {}
+    local function add(s) L[#L + 1] = s end
+
+    add("Espresso log | " .. os.date("%d-%m-%Y %H:%M"))
+    add(center("‹ " .. label .. " ›", cols))
+    add(string.rep("─", cols))
+
+    if #shots == 0 then
+        add("")
+        add(center("Geen shots in " .. label .. ".", cols))
+        add("")
+        add(center("Gebruik 'Maand ‹' om terug te bladeren.", cols))
+        return table.concat(L, "\n")
+    end
+
+    local st = computeStats(shots)
 
     -- Kerncijfers.
     local dial = st.dialin > 0 and string.format(" (%d dial-in)", st.dialin) or ""
-    add(string.format("Shots: %d%s    Bonen: %d", st.total, dial, st.beans))
-    add(string.format("Vandaag: %d    Deze week: %d", act.today, act.week))
+    local head = string.format("Shots: %d%s    Bonen: %d", st.total, dial, st.beans)
+    if month_offset == 0 then
+        local today = os.date("%Y-%m-%d")
+        local tc = 0
+        for _, s in ipairs(shots) do
+            if dayKey(s.created_at) == today then tc = tc + 1 end
+        end
+        head = head .. string.format("    Vandaag: %d", tc)
+    end
+    add(head)
     add("")
 
-    -- Meters.
+    -- Meters (vullen de breedte).
     if st.avg_rating then
-        add(string.format("Gem. rating  %s  %.1f/5", bar(st.avg_rating / 5), st.avg_rating))
+        add(meterLine(cols, "Gem. rating", st.avg_rating / 5,
+            string.format("%.1f/5", st.avg_rating)))
     end
     if st.avg_ratio then
-        add(string.format("Gem. ratio   %s  1:%.1f", bar((st.avg_ratio - 1.5) / 1.5), st.avg_ratio))
+        add(meterLine(cols, "Gem. ratio", (st.avg_ratio - 1.5) / 1.5,
+            string.format("1:%.1f", st.avg_ratio)))
     end
     if st.avg_time then
-        add(string.format("Gem. tijd    %s  %ds", bar((st.avg_time - 20) / 15), math.floor(st.avg_time + 0.5)))
+        add(meterLine(cols, "Gem. tijd", (st.avg_time - 20) / 15,
+            string.format("%ds", math.floor(st.avg_time + 0.5))))
     end
 
     -- Trend-sparkline.
     if #st.ratings_chrono > 1 then
         add("")
-        add("Trend rating  " .. sparkline(st.ratings_chrono, CONFIG.spark_len))
+        local lbl = "Trend rating  "
+        add(lbl .. sparkline(st.ratings_chrono, math.max(4, cols - #lbl)))
     end
 
     -- Hoogtepunten.
+    add("")
     if st.best then
-        add("")
         add(string.format("Beste:   %.1f★  %s  %s", st.best.rating, st.best.day, st.best.bean))
     end
     if st.top_bean then
         add(string.format("Topboon: %s (%dx)", st.top_bean.name, st.top_bean.count))
     end
 
-    -- Rating-verdeling.
-    if st.effective > 0 then
-        add("")
-        add("Verdeling rating")
-        local maxc = 1
-        for i = 1, 5 do if st.hist[i] > maxc then maxc = st.hist[i] end end
-        for i = 5, 1, -1 do
-            add(string.format("%d★ %s %d", i, bar(st.hist[i] / maxc, 10), st.hist[i]))
-        end
+    -- Verdeling rating + weekactiviteit NAAST elkaar.
+    add("")
+    local half = math.floor((cols - 2) / 2)
+    local bw = math.max(3, half - 9)
+
+    local hmax = 1
+    for i = 1, 5 do if st.hist[i] > hmax then hmax = st.hist[i] end end
+    local wk = monthWeeks(shots)
+    local wmax = math.max(wk.max, 1)
+
+    local left = { "Verdeling rating" }
+    for i = 5, 1, -1 do
+        left[#left + 1] = string.format("%d  %s %d", i, bar(st.hist[i] / hmax, bw), st.hist[i])
+    end
+    local right = { "Activiteit (week)" }
+    for i = 1, 5 do
+        right[#right + 1] = string.format("w%d %s %d", i, bar(wk.counts[i] / wmax, bw), wk.counts[i])
+    end
+    for i = 1, 6 do
+        add(padTrunc(left[i] or "", half) .. "  " .. (right[i] or ""))
     end
 
-    -- 7-daagse activiteit.
+    -- Omlijnde shotlijst, 2 kolommen.
     add("")
-    add("Activiteit (7 dgn)")
-    local amax = math.max(act.max, 1)
-    for _, day in ipairs(act.days) do
-        local c = act.counts[day.key]
-        add(string.format("%-3s %s %d", day.label, bar(c / amax, 10), c))
-    end
-
-    -- Shotlijst (compact, 2 kolommen).
-    add(SEP)
-    local shown = math.min(CONFIG.list_limit, st.total)
-    add(string.format("LAATSTE %d SHOTS", shown))
+    add(string.rep("─", cols))
+    local shown = math.min(CONFIG.list_limit, #shots)
+    add(string.format("SHOTS — %s (%d)", label, shown))
     add("")
 
-    local cards = {}
-    for i = 1, shown do cards[i] = compactCard(shots[i]) end
-    for i = 1, #cards, 2 do
-        local left, right = cards[i], cards[i + 1]
-        for line = 1, 3 do
-            add(left[line] .. "  " .. (right and right[line] or ""))
+    local innerW = math.floor((cols - 5) / 2)
+    if innerW < 12 then innerW = 12 end
+    local boxes = {}
+    for i = 1, shown do boxes[i] = boxCard(compactCard(shots[i]), innerW) end
+    for i = 1, #boxes, 2 do
+        local lb, rb = boxes[i], boxes[i + 1]
+        for r = 1, 5 do
+            local l = lb[r] or string.rep(" ", innerW + 2)
+            add(l .. " " .. (rb and rb[r] or ""))
         end
-        add("")
     end
 
     return table.concat(L, "\n")
@@ -391,24 +463,47 @@ end
 -- Viewer + ophalen
 -- ---------------------------------------------------------------------------
 
-local function openViewer(text)
+openViewer = function(text)
     if viewer then
         UIManager:close(viewer)
         viewer = nil
     end
+    local y, m = targetMonth(month_offset)
     viewer = TextViewer:new{
-        title = _("Espresso log"),
+        title = string.format("%s %d", MONTHS[m], y),
         text = text,
-        monospace_font = true,         -- nodig voor uitgelijnde meters + kolommen
+        monospace_font = true,         -- uitgelijnde meters, boxes en kolommen
         text_font_size = CONFIG.font_size,
         justified = false,
         width = Screen:getWidth(),     -- fullscreen i.p.v. dialoog-inset
         height = Screen:getHeight(),
+        add_default_buttons = true,
+        buttons_table = {
+            {
+                { text = "‹ Maand", callback = function()
+                    month_offset = math.min(month_offset + 1, 120); renderCurrent()
+                end },
+                { text = "Nu", callback = function()
+                    month_offset = 0; renderCurrent()
+                end },
+                { text = "Maand ›", callback = function()
+                    month_offset = math.max(month_offset - 1, 0); renderCurrent()
+                end },
+            },
+        },
         close_callback = function() viewer = nil end,
     }
     UIManager:show(viewer)
 end
 
+renderCurrent = function()
+    if not cached_shots then return end
+    cached_text = buildReport(cached_shots)
+    openViewer(cached_text)
+end
+
+-- opts.show = open de viewer ook als hij nog dicht is
+-- opts.silent = geen foutmeldingen (achtergrond-ververs)
 local function doRefresh(opts)
     opts = opts or {}
     local body, err = httpGet(buildUrl())
@@ -423,15 +518,14 @@ local function doRefresh(opts)
     end
 
     local data = rapidjson.decode(body)
-    if type(data) ~= "table" or #data == 0 then
+    if type(data) ~= "table" then
         if not opts.silent then
-            UIManager:show(InfoMessage:new{
-                text = _("Geen shots gevonden of onverwacht antwoord."),
-            })
+            UIManager:show(InfoMessage:new{ text = _("Onverwacht antwoord van de server.") })
         end
         return
     end
 
+    cached_shots = data
     cached_text = buildReport(data)
     if opts.show or viewer then
         openViewer(cached_text)
@@ -464,7 +558,9 @@ end
 -- ---------------------------------------------------------------------------
 
 function EspressoLog:showLog()
-    if cached_text then
+    month_offset = 0  -- altijd starten bij de huidige maand
+    if cached_shots then
+        cached_text = buildReport(cached_shots)
         openViewer(cached_text)
     end
     NetworkMgr:runWhenOnline(function()
