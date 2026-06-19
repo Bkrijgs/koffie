@@ -277,17 +277,15 @@ local function meterLine(cols, label, frac, value)
     return string.format("%-" .. Lw .. "s%s %s", label, bar(frac, bw), value)
 end
 
--- Omlijst 3 contentregels in een box van innerW breed.
-local function boxCard(lines, innerW)
-    local out = { "┌" .. string.rep("─", innerW) .. "┐" }
-    for _, ln in ipairs(lines) do
-        out[#out + 1] = "│" .. padTrunc(ln, innerW) .. "│"
-    end
-    out[#out + 1] = "└" .. string.rep("─", innerW) .. "┘"
-    return out
+-- Links + rechts uitgevuld op een regel van cols breed.
+local function spread(left, right, cols)
+    local pad = cols - charlen(left) - charlen(right)
+    if pad < 1 then pad = 1 end
+    return left .. string.rep(" ", pad) .. right
 end
 
-local function compactCard(s)
+-- Een shot als 3 (ongepadde) regels voor de 2-koloms lijst.
+local function listCard(s)
     local r = tonumber(s.rating)
     local rstr = r and string.format("%.1f*", r) or "-"
     local dial = s.dial_in and " (d)" or ""
@@ -296,7 +294,7 @@ local function compactCard(s)
     local tm = tonumber(s.extraction_time_seconds) or 0
     local bean = (type(s.beans) == "table" and s.beans.name) or "?"
     return {
-        string.format("%s   %s%s", fmtShort(s.created_at), rstr, dial),
+        string.format("%s  %s%s", fmtShort(s.created_at), rstr, dial),
         bean,
         string.format("%s->%s %s %ds m%s",
             num(s.dose_grams), num(s.yield_grams), rt, tm, num(s.grind_size)),
@@ -317,105 +315,113 @@ local function buildReport(shots_all)
         if inMonth(s.created_at, y, m) then shots[#shots + 1] = s end
     end
 
+    local rule = string.rep("─", cols)
     local L = {}
     local function add(s) L[#L + 1] = s end
 
-    add("Espresso log | " .. os.date("%d-%m-%Y %H:%M"))
-    add(center("‹ " .. label .. " ›", cols))
-    add(string.rep("─", cols))
+    -- Kop.
+    add(spread("Espresso log", os.date("%d-%m-%Y %H:%M"), cols))
+    add(rule)
+    add(center("‹   " .. string.upper(label) .. "   ›", cols))
+    add(rule)
+    add("")
 
     if #shots == 0 then
-        add("")
         add(center("Geen shots in " .. label .. ".", cols))
         add("")
-        add(center("Gebruik 'Maand ‹' om terug te bladeren.", cols))
+        add(center("Tik op 'Maand ‹' om terug te bladeren.", cols))
         return table.concat(L, "\n")
     end
 
     local st = computeStats(shots)
 
-    -- Kerncijfers.
-    local dial = st.dialin > 0 and string.format(" (%d dial-in)", st.dialin) or ""
-    local head = string.format("Shots: %d%s    Bonen: %d", st.total, dial, st.beans)
+    -- Kerncijfers op één regel.
+    local parts = {
+        string.format("%d shots", st.total),
+        string.format("%d bonen", st.beans),
+    }
+    if st.dialin > 0 then parts[#parts + 1] = string.format("%d dial-in", st.dialin) end
     if month_offset == 0 then
         local today = os.date("%Y-%m-%d")
         local tc = 0
         for _, s in ipairs(shots) do
             if dayKey(s.created_at) == today then tc = tc + 1 end
         end
-        head = head .. string.format("    Vandaag: %d", tc)
+        parts[#parts + 1] = string.format("vandaag %d", tc)
     end
-    add(head)
+    add(table.concat(parts, "   |   "))
     add("")
 
-    -- Meters (vullen de breedte).
+    -- Gemiddelden (meters vullen de breedte).
+    add("GEMIDDELDEN")
     if st.avg_rating then
-        add(meterLine(cols, "Gem. rating", st.avg_rating / 5,
+        add(meterLine(cols, "Rating", st.avg_rating / 5,
             string.format("%.1f/5", st.avg_rating)))
     end
     if st.avg_ratio then
-        add(meterLine(cols, "Gem. ratio", (st.avg_ratio - 1.5) / 1.5,
+        add(meterLine(cols, "Ratio", (st.avg_ratio - 1.5) / 1.5,
             string.format("1:%.1f", st.avg_ratio)))
     end
     if st.avg_time then
-        add(meterLine(cols, "Gem. tijd", (st.avg_time - 20) / 15,
+        add(meterLine(cols, "Tijd", (st.avg_time - 20) / 15,
             string.format("%ds", math.floor(st.avg_time + 0.5))))
     end
-
-    -- Trend-sparkline.
     if #st.ratings_chrono > 1 then
-        add("")
-        local lbl = "Trend rating  "
-        add(lbl .. sparkline(st.ratings_chrono, math.max(4, cols - #lbl)))
+        add(string.format("%-13s%s", "Trend",
+            sparkline(st.ratings_chrono, math.max(4, cols - 13))))
     end
+    add("")
 
     -- Hoogtepunten.
-    add("")
+    add("HOOGTEPUNTEN")
     if st.best then
-        add(string.format("Beste:   %.1f★  %s  %s", st.best.rating, st.best.day, st.best.bean))
+        add(string.format("%-13s%.1f  %s  %s", "Beste shot",
+            st.best.rating, st.best.day, st.best.bean))
     end
     if st.top_bean then
-        add(string.format("Topboon: %s (%dx)", st.top_bean.name, st.top_bean.count))
+        add(string.format("%-13s%s (%dx)", "Topboon", st.top_bean.name, st.top_bean.count))
     end
-
-    -- Verdeling rating + weekactiviteit NAAST elkaar.
     add("")
-    local half = math.floor((cols - 2) / 2)
-    local bw = math.max(3, half - 9)
+
+    -- Verdeling rating + weekactiviteit naast elkaar.
+    local half = math.floor((cols - 3) / 2)
+    local bw = math.max(3, half - 8)
 
     local hmax = 1
     for i = 1, 5 do if st.hist[i] > hmax then hmax = st.hist[i] end end
     local wk = monthWeeks(shots)
     local wmax = math.max(wk.max, 1)
 
-    local left = { "Verdeling rating" }
+    local left = { "VERDELING RATING" }
     for i = 5, 1, -1 do
-        left[#left + 1] = string.format("%d  %s %d", i, bar(st.hist[i] / hmax, bw), st.hist[i])
+        left[#left + 1] = string.format("%d %s %d", i, bar(st.hist[i] / hmax, bw), st.hist[i])
     end
-    local right = { "Activiteit (week)" }
+    local right = { "ACTIVITEIT (week)" }
     for i = 1, 5 do
         right[#right + 1] = string.format("w%d %s %d", i, bar(wk.counts[i] / wmax, bw), wk.counts[i])
     end
     for i = 1, 6 do
-        add(padTrunc(left[i] or "", half) .. "  " .. (right[i] or ""))
+        add(padTrunc(left[i] or "", half) .. "   " .. (right[i] or ""))
     end
-
-    -- Omlijnde shotlijst, 2 kolommen.
     add("")
-    add(string.rep("─", cols))
+
+    -- Shotlijst, 2 kolommen (zonder boxen, met dunne scheidingsregels).
+    add(rule)
     local shown = math.min(CONFIG.list_limit, #shots)
-    add(string.format("SHOTS — %s (%d)", label, shown))
+    add(spread("SHOTS", string.format("%d van %d", shown, st.total), cols))
+    add(rule)
     add("")
 
-    local innerW = math.floor((cols - 5) / 2)
-    if innerW < 12 then innerW = 12 end
-    local boxes = {}
-    for i = 1, shown do boxes[i] = boxCard(compactCard(shots[i]), innerW) end
-    for i = 1, #boxes, 2 do
-        local lb, rb = boxes[i], boxes[i + 1]
-        for r = 1, 5 do
-            local l = lb[r] or string.rep(" ", innerW + 2)
-            add(l .. " " .. (rb and rb[r] or ""))
+    local colw = math.floor((cols - 3) / 2)
+    local cards = {}
+    for i = 1, shown do cards[i] = listCard(shots[i]) end
+    for i = 1, #cards, 2 do
+        local lc, rc = cards[i], cards[i + 1]
+        for line = 1, 3 do
+            add(padTrunc(lc[line], colw) .. "   " .. (rc and padTrunc(rc[line], colw) or ""))
+        end
+        if i + 2 <= #cards then
+            add("")
         end
     end
 
@@ -472,7 +478,8 @@ openViewer = function(text)
     viewer = TextViewer:new{
         title = string.format("%s %d", MONTHS[m], y),
         text = text,
-        monospace_font = true,         -- uitgelijnde meters, boxes en kolommen
+        text_type = "code",            -- forceert monospace (cruciaal voor uitlijning)
+        monospace_font = true,
         text_font_size = CONFIG.font_size,
         justified = false,
         width = Screen:getWidth(),     -- fullscreen i.p.v. dialoog-inset
