@@ -31,7 +31,7 @@ local CONFIG = {
     fetch_limit     = 2000,  -- max rijen die we ophalen (genoeg historie)
     refresh_minutes = 60,    -- automatische verversing via wifi (0 = uit)
     font_size       = 16,    -- viewer-lettergrootte (kleiner = meer per regel)
-    width_margin    = 0.92,  -- deel van schermbreedte dat we vullen (veiligheid)
+    width_margin    = 0.95,  -- deel van schermbreedte dat we vullen (veiligheid)
 }
 -- ============================================================================
 
@@ -271,10 +271,11 @@ end
 -- Tekenen: meter, box, kaart
 -- ---------------------------------------------------------------------------
 
+-- Label + waarde links, balk vult de rest tot de rand (tail clipt onschadelijk).
 local function meterLine(cols, label, frac, value)
-    local Lw = 13
-    local bw = math.max(4, cols - Lw - #value - 1)
-    return string.format("%-" .. Lw .. "s%s %s", label, bar(frac, bw), value)
+    local lead = string.format("%-7s%-6s ", label, value)
+    local bw = math.max(4, cols - charlen(lead))
+    return lead .. bar(frac, bw)
 end
 
 -- Links + rechts uitgevuld op een regel van cols breed.
@@ -322,8 +323,6 @@ local function buildReport(shots_all)
     -- Kop.
     add(spread("Espresso log", os.date("%d-%m-%Y %H:%M"), cols))
     add(rule)
-    add(center("‹   " .. string.upper(label) .. "   ›", cols))
-    add(rule)
     add("")
 
     if #shots == 0 then
@@ -367,8 +366,8 @@ local function buildReport(shots_all)
             string.format("%ds", math.floor(st.avg_time + 0.5))))
     end
     if #st.ratings_chrono > 1 then
-        add(string.format("%-13s%s", "Trend",
-            sparkline(st.ratings_chrono, math.max(4, cols - 13))))
+        add(string.format("%-7s%-6s ", "Trend", "")
+            .. sparkline(st.ratings_chrono, math.max(4, cols - 14)))
     end
     add("")
 
