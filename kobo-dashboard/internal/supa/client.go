@@ -6,6 +6,9 @@ package supa
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -15,6 +18,20 @@ import (
 
 	"github.com/bkrijgs/koffie/kobo-dashboard/internal/model"
 )
+
+// caBundle is a Mozilla CA root bundle embedded into the binary. Old Kobo
+// firmware (kernel 2.6.35) ships no usable system trust store, so Go's TLS
+// verification fails with "unknown authority". Shipping our own roots makes
+// HTTPS to Supabase work regardless of what's on the device.
+//
+//go:embed cacert.pem
+var caBundle []byte
+
+func rootCAs() *x509.CertPool {
+	pool := x509.NewCertPool()
+	pool.AppendCertsFromPEM(caBundle)
+	return pool
+}
 
 // Allowed taste tags, ported from lib/tags.ts. Anything else is dropped so a bad
 // row can't smuggle junk into the UI.
@@ -34,10 +51,13 @@ type Client struct {
 // New returns a client. timeout caps each request so a flaky e-ink wifi link
 // can't hang the UI forever.
 func New(baseURL, anonKey string, timeout time.Duration) *Client {
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{RootCAs: rootCAs()},
+	}
 	return &Client{
 		baseURL: baseURL,
 		anonKey: anonKey,
-		http:    &http.Client{Timeout: timeout},
+		http:    &http.Client{Timeout: timeout, Transport: tr},
 	}
 }
 
