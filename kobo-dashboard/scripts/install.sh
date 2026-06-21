@@ -102,6 +102,10 @@ install -m 0755 "$WORK/fbink"               "$ADDS_DIR/fbink"
 install -m 0755 "$PROJECT_DIR/kfmon/run.sh" "$ADDS_DIR/run.sh"
 cp "$WORK/icon.png"                         "$ICON_DIR/espresso.png"
 cp "$PROJECT_DIR/kfmon/espresso.ini"        "$KFMON_CFG_DIR/espresso.ini"
+# On-device helper scripts (probe + kiosk), ready to run over SSH.
+for s in probe.sh kiosk-probe.sh kiosk-install.sh kiosk-uninstall.sh; do
+  [ -f "$PROJECT_DIR/scripts/$s" ] && install -m 0755 "$PROJECT_DIR/scripts/$s" "$ADDS_DIR/$s"
+done
 # Preserve any device.conf probe.sh already wrote; otherwise the binary uses
 # its built-in Aura HD defaults.
 [ -f "$ADDS_DIR/device.conf" ] && ok "device.conf bewaard" || note "geen device.conf (defaults worden gebruikt; draai probe.sh op het toestel)"

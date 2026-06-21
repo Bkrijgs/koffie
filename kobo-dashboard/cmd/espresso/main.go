@@ -36,6 +36,7 @@ func main() {
 		monthFlag    = flag.String("month", "", "month to show as YYYY-MM (default: latest with data)")
 		fixtureBeans = flag.String("fixture-beans", "", "PostgREST beans JSON file (offline preview)")
 		fixtureShots = flag.String("fixture-shots", "", "PostgREST shots JSON file (offline preview)")
+		kiosk        = flag.Bool("kiosk", false, "kiosk mode: never auto-exit; hold the screen (boot-to-dashboard)")
 	)
 	flag.Parse()
 
@@ -60,6 +61,7 @@ func main() {
 		month:        *monthFlag,
 		fixtureBeans: *fixtureBeans,
 		fixtureShots: *fixtureShots,
+		kiosk:        *kiosk,
 	}
 	if err := run(opts); err != nil {
 		log.Printf("fatal: %v", err)
@@ -76,6 +78,7 @@ type runOpts struct {
 	preview                    bool
 	month                      string
 	fixtureBeans, fixtureShots string
+	kiosk                      bool
 }
 
 // resolveFBInk returns an fbink wrapper, preferring the configured binary but
@@ -198,12 +201,18 @@ func (a *app) refetch() {
 	_ = a.renderShow()
 }
 
-// loop handles touch navigation until close or idle timeout.
+// loop handles touch navigation. In normal mode it exits on close or after an
+// idle timeout (back to Nickel). In kiosk mode it never auto-exits — it holds
+// the screen indefinitely, and "Sluiten" disables kiosk so the next boot
+// returns to Nickel.
 func (a *app) loop() {
 	reader, err := input.Open(a.o.dev)
 	if err != nil {
-		// No touch panel: leave the rendered dashboard up and return to Nickel.
-		log.Printf("touch unavailable (%v); static display", err)
+		log.Printf("touch unavailable (%v)", err)
+		if a.o.kiosk {
+			// No touch panel but we must keep the dashboard on screen.
+			select {}
+		}
 		return
 	}
 	defer reader.Close()
@@ -211,6 +220,9 @@ func (a *app) loop() {
 	hb := render.DashboardHitboxes()
 	idle := time.NewTimer(idleTimeout)
 	defer idle.Stop()
+	if a.o.kiosk {
+		idle.Stop() // never auto-exit in kiosk
+	}
 
 	for {
 		select {
@@ -219,13 +231,21 @@ func (a *app) loop() {
 			return
 		case tap, ok := <-reader.Taps():
 			if !ok {
+				if a.o.kiosk {
+					select {} // touch reader died; keep holding the screen
+				}
 				return
 			}
-			idle.Reset(idleTimeout)
+			if !a.o.kiosk {
+				idle.Reset(idleTimeout)
+			}
 			p := image.Pt(tap.X, tap.Y)
 			first, last, hasData := stats.DataRange(a.snap.Shots)
 			switch {
 			case p.In(hb.Close):
+				if a.o.kiosk {
+					a.disableKiosk() // next boot returns to Nickel
+				}
 				log.Printf("close tapped; exiting")
 				return
 			case p.In(hb.Refresh):
@@ -238,6 +258,15 @@ func (a *app) loop() {
 				_ = a.renderShow()
 			}
 		}
+	}
+}
+
+// disableKiosk removes the KIOSK_ENABLED flag so the on-device launcher stops
+// relaunching us and the boot script falls through to Nickel.
+func (a *app) disableKiosk() {
+	flag := filepath.Join(a.o.dev.DataDir, "KIOSK_ENABLED")
+	if err := os.Remove(flag); err != nil {
+		log.Printf("disableKiosk: %v", err)
 	}
 }
 
