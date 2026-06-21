@@ -62,6 +62,23 @@ local _               = require("gettext")
 local Screen = Device.screen
 local function dp(x) return Screen:scaleBySize(x) end
 
+-- Veilig tekenen: nooit buiten de schermbuffer schrijven (voorkomt segfaults
+-- bij scrollen, want setPixel clampt zelf niet).
+local function safePixel(bb, x, y, c)
+    if x >= 0 and y >= 0 and x < bb:getWidth() and y < bb:getHeight() then
+        bb:setPixel(x, y, c)
+    end
+end
+local function safeRect(bb, x, y, w, h, c)
+    if w <= 0 or h <= 0 then return end
+    local bw, bh = bb:getWidth(), bb:getHeight()
+    if x < 0 then w = w + x; x = 0 end
+    if y < 0 then h = h + y; y = 0 end
+    if x + w > bw then w = bw - x end
+    if y + h > bh then h = bh - y end
+    if w > 0 and h > 0 then bb:paintRect(x, y, w, h, c) end
+end
+
 local MONTHS = {
     "januari", "februari", "maart", "april", "mei", "juni",
     "juli", "augustus", "september", "oktober", "november", "december",
@@ -252,48 +269,41 @@ end
 local PieChart = Widget:extend{ d = 160, hist = nil }
 function PieChart:getSize() return Geom:new{ w = self.d, h = self.d } end
 function PieChart:paintTo(bb, x, y)
-    local ok = pcall(function()
+    pcall(function()
         local r = math.floor(self.d / 2)
         local cx, cy = x + r, y + r
         local total = 0
         for i = 1, 5 do total = total + (self.hist[i] or 0) end
-        if total <= 0 then
-            bb:paintCircle(cx, cy, r, C_GRID)
-            bb:paintCircle(cx, cy, math.floor(r * 0.55), C_WHITE)
-            return
-        end
-        -- cumulatieve hoeken (5 sterren bovenaan, met de klok mee)
         local bounds = {}
-        local acc = 0
-        for i = 5, 1, -1 do
-            acc = acc + (self.hist[i] or 0)
-            bounds[i] = (acc / total) * 2 * math.pi
+        if total > 0 then
+            local acc = 0
+            for i = 5, 1, -1 do
+                acc = acc + (self.hist[i] or 0)
+                bounds[i] = (acc / total) * 2 * math.pi
+            end
         end
         local inner = r * 0.55
         local r2, in2 = r * r, inner * inner
+        local edge2 = (r - 1.5) * (r - 1.5)
         for dyp = -r, r do
             for dxp = -r, r do
                 local dist2 = dxp * dxp + dyp * dyp
                 if dist2 <= r2 and dist2 >= in2 then
-                    -- hoek vanaf bovenkant, met de klok mee: 0..2pi
-                    local ang = math.atan2(dxp, -dyp)
-                    if ang < 0 then ang = ang + 2 * math.pi end
-                    local color = GRAYS[1]
-                    local prev = 0
-                    for i = 5, 1, -1 do
-                        if ang <= bounds[i] then
-                            color = GRAYS[6 - i]
-                            break
+                    local color = C_GRID
+                    if total > 0 then
+                        local ang = math.atan2(dxp, -dyp)
+                        if ang < 0 then ang = ang + 2 * math.pi end
+                        color = GRAYS[1]
+                        for i = 5, 1, -1 do
+                            if ang <= bounds[i] then color = GRAYS[6 - i]; break end
                         end
-                        prev = bounds[i]
                     end
-                    bb:setPixel(cx + dxp, cy + dyp, color)
+                    if dist2 >= edge2 then color = C_BLACK end  -- dunne rand
+                    safePixel(bb, cx + dxp, cy + dyp, color)
                 end
             end
         end
-        bb:paintCircle(cx, cy, r, C_BLACK, 1)
     end)
-    if not ok then bb:paintRect(x, y, self.d, self.d, C_GRID) end
 end
 
 -- Lijngrafiek van de rating-trend (chronologisch).
@@ -304,30 +314,26 @@ function LineChart:paintTo(bb, x, y)
         local pad = dp(6)
         local x0, y0 = x + pad, y + pad
         local pw, ph = self.w - 2 * pad, self.h - 2 * pad
-        -- gridlijnen (rating 1..5)
         for s = 1, 5 do
             local gy = y0 + ph - (s / 5) * ph
-            bb:paintRect(x0, math.floor(gy), pw, 1, C_GRID)
+            safeRect(bb, x0, math.floor(gy), pw, 1, C_GRID)
         end
         local vals = self.vals
         local n = #vals
         if n < 1 then return end
         local function px(i) return x0 + (n == 1 and pw / 2 or (i - 1) / (n - 1) * pw) end
         local function py(v) return y0 + ph - (math.max(0, math.min(5, v)) / 5) * ph end
-        -- lijnsegmenten (dik) tussen punten
         for i = 1, n - 1 do
             local ax, ay = px(i), py(vals[i])
             local bx, by = px(i + 1), py(vals[i + 1])
             local steps = math.max(1, math.floor(math.max(math.abs(bx - ax), math.abs(by - ay))))
             for t = 0, steps do
-                local lx = math.floor(ax + (bx - ax) * t / steps)
-                local ly = math.floor(ay + (by - ay) * t / steps)
-                bb:paintRect(lx, ly, 2, 2, C_BLACK)
+                safeRect(bb, math.floor(ax + (bx - ax) * t / steps),
+                    math.floor(ay + (by - ay) * t / steps), 2, 2, C_BLACK)
             end
         end
-        -- punten
         for i = 1, n do
-            bb:paintCircle(math.floor(px(i)), math.floor(py(vals[i])), dp(2), C_BLACK)
+            safeRect(bb, math.floor(px(i)) - 1, math.floor(py(vals[i])) - 1, 4, 4, C_BLACK)
         end
     end)
 end
@@ -346,13 +352,13 @@ function BarChart:paintTo(bb, x, y)
         local gap = 1
         local bw = math.max(1, math.floor((avail - (n - 1) * gap) / n))
         local usable = self.h - 2 * pad
-        bb:paintRect(x + pad, base, n * (bw + gap), 1, C_GRID)
+        safeRect(bb, x + pad, base, n * (bw + gap), 1, C_GRID)
         for i = 1, n do
             local c = self.counts[i]
             local bh = math.floor((c / maxc) * usable)
             local bx = x + pad + (i - 1) * (bw + gap)
             if bh > 0 then
-                bb:paintRect(bx, base - bh, bw, bh, c > 0 and C_BLACK or C_GRID)
+                safeRect(bb, bx, base - bh, bw, bh, c > 0 and C_BLACK or C_GRID)
             end
         end
     end)
