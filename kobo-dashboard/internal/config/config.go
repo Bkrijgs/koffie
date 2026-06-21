@@ -32,6 +32,8 @@ const (
 type Device struct {
 	// FBInkBin is the path to the prebuilt fbink binary.
 	FBInkBin string
+	// FBDev is the framebuffer device we draw into directly.
+	FBDev string
 	// TouchDev is the evdev node for the touch panel, e.g. /dev/input/event1.
 	TouchDev string
 	// TouchMaxX / TouchMaxY are the ABS_MT_POSITION_X/Y maxima reported by the
@@ -55,6 +57,7 @@ type Device struct {
 func Defaults() Device {
 	return Device{
 		FBInkBin:     "/mnt/onboard/.adds/espresso/fbink",
+		FBDev:        "/dev/fb0",
 		TouchDev:     "/dev/input/event1",
 		TouchMaxX:    1080,
 		TouchMaxY:    1440,
@@ -91,6 +94,8 @@ func Load(path string) Device {
 		switch key {
 		case "FBINK_BIN":
 			d.FBInkBin = val
+		case "FB_DEV":
+			d.FBDev = val
 		case "TOUCH_DEV":
 			d.TouchDev = val
 		case "TOUCH_MAX_X":

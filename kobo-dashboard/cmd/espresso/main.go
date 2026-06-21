@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/bkrijgs/koffie/kobo-dashboard/internal/config"
+	"github.com/bkrijgs/koffie/kobo-dashboard/internal/fb"
 	"github.com/bkrijgs/koffie/kobo-dashboard/internal/input"
 	"github.com/bkrijgs/koffie/kobo-dashboard/internal/model"
 	"github.com/bkrijgs/koffie/kobo-dashboard/internal/render"
@@ -104,7 +105,7 @@ func run(o runOpts) error {
 		}
 		// Live (device) runs may wait on wifi; show a loading splash first.
 		if o.fixtureBeans == "" && o.fixtureShots == "" {
-			showLoading(fb, o.out)
+			showLoading(o.dev, fb, o.out)
 		}
 	}
 
@@ -130,16 +131,36 @@ func run(o runOpts) error {
 	return nil
 }
 
+// displayCanvas pushes a rendered canvas to the e-ink panel. Primary path:
+// write pixels straight into the framebuffer (works regardless of fbink's image
+// support), then ask fbink to refresh. Falls back to fbink's own image display
+// if the framebuffer can't be opened. A PNG copy is always kept for debugging.
+func displayCanvas(dev config.Device, fbink *render.FBInk, c *render.Canvas, out string) error {
+	_ = render.SavePNG(c, out)
+	if dev.FBDev != "" {
+		if f, err := fb.Open(dev.FBDev); err == nil {
+			f.Blit(c.Img)
+			_ = f.Close()
+			if rerr := fbink.Refresh(); rerr != nil {
+				log.Printf("fbink refresh failed: %v", rerr)
+			}
+			log.Printf("displayed via framebuffer (%dx%d %dbpp)", f.XRes, f.YRes, f.BPP)
+			return nil
+		} else {
+			log.Printf("fb open failed (%v); falling back to fbink -g", err)
+		}
+	}
+	return fbink.DisplayImage(out)
+}
+
 // showLoading blits a loading splash so the panel isn't blank during fetch.
-func showLoading(fb *render.FBInk, out string) {
+func showLoading(dev config.Device, fbink *render.FBInk, out string) {
 	c, err := render.NewCanvas(config.ScreenWidth, config.ScreenHeight)
 	if err != nil {
 		return
 	}
 	render.LoadingScreen(c)
-	if render.SavePNG(c, out) == nil {
-		_ = fb.DisplayImage(out)
-	}
+	_ = displayCanvas(dev, fbink, c, out)
 }
 
 // app holds the interactive dashboard state.
@@ -157,14 +178,11 @@ func (a *app) renderShow() error {
 		return fmt.Errorf("canvas: %w", err)
 	}
 	render.RenderDashboard(c, buildView(a.snap, a.month))
-	if err := render.SavePNG(c, a.o.out); err != nil {
-		return fmt.Errorf("save png: %w", err)
+	log.Printf("rendered for %s", a.month.Label())
+	if a.fb == nil { // preview mode: just write the PNG
+		return render.SavePNG(c, a.o.out)
 	}
-	log.Printf("rendered %s for %s", a.o.out, a.month.Label())
-	if a.fb == nil {
-		return nil
-	}
-	return a.fb.DisplayImage(a.o.out)
+	return displayCanvas(a.o.dev, a.fb, c, a.o.out)
 }
 
 // refetch reloads data from Supabase (falling back to cache) and re-renders.
@@ -291,16 +309,14 @@ func buildView(snap supa.Snapshot, month stats.Month) render.View {
 
 // showError renders a minimal error screen so a headless device isn't silent.
 func showError(dev config.Device, out string, err error) {
-	fb := resolveFBInk(dev)
+	fbink := resolveFBInk(dev)
 	if c, cerr := render.NewCanvas(config.ScreenWidth, config.ScreenHeight); cerr == nil {
 		render.ErrorScreen(c, err.Error())
-		if render.SavePNG(c, out) == nil && fb.Available() {
-			_ = fb.DisplayImage(out)
-			return
-		}
+		_ = displayCanvas(dev, fbink, c, out)
+		return
 	}
-	if fb.Available() {
-		_ = fb.Print(6, "espresso: "+err.Error())
+	if fbink.Available() {
+		_ = fbink.Print(6, "espresso: "+err.Error())
 	}
 }
 
