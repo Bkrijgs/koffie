@@ -1,0 +1,13 @@
+# Build artifacts
+/espresso
+/espresso-arm
+*.png.tmp
+dashboard.png
+espresso.log
+espresso.run.log
+
+# Vendored prebuilt fbink (drop one here to install offline)
+/vendor/
+
+# OS cruft
+.DS_Store
