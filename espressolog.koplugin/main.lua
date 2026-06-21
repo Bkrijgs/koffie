@@ -451,45 +451,137 @@ end
 -- Detailpopup (alle velden van één shot)
 -- ---------------------------------------------------------------------------
 
-local function showShotDetail(s)
-    local function line(k, v) return string.format("%-14s%s", k, v) end
-    local bean = (type(s.beans) == "table" and type(s.beans.name) == "string" and s.beans.name) or "?"
-    if type(s.beans) == "table" and type(s.beans.roaster) == "string" and s.beans.roaster ~= "" then
-        bean = bean .. " — " .. s.beans.roaster
-    end
-    local ratio = tonumber(s.brew_ratio)
-    local L = {
-        line("Datum", fmtDateTime(s.created_at)),
-        line("Boon", bean),
-        "",
-        line("Dose", num(s.dose_grams) .. " g"),
-        line("Yield", num(s.yield_grams) .. " g"),
-        line("Ratio", ratio and string.format("1:%.1f", ratio) or "?"),
-        line("Tijd", (tonumber(s.extraction_time_seconds) or 0) .. " s"),
-        line("Maalstand", num(s.grind_size)),
-        line("Rating", s.rating and (num(s.rating) .. " / 5") or "—"),
-        line("Dial-in", s.dial_in and "ja" or "nee"),
+local FACE_BEAN  = Font:getFace("tfont", 22)
+local FACE_STARS = Font:getFace("cfont", 26)
+local GRAY66 = Blitbuffer.Color8(0x66)
+
+local function starStr(r)
+    r = tonumber(r) or 0
+    local full = math.floor(r + 0.001)
+    local half = (r - full) >= 0.5
+    local empty = 5 - full - (half and 1 or 0)
+    if empty < 0 then empty = 0 end
+    return string.rep("★", full) .. (half and "½" or "") .. string.rep("☆", empty)
+end
+
+local function detailChip(value, lbl, w)
+    return FrameContainer:new{
+        bordersize = dp(1), radius = dp(6), padding = dp(6), background = C_WHITE, width = w,
+        CenterContainer:new{
+            dimen = Geom:new{ w = w - dp(14), h = dp(40) },
+            VerticalGroup:new{ align = "center",
+                TextWidget:new{ text = value, face = FACE_TEXT, bold = true },
+                TextWidget:new{ text = lbl, face = FACE_LABEL, fgcolor = GRAY66 },
+            },
+        },
     }
-    if type(s.tags) == "table" and #s.tags > 0 then
-        L[#L + 1] = line("Tags", table.concat(s.tags, ", "))
+end
+
+local function tagChip(t)
+    return FrameContainer:new{
+        bordersize = dp(1), radius = dp(10), padding = dp(4), margin = dp(2),
+        background = Blitbuffer.Color8(0xEE),
+        TextWidget:new{ text = t, face = FACE_SMALL },
+    }
+end
+
+-- Visuele detailpopup (kaart die over het dashboard zweeft; tik = sluiten).
+local ShotDetail = InputContainer:extend{}
+function ShotDetail:onClose() UIManager:close(self); return true end
+function ShotDetail:onTap() UIManager:close(self); return true end
+
+local function showShotDetail(s)
+    local screenW, screenH = Screen:getWidth(), Screen:getHeight()
+    local cardW = math.min(screenW - dp(36), dp(460))
+    local iw = cardW - dp(32)
+
+    local self_w = ShotDetail:new{ dimen = Geom:new{ x = 0, y = 0, w = screenW, h = screenH } }
+    self_w.ges_events = { Tap = { GestureRange:new{ ges = "tap", range = self_w.dimen } } }
+
+    local bean = (type(s.beans) == "table" and type(s.beans.name) == "string" and s.beans.name) or "?"
+    local roaster = (type(s.beans) == "table" and type(s.beans.roaster) == "string"
+        and s.beans.roaster ~= "" and s.beans.roaster) or nil
+    local r = tonumber(s.rating)
+    local ratio = tonumber(s.brew_ratio)
+
+    local items = VerticalGroup:new{ align = "center" }
+    local function add(w) table.insert(items, w) end
+    local function gap(h) table.insert(items, VerticalSpan:new{ width = dp(h or 8) }) end
+    local function leftText(text, face, color)
+        return FrameContainer:new{ bordersize = 0, padding = 0, width = iw,
+            TextWidget:new{ text = text, face = face, fgcolor = color } }
     end
+
+    add(TextWidget:new{ text = bean, face = FACE_BEAN, bold = true, max_width = iw })
+    if roaster then
+        add(TextWidget:new{ text = roaster, face = FACE_SMALL, fgcolor = GRAY66, max_width = iw })
+    end
+    add(TextWidget:new{ text = fmtDateTime(s.created_at), face = FACE_SMALL, fgcolor = GRAY66 })
+    gap(10)
+
+    if r then
+        add(TextWidget:new{ text = starStr(r), face = FACE_STARS })
+        add(VerticalSpan:new{ width = dp(2) })
+        add(TextWidget:new{ text = string.format("%s / 5", num(r)), face = FACE_SMALL, fgcolor = GRAY66 })
+    else
+        add(TextWidget:new{ text = "geen rating", face = FACE_SMALL, fgcolor = GRAY66 })
+    end
+    if s.dial_in then
+        gap(6)
+        add(FrameContainer:new{ bordersize = dp(1), radius = dp(8), padding = dp(4),
+            background = Blitbuffer.Color8(0xDD),
+            TextWidget:new{ text = "dial-in", face = FACE_SMALL } })
+    end
+    gap(12)
+
+    local chips = {
+        { num(s.dose_grams) .. "g", "dose" },
+        { num(s.yield_grams) .. "g", "yield" },
+        { ratio and string.format("1:%.1f", ratio) or "?", "ratio" },
+        { (tonumber(s.extraction_time_seconds) or 0) .. "s", "tijd" },
+        { num(s.grind_size), "maal" },
+    }
+    local chgap = dp(6)
+    local cwi = math.floor((iw - chgap * 4) / 5)
+    local crow = HorizontalGroup:new{ align = "center" }
+    for i, c in ipairs(chips) do
+        if i > 1 then table.insert(crow, HorizontalSpan:new{ width = chgap }) end
+        table.insert(crow, detailChip(c[1], c[2], cwi))
+    end
+    add(crow)
+
+    if type(s.tags) == "table" and #s.tags > 0 then
+        gap(10)
+        local trow = HorizontalGroup:new{ align = "center" }
+        for _, t in ipairs(s.tags) do
+            if type(t) == "string" then table.insert(trow, tagChip(t)) end
+        end
+        add(trow)
+    end
+
     if type(s.notes) == "string" and s.notes ~= "" then
-        L[#L + 1] = ""
-        L[#L + 1] = "Notities:"
-        L[#L + 1] = s.notes
+        gap(12)
+        add(leftText("Notities", FACE_LABEL, GRAY66))
+        add(VerticalSpan:new{ width = dp(2) })
+        add(TextBoxWidget:new{ text = s.notes, face = FACE_TEXT, width = iw })
     end
     if type(s.next_adjustment) == "string" and s.next_adjustment ~= "" then
-        L[#L + 1] = ""
-        L[#L + 1] = "Volgende keer:"
-        L[#L + 1] = s.next_adjustment
+        gap(10)
+        add(leftText("Volgende keer", FACE_LABEL, GRAY66))
+        add(VerticalSpan:new{ width = dp(2) })
+        add(TextBoxWidget:new{ text = s.next_adjustment, face = FACE_TEXT, width = iw })
     end
-    UIManager:show(TextViewer:new{
-        title = fmtShort(s.created_at),
-        text = table.concat(L, "\n"),
-        text_type = "code",
-        monospace_font = true,
-        text_font_size = 18,
-    })
+
+    gap(14)
+    add(Button:new{ text = "Sluiten", width = dp(150),
+        callback = function() UIManager:close(self_w) end })
+
+    local card = FrameContainer:new{
+        background = C_WHITE, bordersize = dp(2), radius = dp(14), padding = dp(16),
+        width = cardW, items,
+    }
+    self_w[1] = CenterContainer:new{ dimen = self_w.dimen, card }
+    UIManager:show(self_w)
 end
 
 -- Schermvullend dashboard-widget.
