@@ -216,8 +216,10 @@ func (a *app) loop() {
 	if err != nil {
 		log.Printf("touch unavailable (%v)", err)
 		if a.o.kiosk {
-			// No touch panel but we must keep the dashboard on screen.
-			select {}
+			// FAILSAFE: never hold a possibly-dead screen with no way out. Exit
+			// so the launcher can retry; if touch never comes up, the launcher's
+			// crash-guard falls back to Nickel within one boot.
+			os.Exit(2)
 		}
 		return
 	}
@@ -238,9 +240,14 @@ func (a *app) loop() {
 		case tap, ok := <-reader.Taps():
 			if !ok {
 				if a.o.kiosk {
-					select {} // touch reader died; keep holding the screen
+					os.Exit(2) // touch reader died; let the launcher recover
 				}
 				return
+			}
+			if a.o.kiosk {
+				// A real tap proves the panel is interactive, so the user can
+				// reach "Sluiten": clear the power-cycle failsafe counter.
+				a.markHealthy()
 			}
 			if !a.o.kiosk {
 				idle.Reset(idleTimeout)
@@ -306,6 +313,13 @@ func (a *app) disableKiosk() {
 	if err := os.Remove(flag); err != nil {
 		log.Printf("disableKiosk: %v", err)
 	}
+}
+
+// markHealthy clears the launcher's power-cycle failsafe counter. Called once a
+// tap is received, proving the kiosk is interactive (so "3 power-cycles disables
+// kiosk" never false-triggers during normal, touched use).
+func (a *app) markHealthy() {
+	_ = os.Remove(filepath.Join(a.o.dev.DataDir, ".kiosk_bootcount"))
 }
 
 // loadData returns a snapshot from fixtures (preview) or from Supabase (+cache).

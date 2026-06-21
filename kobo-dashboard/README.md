@@ -33,6 +33,22 @@ sh /mnt/onboard/.adds/espresso/probe.sh    # of: scp probe.sh erheen en draai 'm
 Zonder `device.conf` gebruikt de app de Aura-HD-defaults. Landen taps op de
 verkeerde plek, pas dan `TOUCH_SWAP_XY` / `TOUCH_INVERT_*` in `device.conf` aan.
 
+## Vastgelopen kiosk herstellen
+
+De kiosk heeft meerdere **touch-vrije** uitwegen terug naar Nickel:
+
+1. **Power-cycle 3×** — zet 'm 3 keer aan/uit zonder dat het scherm reageert; de
+   launcher schakelt de kiosk dan automatisch uit en boot Nickel.
+2. **Sluiten** — linksonder in de app (als touch werkt).
+3. **Vlag wissen via de SD** — wanneer niets anders kan: interne microSD eruit
+   (onder de achterkant), de **`KOBOeReader`**-partitie op een computer mounten en
+   `\.adds/espresso/KIOSK_ENABLED` verwijderen. SD terug → boot = Nickel.
+4. Terug in Nickel: `sh /mnt/onboard/.adds/espresso/kiosk-uninstall.sh` zet de
+   boot-hook helemaal terug.
+
+> Achtergrond: zie `docs/POSTMORTEM.md`. De power-cycle-escape is er gekomen na
+> incident #1, waarbij een oudere versie zonder touch-vrije uitweg vastliep.
+
 ## Projectstructuur
 
 ```

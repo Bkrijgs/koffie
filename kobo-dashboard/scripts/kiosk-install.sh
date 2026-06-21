@@ -29,26 +29,38 @@ cat > "$ESP/kiosk.sh" <<'LAUNCHER'
 #!/bin/sh
 # Runs the dashboard as the device UI while KIOSK_ENABLED exists. Foreground:
 # returns when kiosk is disabled, so rcS then falls through to Nickel.
+#
+# THREE independent, touch-free escapes to Nickel (lessons from incident #1):
+#   1. POWER-CYCLE x3  : a per-boot counter, cleared only when the app receives
+#      a real tap. So 3 boots without any successful touch -> kiosk disables.
+#   2. CRASH-GUARD     : 8 launches within one boot -> kiosk disables.
+#   3. SLUITEN / SD    : the in-app button, or deleting KIOSK_ENABLED off the
+#      card. (See docs/POSTMORTEM.md.)
 ESP=/mnt/onboard/.adds/espresso
+COUNTER="$ESP/.kiosk_bootcount"
 [ -x "$ESP/espresso" ] || exit 1
-echo "kiosk start $(date 2>/dev/null)" >> "$ESP/kiosk.log"
-fails=0
+
+# --- ESCAPE 1: power-cycle counter (touch-free) ---------------------------
+n=$(cat "$COUNTER" 2>/dev/null || echo 0)
+n=$((n + 1))
+echo "$n" > "$COUNTER"
+if [ "$n" -ge 3 ]; then
+  echo "3 power-cycles zonder touch -> kiosk uit $(date 2>/dev/null)" >> "$ESP/kiosk.log"
+  rm -f "$ESP/KIOSK_ENABLED" "$COUNTER"
+  exit 0
+fi
+
+echo "kiosk start (boot $n) $(date 2>/dev/null)" >> "$ESP/kiosk.log"
+attempts=0
 while [ -f "$ESP/KIOSK_ENABLED" ]; do
-  start=$(date +%s 2>/dev/null || echo 0)
-  "$ESP/espresso" -device "$ESP/device.conf" -kiosk >> "$ESP/kiosk.log" 2>&1
-  end=$(date +%s 2>/dev/null || echo 0)
-  # Crash-loop guard: 5 fast exits in a row -> disable kiosk so Nickel boots
-  # and the device stays recoverable.
-  if [ $((end - start)) -lt 5 ]; then
-    fails=$((fails + 1))
-    if [ "$fails" -ge 5 ]; then
-      echo "crash-loop; kiosk uitgeschakeld $(date 2>/dev/null)" >> "$ESP/kiosk.log"
-      rm -f "$ESP/KIOSK_ENABLED"
-      break
-    fi
-  else
-    fails=0
+  attempts=$((attempts + 1))
+  # --- ESCAPE 2: crash-guard (per boot) -----------------------------------
+  if [ "$attempts" -ge 8 ]; then
+    echo "crash-guard (8 starts) -> kiosk uit $(date 2>/dev/null)" >> "$ESP/kiosk.log"
+    rm -f "$ESP/KIOSK_ENABLED"
+    break
   fi
+  "$ESP/espresso" -device "$ESP/device.conf" -kiosk >> "$ESP/kiosk.log" 2>&1
   sleep 2
 done
 echo "kiosk stop $(date 2>/dev/null)" >> "$ESP/kiosk.log"
