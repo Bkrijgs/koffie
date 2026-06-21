@@ -623,7 +623,10 @@ function ShotCard:init()
     }
 end
 function ShotCard:onTap()
-    showShotDetail(self.shot)
+    local ok, err = pcall(showShotDetail, self.shot)
+    if not ok then
+        UIManager:show(InfoMessage:new{ text = "Detail-fout:\n" .. tostring(err) })
+    end
     return true
 end
 
