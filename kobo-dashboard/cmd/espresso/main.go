@@ -77,10 +77,28 @@ type runOpts struct {
 	fixtureBeans, fixtureShots string
 }
 
+// resolveFBInk returns an fbink wrapper, preferring the configured binary but
+// falling back to KFMon's / KOReader's bundled fbink if ours is missing.
+func resolveFBInk(dev config.Device) *render.FBInk {
+	for _, p := range []string{
+		dev.FBInkBin,
+		"/mnt/onboard/.adds/kfmon/bin/fbink",
+		"/mnt/onboard/.adds/koreader/fbink",
+	} {
+		if p == "" {
+			continue
+		}
+		if fb := render.NewFBInk(p); fb.Available() {
+			return fb
+		}
+	}
+	return render.NewFBInk(dev.FBInkBin)
+}
+
 func run(o runOpts) error {
 	var fb *render.FBInk
 	if !o.preview {
-		fb = render.NewFBInk(o.dev.FBInkBin)
+		fb = resolveFBInk(o.dev)
 		if !fb.Available() {
 			return fmt.Errorf("fbink not found/executable at %s", o.dev.FBInkBin)
 		}
@@ -273,7 +291,7 @@ func buildView(snap supa.Snapshot, month stats.Month) render.View {
 
 // showError renders a minimal error screen so a headless device isn't silent.
 func showError(dev config.Device, out string, err error) {
-	fb := render.NewFBInk(dev.FBInkBin)
+	fb := resolveFBInk(dev)
 	if c, cerr := render.NewCanvas(config.ScreenWidth, config.ScreenHeight); cerr == nil {
 		render.ErrorScreen(c, err.Error())
 		if render.SavePNG(c, out) == nil && fb.Available() {

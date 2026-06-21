@@ -67,8 +67,16 @@ get_fbink() {
   if [ -f "$PROJECT_DIR/vendor/fbink" ]; then
     cp "$PROJECT_DIR/vendor/fbink" "$WORK/fbink"; ok "fbink: vendored"; return
   fi
+  # KFMon already ships a working Kobo fbink on the device — reuse it.
+  for kf in \
+    "$KOBO_MOUNT/.adds/kfmon/bin/fbink" \
+    "$KOBO_MOUNT/.adds/koreader/fbink"; do
+    if [ -f "$kf" ]; then
+      cp "$kf" "$WORK/fbink"; ok "fbink: hergebruikt van toestel ($kf)"; return
+    fi
+  done
 
-  note "Prebuilt fbink ophalen van $FBINK_REPO…"
+  note "Prebuilt fbink ophalen van ${FBINK_REPO}…"
   local url
   url="$(curl -fsSL "https://api.github.com/repos/$FBINK_REPO/releases/latest" \
          | grep -oE '"browser_download_url": *"[^"]+\.tar\.xz"' \
@@ -87,7 +95,7 @@ get_fbink() {
 get_fbink
 
 # --- 4. copy to device ------------------------------------------------------
-note "Kopiëren naar $ADDS_DIR…"
+note "Kopiëren naar ${ADDS_DIR}…"
 mkdir -p "$ADDS_DIR" "$KFMON_CFG_DIR" "$ICON_DIR"
 install -m 0755 "$WORK/espresso"            "$ADDS_DIR/espresso"
 install -m 0755 "$WORK/fbink"               "$ADDS_DIR/fbink"
