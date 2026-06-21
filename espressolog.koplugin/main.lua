@@ -453,8 +453,8 @@ end
 
 local function showShotDetail(s)
     local function line(k, v) return string.format("%-14s%s", k, v) end
-    local bean = (type(s.beans) == "table" and s.beans.name) or "?"
-    if type(s.beans) == "table" and s.beans.roaster and s.beans.roaster ~= "" then
+    local bean = (type(s.beans) == "table" and type(s.beans.name) == "string" and s.beans.name) or "?"
+    if type(s.beans) == "table" and type(s.beans.roaster) == "string" and s.beans.roaster ~= "" then
         bean = bean .. " — " .. s.beans.roaster
     end
     local ratio = tonumber(s.brew_ratio)
@@ -473,12 +473,12 @@ local function showShotDetail(s)
     if type(s.tags) == "table" and #s.tags > 0 then
         L[#L + 1] = line("Tags", table.concat(s.tags, ", "))
     end
-    if s.notes and s.notes ~= "" then
+    if type(s.notes) == "string" and s.notes ~= "" then
         L[#L + 1] = ""
         L[#L + 1] = "Notities:"
         L[#L + 1] = s.notes
     end
-    if s.next_adjustment and s.next_adjustment ~= "" then
+    if type(s.next_adjustment) == "string" and s.next_adjustment ~= "" then
         L[#L + 1] = ""
         L[#L + 1] = "Volgende keer:"
         L[#L + 1] = s.next_adjustment
