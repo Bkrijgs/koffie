@@ -19,6 +19,27 @@ func HelloSplash(c *Canvas) {
 	c.TextCenter(cx, c.H-80, "fbink + KFMon", 24, false, Ink300)
 }
 
+// ErrorScreen shows a readable failure message (e.g. wifi down + no cache) so
+// the panel never goes silently blank.
+func ErrorScreen(c *Canvas, msg string) {
+	c.Fill(0, 0, c.W, c.H, Paper)
+	cx := c.W / 2
+	drawCup(c, cx, 360)
+	c.TextCenter(cx, 700, "Geen dashboard", 48, true, Ink)
+	c.TextCenter(cx, 756, "Kon de gegevens niet laden", 28, false, Ink400)
+
+	maxW := c.W - 2*margin
+	y := 840
+	for _, line := range c.WrapText(msg, 24, false, maxW) {
+		c.TextCenter(cx, y, c.TruncateToWidth(line, 24, false, maxW), 24, false, Ink300)
+		y += 34
+		if y > 1100 {
+			break
+		}
+	}
+	c.TextCenter(cx, c.H-90, "Tik om opnieuw te proberen · controleer wifi", 24, false, Ink400)
+}
+
 // drawCup sketches an espresso cup centered at (cx, top) using filled rects.
 func drawCup(c *Canvas, cx, top int) {
 	bodyW, bodyH := 220, 170

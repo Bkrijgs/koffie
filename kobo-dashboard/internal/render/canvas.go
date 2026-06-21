@@ -111,6 +111,73 @@ func (c *Canvas) HLine(x, y, w, thick int, col color.Color) {
 	c.Fill(x, y, w, thick, col)
 }
 
+// FillPolygon fills a closed polygon (even-odd) with a solid colour.
+func (c *Canvas) FillPolygon(pts [][2]float64, col color.Color) {
+	if len(pts) < 3 {
+		return
+	}
+	minY, maxY := pts[0][1], pts[0][1]
+	for _, p := range pts {
+		if p[1] < minY {
+			minY = p[1]
+		}
+		if p[1] > maxY {
+			maxY = p[1]
+		}
+	}
+	for y := int(minY); y <= int(maxY); y++ {
+		xs := polygonScanline(pts, float64(y)+0.5)
+		for k := 0; k+1 < len(xs); k += 2 {
+			x0 := int(xs[k] + 0.5)
+			x1 := int(xs[k+1] + 0.5)
+			for x := x0; x < x1; x++ {
+				c.set(x, y, col)
+			}
+		}
+	}
+}
+
+// WrapText greedily word-wraps s to at most maxW pixels per line.
+func (c *Canvas) WrapText(s string, size int, bold bool, maxW int) []string {
+	var lines []string
+	var cur string
+	for _, word := range splitWords(s) {
+		try := word
+		if cur != "" {
+			try = cur + " " + word
+		}
+		if c.TextWidth(try, size, bold) <= maxW || cur == "" {
+			cur = try
+		} else {
+			lines = append(lines, cur)
+			cur = word
+		}
+	}
+	if cur != "" {
+		lines = append(lines, cur)
+	}
+	return lines
+}
+
+func splitWords(s string) []string {
+	var out []string
+	cur := ""
+	for _, r := range s {
+		if r == ' ' || r == '\n' || r == '\t' {
+			if cur != "" {
+				out = append(out, cur)
+				cur = ""
+			}
+		} else {
+			cur += string(r)
+		}
+	}
+	if cur != "" {
+		out = append(out, cur)
+	}
+	return out
+}
+
 // Text draws a left-aligned string at baseline (x, y) and returns the advance
 // width in pixels.
 func (c *Canvas) Text(x, y int, s string, size int, bold bool, col color.Color) int {

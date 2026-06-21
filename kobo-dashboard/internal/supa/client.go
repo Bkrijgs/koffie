@@ -91,6 +91,34 @@ func (c *Client) Beans(ctx context.Context) ([]model.Bean, error) {
 	return out, nil
 }
 
+// DecodeBeans parses a PostgREST-shaped beans payload (an array of row objects)
+// into the domain model. Exposed so a JSON export can be replayed without a
+// network round-trip (preview / fixtures).
+func DecodeBeans(data []byte) ([]model.Bean, error) {
+	var rows []beanRow
+	if err := json.Unmarshal(data, &rows); err != nil {
+		return nil, err
+	}
+	out := make([]model.Bean, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, beanFromRow(r))
+	}
+	return out, nil
+}
+
+// DecodeShots is DecodeBeans' counterpart for shots.
+func DecodeShots(data []byte) ([]model.Shot, error) {
+	var rows []shotRow
+	if err := json.Unmarshal(data, &rows); err != nil {
+		return nil, err
+	}
+	out := make([]model.Shot, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, shotFromRow(r))
+	}
+	return out, nil
+}
+
 func beanFromRow(r beanRow) model.Bean {
 	return model.Bean{
 		ID:        r.ID,

@@ -1,30 +1,34 @@
-// Command espresso is the standalone Kobo espresso dashboard. It renders the
-// dashboard to a PNG and displays it on the e-ink panel via fbink. KFMon
-// launches it; Nickel/KOReader stay installed as a fallback.
-//
-// Phase 1 (this file's MVP surface) proves the build → deploy → launch pipeline
-// by rendering a "Hello espresso" splash. Later phases add data fetch, the full
-// dashboard render, and touch navigation.
+// Command espresso is the standalone Kobo espresso dashboard. It fetches shots
+// from Supabase, renders a month view to a PNG, and displays it on the e-ink
+// panel via fbink. KFMon launches it; Nickel/KOReader stay installed as a
+// fallback.
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/bkrijgs/koffie/kobo-dashboard/internal/config"
+	"github.com/bkrijgs/koffie/kobo-dashboard/internal/model"
 	"github.com/bkrijgs/koffie/kobo-dashboard/internal/render"
+	"github.com/bkrijgs/koffie/kobo-dashboard/internal/stats"
+	"github.com/bkrijgs/koffie/kobo-dashboard/internal/supa"
 )
 
 func main() {
 	var (
-		devicePath = flag.String("device", defaultDevicePath(), "path to device.conf")
-		preview    = flag.Bool("preview", false, "render the PNG but skip fbink (dev machine)")
-		outPath    = flag.String("out", "", "PNG output path (default: <DataDir>/dashboard.png)")
-		hello      = flag.Bool("hello", false, "force the Phase-1 hello splash instead of the dashboard")
-		icon       = flag.Bool("icon", false, "render the KFMon tile icon to -out and exit")
+		devicePath   = flag.String("device", defaultDevicePath(), "path to device.conf")
+		preview      = flag.Bool("preview", false, "render the PNG but skip fbink (dev machine)")
+		outPath      = flag.String("out", "", "PNG output path (default: <DataDir>/dashboard.png)")
+		icon         = flag.Bool("icon", false, "render the KFMon tile icon to -out and exit")
+		monthFlag    = flag.String("month", "", "month to show as YYYY-MM (default: latest with data)")
+		fixtureBeans = flag.String("fixture-beans", "", "PostgREST beans JSON file (offline preview)")
+		fixtureShots = flag.String("fixture-shots", "", "PostgREST shots JSON file (offline preview)")
 	)
 	flag.Parse()
 
@@ -40,57 +44,144 @@ func main() {
 	if out == "" {
 		out = filepath.Join(dev.DataDir, "dashboard.png")
 	}
-
 	logTo(dev.DataDir)
-	log.Printf("espresso starting (preview=%v hello=%v)", *preview, *hello)
 
-	if err := run(dev, out, *preview, *hello); err != nil {
+	opts := runOpts{
+		dev:          dev,
+		out:          out,
+		preview:      *preview,
+		month:        *monthFlag,
+		fixtureBeans: *fixtureBeans,
+		fixtureShots: *fixtureShots,
+	}
+	if err := run(opts); err != nil {
 		log.Printf("fatal: %v", err)
-		// Last-ditch: try to put the error on screen so a headless device isn't
-		// silent. Ignore any secondary failure.
 		if !*preview {
-			fb := render.NewFBInk(dev.FBInkBin)
-			if fb.Available() {
-				_ = fb.Print(6, "espresso: "+err.Error())
-			}
+			showError(dev, out, err)
 		}
 		os.Exit(1)
 	}
 }
 
-// run is the Phase-1 pipeline: render the hello splash and show it. Phases 2+
-// extend this with data fetch and the dashboard renderer.
-func run(dev config.Device, out string, preview, hello bool) error {
-	_ = hello // Phase 1 always renders the splash; the flag is wired for later.
+type runOpts struct {
+	dev                        config.Device
+	out                        string
+	preview                    bool
+	month                      string
+	fixtureBeans, fixtureShots string
+}
+
+func run(o runOpts) error {
+	snap, err := loadData(o)
+	if err != nil {
+		return err
+	}
+	log.Printf("data: %d beans, %d shots (stale=%v)", len(snap.Beans), len(snap.Shots), snap.Stale)
+
+	month := pickMonth(o.month, snap.Shots)
+	view := buildView(snap, month)
 
 	c, err := render.NewCanvas(config.ScreenWidth, config.ScreenHeight)
 	if err != nil {
 		return fmt.Errorf("canvas: %w", err)
 	}
-	render.HelloSplash(c)
-
-	if err := render.SavePNG(c, out); err != nil {
+	render.RenderDashboard(c, view)
+	if err := render.SavePNG(c, o.out); err != nil {
 		return fmt.Errorf("save png: %w", err)
 	}
-	log.Printf("rendered %s", out)
+	log.Printf("rendered %s for %s", o.out, month.Label())
 
-	if preview {
-		fmt.Println(out)
+	if o.preview {
+		fmt.Println(o.out)
 		return nil
 	}
-
-	fb := render.NewFBInk(dev.FBInkBin)
+	fb := render.NewFBInk(o.dev.FBInkBin)
 	if !fb.Available() {
-		return fmt.Errorf("fbink not found/executable at %s", dev.FBInkBin)
+		return fmt.Errorf("fbink not found/executable at %s", o.dev.FBInkBin)
 	}
-	if err := fb.DisplayImage(out); err != nil {
-		return fmt.Errorf("fbink display: %w", err)
-	}
-	log.Printf("displayed via fbink")
-	return nil
+	return fb.DisplayImage(o.out)
 }
 
-// renderIcon writes the KFMon tile cover. Run on the host during install.sh.
+// loadData returns a snapshot from fixtures (preview) or from Supabase (+cache).
+func loadData(o runOpts) (supa.Snapshot, error) {
+	if o.fixtureBeans != "" || o.fixtureShots != "" {
+		return loadFixture(o.fixtureBeans, o.fixtureShots)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	client := supa.New(config.SupabaseURL, config.SupabaseAnonKey, 18*time.Second)
+	return supa.Load(ctx, client, o.dev.DataDir)
+}
+
+func loadFixture(beansPath, shotsPath string) (supa.Snapshot, error) {
+	var snap supa.Snapshot
+	snap.FetchedAt = time.Now()
+	if beansPath != "" {
+		b, err := os.ReadFile(beansPath)
+		if err != nil {
+			return snap, err
+		}
+		if snap.Beans, err = supa.DecodeBeans(b); err != nil {
+			return snap, err
+		}
+	}
+	if shotsPath != "" {
+		b, err := os.ReadFile(shotsPath)
+		if err != nil {
+			return snap, err
+		}
+		if snap.Shots, err = supa.DecodeShots(b); err != nil {
+			return snap, err
+		}
+	}
+	return snap, nil
+}
+
+// pickMonth resolves the month to show: an explicit YYYY-MM, else the latest
+// month containing data, else the current month.
+func pickMonth(flagVal string, shots []model.Shot) stats.Month {
+	if flagVal != "" {
+		if t, err := time.Parse("2006-01", flagVal); err == nil {
+			return stats.MonthOf(t)
+		}
+	}
+	if _, last, ok := stats.DataRange(shots); ok {
+		return last
+	}
+	return stats.MonthOf(time.Now())
+}
+
+func buildView(snap supa.Snapshot, month stats.Month) render.View {
+	beans := make(map[string]model.Bean, len(snap.Beans))
+	for _, b := range snap.Beans {
+		beans[b.ID] = b
+	}
+	first, last, ok := stats.DataRange(snap.Shots)
+	return render.View{
+		Month:     stats.ComputeMonth(snap.Shots, month),
+		Beans:     beans,
+		FetchedAt: snap.FetchedAt,
+		Stale:     snap.Stale,
+		CanPrev:   ok && (first.Before(month)),
+		CanNext:   ok && (month.Before(last)),
+	}
+}
+
+// showError renders a minimal error screen so a headless device isn't silent.
+func showError(dev config.Device, out string, err error) {
+	fb := render.NewFBInk(dev.FBInkBin)
+	if c, cerr := render.NewCanvas(config.ScreenWidth, config.ScreenHeight); cerr == nil {
+		render.ErrorScreen(c, err.Error())
+		if render.SavePNG(c, out) == nil && fb.Available() {
+			_ = fb.DisplayImage(out)
+			return
+		}
+	}
+	if fb.Available() {
+		_ = fb.Print(6, "espresso: "+err.Error())
+	}
+}
+
 func renderIcon(out string) error {
 	if out == "" {
 		out = "icon.png"
@@ -104,15 +195,12 @@ func renderIcon(out string) error {
 }
 
 func defaultDevicePath() string {
-	// Sits next to the binary in .adds/espresso on the device.
 	if exe, err := os.Executable(); err == nil {
 		return filepath.Join(filepath.Dir(exe), "device.conf")
 	}
 	return "device.conf"
 }
 
-// logTo appends to a logfile in DataDir so on-device runs are debuggable, while
-// still echoing to stderr for `preview` runs on a dev machine.
 func logTo(dir string) {
 	log.SetFlags(log.LstdFlags)
 	if dir == "" {
