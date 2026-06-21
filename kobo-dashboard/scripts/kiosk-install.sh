@@ -32,8 +32,23 @@ cat > "$ESP/kiosk.sh" <<'LAUNCHER'
 ESP=/mnt/onboard/.adds/espresso
 [ -x "$ESP/espresso" ] || exit 1
 echo "kiosk start $(date 2>/dev/null)" >> "$ESP/kiosk.log"
+fails=0
 while [ -f "$ESP/KIOSK_ENABLED" ]; do
+  start=$(date +%s 2>/dev/null || echo 0)
   "$ESP/espresso" -device "$ESP/device.conf" -kiosk >> "$ESP/kiosk.log" 2>&1
+  end=$(date +%s 2>/dev/null || echo 0)
+  # Crash-loop guard: 5 fast exits in a row -> disable kiosk so Nickel boots
+  # and the device stays recoverable.
+  if [ $((end - start)) -lt 5 ]; then
+    fails=$((fails + 1))
+    if [ "$fails" -ge 5 ]; then
+      echo "crash-loop; kiosk uitgeschakeld $(date 2>/dev/null)" >> "$ESP/kiosk.log"
+      rm -f "$ESP/KIOSK_ENABLED"
+      break
+    fi
+  else
+    fails=0
+  fi
   sleep 2
 done
 echo "kiosk stop $(date 2>/dev/null)" >> "$ESP/kiosk.log"

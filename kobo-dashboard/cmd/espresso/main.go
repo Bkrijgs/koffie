@@ -37,6 +37,7 @@ func main() {
 		fixtureBeans = flag.String("fixture-beans", "", "PostgREST beans JSON file (offline preview)")
 		fixtureShots = flag.String("fixture-shots", "", "PostgREST shots JSON file (offline preview)")
 		kiosk        = flag.Bool("kiosk", false, "kiosk mode: never auto-exit; hold the screen (boot-to-dashboard)")
+		touchtest    = flag.Bool("touchtest", false, "print touch taps (calibration) and exit")
 	)
 	flag.Parse()
 
@@ -44,6 +45,11 @@ func main() {
 		if err := renderIcon(*outPath); err != nil {
 			log.Fatalf("icon: %v", err)
 		}
+		return
+	}
+
+	if *touchtest {
+		runTouchTest(config.Load(*devicePath))
 		return
 	}
 
@@ -258,6 +264,37 @@ func (a *app) loop() {
 				_ = a.renderShow()
 			}
 		}
+	}
+}
+
+// runTouchTest opens the touch panel and prints each tap (mapped to screen
+// coordinates) plus which dashboard zone it hit. Used to confirm the touch node
+// works and to calibrate the axis transform before enabling kiosk.
+func runTouchTest(dev config.Device) {
+	r, err := input.Open(dev)
+	if err != nil {
+		fmt.Printf("touch open failed for %s: %v\n", dev.TouchDev, err)
+		os.Exit(1)
+	}
+	defer r.Close()
+	fmt.Printf("Touch-test op %s (%dx%d). Tik op het scherm; Ctrl-C om te stoppen.\n",
+		dev.TouchDev, config.ScreenWidth, config.ScreenHeight)
+	fmt.Println("Tik op de hoeken en op de knoppen (‹ ›, Ververs, Sluiten).")
+	hb := render.DashboardHitboxes()
+	for tap := range r.Taps() {
+		p := image.Pt(tap.X, tap.Y)
+		zone := "(geen knop)"
+		switch {
+		case p.In(hb.Prev):
+			zone = "‹ vorige maand"
+		case p.In(hb.Next):
+			zone = "volgende maand ›"
+		case p.In(hb.Refresh):
+			zone = "Ververs"
+		case p.In(hb.Close):
+			zone = "Sluiten"
+		}
+		fmt.Printf("tap  x=%-4d y=%-4d  -> %s\n", tap.X, tap.Y, zone)
 	}
 }
 
