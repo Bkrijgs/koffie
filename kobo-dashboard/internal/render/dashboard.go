@@ -23,6 +23,7 @@ const (
 type View struct {
 	Month     stats.MonthStats
 	Beans     map[string]model.Bean
+	Tips      []stats.Tip // barista insights (cross-bean, current state)
 	FetchedAt time.Time
 	Stale     bool
 	CanPrev   bool
@@ -48,18 +49,20 @@ func DashboardHitboxes() Hitboxes {
 	}
 }
 
-// RenderDashboard draws the full month view onto c.
+// RenderDashboard draws the full month view onto c. Sections flow vertically:
+// each returns the y of its bottom edge.
 func RenderDashboard(c *Canvas, v View) {
 	c.Fill(0, 0, c.W, c.H, Paper)
 
-	drawHeader(c, v)
-	drawStats(c, v.Month)
-	chartBottom := drawChart(c, v.Month)
-	drawShots(c, v, chartBottom+30)
+	y := drawHeader(c, v)
+	y = drawStats(c, v.Month, y)
+	y = drawInsights(c, v.Tips, y)
+	y = drawChart(c, v.Month, y)
+	drawShots(c, v, y)
 	drawFooter(c, v)
 }
 
-func drawHeader(c *Canvas, v View) {
+func drawHeader(c *Canvas, v View) int {
 	c.Text(margin, 70, "ESPRESSO", 44, true, Ink)
 
 	// Freshness (top-right).
@@ -87,6 +90,7 @@ func drawHeader(c *Canvas, v View) {
 	drawChevron(c, c.W-margin-30, 150, 26, false, nextCol)
 
 	c.HLine(margin, 200, contentW, 2, Line)
+	return 210
 }
 
 // drawChevron draws a ‹ or › arrow centered at (cx, cy). left=true → ‹.
@@ -118,7 +122,7 @@ func drawChevron(c *Canvas, cx, cy, r int, left bool, col color.Color) {
 	c.FillPolygon([][2]float64{top2, tip2, bot2}, Paper)
 }
 
-func drawStats(c *Canvas, ms stats.MonthStats) {
+func drawStats(c *Canvas, ms stats.MonthStats, top int) int {
 	type cell struct{ label, value, sub string }
 	cells := []cell{
 		{"Shots", itoa(ms.Total), dialSub(ms.DialInCount)},
@@ -127,7 +131,7 @@ func drawStats(c *Canvas, ms stats.MonthStats) {
 		{"Gem. tijd", timeStr(ms.AvgTimeSeconds), ""},
 		{"Gem. ratio", ratioStr(ms.AvgRatio), ""},
 	}
-	top, h := 220, 150
+	h := 150
 	cw := contentW / len(cells)
 	for i, cl := range cells {
 		cx := margin + i*cw + cw/2
@@ -141,15 +145,82 @@ func drawStats(c *Canvas, ms stats.MonthStats) {
 		}
 	}
 	c.HLine(margin, top+h+10, contentW, 2, Line)
+	return top + h + 10
+}
+
+// drawInsights renders the barista insight box (top tip). Returns bottom y.
+func drawInsights(c *Canvas, tips []stats.Tip, top int) int {
+	if len(tips) == 0 {
+		return top
+	}
+	tip := tips[0]
+	y := top + 26
+	boxTop := y - 4
+
+	c.Text(margin, y+34, "BARISTA", 16, true, Ink300)
+	// Kind marker, drawn (the Go font has no ★/▸ glyphs).
+	drawTipMarker(c, margin+92, y+26, tip.Kind)
+
+	textX := margin + 116
+	maxW := contentW - 116
+	lines := c.WrapText(tip.Text, 24, false, maxW)
+	if len(lines) > 2 {
+		lines = lines[:2]
+		lines[1] = c.TruncateToWidth(lines[1]+"…", 24, false, maxW)
+	}
+	ly := y + 34
+	for _, ln := range lines {
+		c.Text(textX, ly, ln, 24, false, Ink600)
+		ly += 32
+	}
+
+	bottom := ly + 6
+	if bottom < boxTop+60 {
+		bottom = boxTop + 60
+	}
+	c.HLine(margin, bottom, contentW, 2, Line)
+	return bottom + 2
+}
+
+// drawTipMarker draws a small kind-specific glyph centered at (cx, cy):
+// praise→star, warn→filled disc, tweak→right triangle, info→dot.
+func drawTipMarker(c *Canvas, cx, cy int, kind stats.TipKind) {
+	switch kind {
+	case stats.TipPraise:
+		c.fillStar(cx, cy, 11, 1, Ink, Ink)
+	case stats.TipWarn:
+		// Filled disc with a punched-out exclamation.
+		c.fillDisc(cx, cy, 11, Ink)
+		c.Fill(cx-2, cy-7, 4, 8, Paper)
+		c.Fill(cx-2, cy+4, 4, 4, Paper)
+	case stats.TipTweak:
+		c.FillPolygon([][2]float64{
+			{float64(cx - 7), float64(cy - 9)},
+			{float64(cx + 8), float64(cy)},
+			{float64(cx - 7), float64(cy + 9)},
+		}, Ink)
+	default: // info
+		c.fillDisc(cx, cy, 6, Ink400)
+	}
+}
+
+func (c *Canvas) fillDisc(cx, cy, r int, col color.Color) {
+	for dy := -r; dy <= r; dy++ {
+		for dx := -r; dx <= r; dx++ {
+			if dx*dx+dy*dy <= r*r {
+				c.set(cx+dx, cy+dy, col)
+			}
+		}
+	}
 }
 
 // drawChart draws a per-day bar chart of effective shots for the month and
 // returns the y of its bottom edge.
-func drawChart(c *Canvas, ms stats.MonthStats) int {
-	top := 410
+func drawChart(c *Canvas, ms stats.MonthStats, top int) int {
+	top += 40
 	c.Text(margin, top, "Activiteit deze maand", 26, true, Ink)
 
-	baseline := top + 210
+	baseline := top + 170
 	chartTop := top + 30
 
 	days := len(ms.PerDay)
@@ -194,6 +265,7 @@ func drawChart(c *Canvas, ms stats.MonthStats) int {
 
 func drawShots(c *Canvas, v View, top int) {
 	ms := v.Month
+	top += 44
 	c.Text(margin, top, "Shots", 26, true, Ink)
 	c.TextRight(c.W-margin, top, fmt.Sprintf("%d deze maand", ms.Total), 22, false, Ink300)
 	y := top + 30

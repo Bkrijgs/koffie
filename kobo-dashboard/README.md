@@ -86,7 +86,8 @@ leveren. Het dashboard leest `beans` en `shots` via PostgREST.
 3. **Render** — volledig dashboard: stats (zonder dial-in), maandnavigatie,
    charts, recente shots met detailvelden (notes / next_adjustment / tags). ✅
 4. **Touch** — evdev: maand vooruit/terug, refresh, afsluiten. ✅
-5. **Polish** — offline-cache, foutstaten, wifi, verfijning.
+5. **Polish** — barista-inzichten (globalTips uit lib/tips.ts), laad-splash,
+   offline-cache + foutstaten, visuele verfijning. ✅
 
 ### Bediening (touch)
 

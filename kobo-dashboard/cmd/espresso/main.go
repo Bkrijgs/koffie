@@ -78,19 +78,25 @@ type runOpts struct {
 }
 
 func run(o runOpts) error {
+	var fb *render.FBInk
+	if !o.preview {
+		fb = render.NewFBInk(o.dev.FBInkBin)
+		if !fb.Available() {
+			return fmt.Errorf("fbink not found/executable at %s", o.dev.FBInkBin)
+		}
+		// Live (device) runs may wait on wifi; show a loading splash first.
+		if o.fixtureBeans == "" && o.fixtureShots == "" {
+			showLoading(fb, o.out)
+		}
+	}
+
 	snap, err := loadData(o)
 	if err != nil {
 		return err
 	}
 	log.Printf("data: %d beans, %d shots (stale=%v)", len(snap.Beans), len(snap.Shots), snap.Stale)
 
-	a := &app{o: o, snap: snap, month: pickMonth(o.month, snap.Shots)}
-	if !o.preview {
-		a.fb = render.NewFBInk(o.dev.FBInkBin)
-		if !a.fb.Available() {
-			return fmt.Errorf("fbink not found/executable at %s", o.dev.FBInkBin)
-		}
-	}
+	a := &app{o: o, snap: snap, month: pickMonth(o.month, snap.Shots), fb: fb}
 	if err := a.renderShow(); err != nil {
 		return err
 	}
@@ -104,6 +110,18 @@ func run(o runOpts) error {
 	}
 	a.loop()
 	return nil
+}
+
+// showLoading blits a loading splash so the panel isn't blank during fetch.
+func showLoading(fb *render.FBInk, out string) {
+	c, err := render.NewCanvas(config.ScreenWidth, config.ScreenHeight)
+	if err != nil {
+		return
+	}
+	render.LoadingScreen(c)
+	if render.SavePNG(c, out) == nil {
+		_ = fb.DisplayImage(out)
+	}
 }
 
 // app holds the interactive dashboard state.
@@ -245,6 +263,7 @@ func buildView(snap supa.Snapshot, month stats.Month) render.View {
 	return render.View{
 		Month:     stats.ComputeMonth(snap.Shots, month),
 		Beans:     beans,
+		Tips:      stats.GlobalTips(snap.Beans, snap.Shots, time.Now()),
 		FetchedAt: snap.FetchedAt,
 		Stale:     snap.Stale,
 		CanPrev:   ok && (first.Before(month)),

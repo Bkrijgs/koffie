@@ -19,6 +19,16 @@ func HelloSplash(c *Canvas) {
 	c.TextCenter(cx, c.H-80, "fbink + KFMon", 24, false, Ink300)
 }
 
+// LoadingScreen is shown while the first fetch is in flight, so the panel isn't
+// blank during the (potentially slow) e-ink wifi round-trip.
+func LoadingScreen(c *Canvas) {
+	c.Fill(0, 0, c.W, c.H, Paper)
+	cx := c.W / 2
+	drawCup(c, cx, 560)
+	c.TextCenter(cx, 900, "Espresso", 56, true, Ink)
+	c.TextCenter(cx, 956, "Shots laden…", 30, false, Ink400)
+}
+
 // ErrorScreen shows a readable failure message (e.g. wifi down + no cache) so
 // the panel never goes silently blank.
 func ErrorScreen(c *Canvas, msg string) {
