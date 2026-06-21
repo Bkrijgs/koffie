@@ -102,6 +102,13 @@ func (fb *FB) Blit(img *image.RGBA) {
 				fb.mem[d+0] = byte(v)
 				fb.mem[d+1] = byte(v >> 8)
 			}
+		case 8:
+			// Y8 grayscale (KOReader puts the panel in 8bpp). BT.601 luma.
+			for x := 0; x < w; x++ {
+				s := srcRow + x*4
+				lum := (uint32(img.Pix[s])*77 + uint32(img.Pix[s+1])*150 + uint32(img.Pix[s+2])*29) >> 8
+				fb.mem[dstRow+x] = byte(lum)
+			}
 		}
 	}
 }
