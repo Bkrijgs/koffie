@@ -768,7 +768,7 @@ end
 function EspressoLog:addToMainMenu(menu_items)
     menu_items.espressolog = {
         text = _("Espresso log"),
-        sorting_hint = "more_tools",
+        sorting_hint = "tools",
         callback = function() self:showLog() end,
     }
 end
