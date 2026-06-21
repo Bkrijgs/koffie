@@ -8,17 +8,23 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"image"
 	"log"
 	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/bkrijgs/koffie/kobo-dashboard/internal/config"
+	"github.com/bkrijgs/koffie/kobo-dashboard/internal/input"
 	"github.com/bkrijgs/koffie/kobo-dashboard/internal/model"
 	"github.com/bkrijgs/koffie/kobo-dashboard/internal/render"
 	"github.com/bkrijgs/koffie/kobo-dashboard/internal/stats"
 	"github.com/bkrijgs/koffie/kobo-dashboard/internal/supa"
 )
+
+// idleTimeout returns control to Nickel if the dashboard is left untouched, so
+// the app never holds the device indefinitely.
+const idleTimeout = 5 * time.Minute
 
 func main() {
 	var (
@@ -78,28 +84,107 @@ func run(o runOpts) error {
 	}
 	log.Printf("data: %d beans, %d shots (stale=%v)", len(snap.Beans), len(snap.Shots), snap.Stale)
 
-	month := pickMonth(o.month, snap.Shots)
-	view := buildView(snap, month)
-
-	c, err := render.NewCanvas(config.ScreenWidth, config.ScreenHeight)
-	if err != nil {
-		return fmt.Errorf("canvas: %w", err)
+	a := &app{o: o, snap: snap, month: pickMonth(o.month, snap.Shots)}
+	if !o.preview {
+		a.fb = render.NewFBInk(o.dev.FBInkBin)
+		if !a.fb.Available() {
+			return fmt.Errorf("fbink not found/executable at %s", o.dev.FBInkBin)
+		}
 	}
-	render.RenderDashboard(c, view)
-	if err := render.SavePNG(c, o.out); err != nil {
-		return fmt.Errorf("save png: %w", err)
+	if err := a.renderShow(); err != nil {
+		return err
 	}
-	log.Printf("rendered %s for %s", o.out, month.Label())
-
 	if o.preview {
 		fmt.Println(o.out)
 		return nil
 	}
-	fb := render.NewFBInk(o.dev.FBInkBin)
-	if !fb.Available() {
-		return fmt.Errorf("fbink not found/executable at %s", o.dev.FBInkBin)
+	// Fixture runs are non-interactive (dev machine has no touch panel).
+	if o.fixtureBeans != "" || o.fixtureShots != "" {
+		return nil
 	}
-	return fb.DisplayImage(o.out)
+	a.loop()
+	return nil
+}
+
+// app holds the interactive dashboard state.
+type app struct {
+	o     runOpts
+	snap  supa.Snapshot
+	month stats.Month
+	fb    *render.FBInk
+}
+
+// renderShow renders the current month and (unless previewing) blits it.
+func (a *app) renderShow() error {
+	c, err := render.NewCanvas(config.ScreenWidth, config.ScreenHeight)
+	if err != nil {
+		return fmt.Errorf("canvas: %w", err)
+	}
+	render.RenderDashboard(c, buildView(a.snap, a.month))
+	if err := render.SavePNG(c, a.o.out); err != nil {
+		return fmt.Errorf("save png: %w", err)
+	}
+	log.Printf("rendered %s for %s", a.o.out, a.month.Label())
+	if a.fb == nil {
+		return nil
+	}
+	return a.fb.DisplayImage(a.o.out)
+}
+
+// refetch reloads data from Supabase (falling back to cache) and re-renders.
+func (a *app) refetch() {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	client := supa.New(config.SupabaseURL, config.SupabaseAnonKey, 18*time.Second)
+	if snap, err := supa.Load(ctx, client, a.o.dev.DataDir); err == nil {
+		a.snap = snap
+	} else {
+		log.Printf("refetch failed: %v", err)
+	}
+	_ = a.renderShow()
+}
+
+// loop handles touch navigation until close or idle timeout.
+func (a *app) loop() {
+	reader, err := input.Open(a.o.dev)
+	if err != nil {
+		// No touch panel: leave the rendered dashboard up and return to Nickel.
+		log.Printf("touch unavailable (%v); static display", err)
+		return
+	}
+	defer reader.Close()
+
+	hb := render.DashboardHitboxes()
+	idle := time.NewTimer(idleTimeout)
+	defer idle.Stop()
+
+	for {
+		select {
+		case <-idle.C:
+			log.Printf("idle timeout; exiting")
+			return
+		case tap, ok := <-reader.Taps():
+			if !ok {
+				return
+			}
+			idle.Reset(idleTimeout)
+			p := image.Pt(tap.X, tap.Y)
+			first, last, hasData := stats.DataRange(a.snap.Shots)
+			switch {
+			case p.In(hb.Close):
+				log.Printf("close tapped; exiting")
+				return
+			case p.In(hb.Refresh):
+				a.refetch()
+			case p.In(hb.Prev) && hasData && first.Before(a.month):
+				a.month = a.month.Add(-1)
+				_ = a.renderShow()
+			case p.In(hb.Next) && hasData && a.month.Before(last):
+				a.month = a.month.Add(1)
+				_ = a.renderShow()
+			}
+		}
+	}
 }
 
 // loadData returns a snapshot from fixtures (preview) or from Supabase (+cache).

@@ -82,8 +82,19 @@ leveren. Het dashboard leest `beans` en `shots` via PostgREST.
 
 1. **MVP-pijplijn** — KFMon-tegel → Go-binary → "Hello espresso" via fbink.
    Bewijst build + deploy + launch + display. ✅
-2. **Data** — Supabase/PostgREST: beans + shots ophalen + cachen.
+2. **Data** — Supabase/PostgREST: beans + shots ophalen + cachen. ✅
 3. **Render** — volledig dashboard: stats (zonder dial-in), maandnavigatie,
-   charts, recente shots met detailvelden (notes / next_adjustment / tags).
-4. **Touch** — evdev: maand vooruit/terug, refresh, afsluiten.
+   charts, recente shots met detailvelden (notes / next_adjustment / tags). ✅
+4. **Touch** — evdev: maand vooruit/terug, refresh, afsluiten. ✅
 5. **Polish** — offline-cache, foutstaten, wifi, verfijning.
+
+### Bediening (touch)
+
+- **‹ / ›** (boven): vorige / volgende maand.
+- **Ververs** (onder, midden): opnieuw ophalen uit Supabase.
+- **Sluiten** (onder, links): terug naar Nickel.
+- Na 5 min zonder aanraking sluit de app automatisch af.
+
+Landt een tik naast de knop? De touch-as-oriëntatie van de Aura HD verschilt
+per toestel; pas `TOUCH_SWAP_XY` / `TOUCH_INVERT_X` / `TOUCH_INVERT_Y` in
+`device.conf` aan (zie `probe.sh`).
