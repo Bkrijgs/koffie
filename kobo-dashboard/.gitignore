@@ -11,3 +11,6 @@ espresso.run.log
 
 # OS cruft
 .DS_Store
+
+# The embedded CA bundle MUST be tracked (root .gitignore excludes *.pem).
+!internal/supa/cacert.pem
