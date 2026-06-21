@@ -56,14 +56,16 @@ type Device struct {
 // Defaults returns the Aura HD ("dragon") baseline. probe.sh overrides these.
 func Defaults() Device {
 	return Device{
-		FBInkBin:     "/mnt/onboard/.adds/espresso/fbink",
-		FBDev:        "/dev/fb0",
-		TouchDev:     "/dev/input/event1",
-		TouchMaxX:    1080,
-		TouchMaxY:    1440,
-		TouchSwapXY:  true, // Aura HD digitizer is rotated vs. the panel
-		TouchInvertX: false,
-		TouchInvertY: true,
+		FBInkBin: "/mnt/onboard/.adds/espresso/fbink",
+		FBDev:    "/dev/fb0",
+		TouchDev: "/dev/input/event1",
+		// Calibrated on an Aura HD (zForce): raw panel ~1400x1025, axes swapped
+		// and X inverted relative to the framebuffer.
+		TouchMaxX:    1400,
+		TouchMaxY:    1025,
+		TouchSwapXY:  true,
+		TouchInvertX: true,
+		TouchInvertY: false,
 		WifiIface:    "eth0",
 		DataDir:      "/mnt/onboard/.adds/espresso",
 	}
