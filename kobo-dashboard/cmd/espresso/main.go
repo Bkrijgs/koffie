@@ -294,7 +294,8 @@ func runTouchTest(dev config.Device) {
 		case p.In(hb.Close):
 			zone = "Sluiten"
 		}
-		fmt.Printf("tap  x=%-4d y=%-4d  -> %s\n", tap.X, tap.Y, zone)
+		fmt.Printf("tap  raw=(%-4d,%-4d)  scherm=(%-4d,%-4d)  -> %s\n",
+			tap.RawX, tap.RawY, tap.X, tap.Y, zone)
 	}
 }
 

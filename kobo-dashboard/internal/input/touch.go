@@ -34,8 +34,12 @@ const (
 	eventSize = 16
 )
 
-// Tap is a touch release at screen coordinates (already mapped to the panel).
-type Tap struct{ X, Y int }
+// Tap is a touch release. X,Y are mapped to framebuffer pixels; RawX,RawY are
+// the unmapped panel coordinates (used for calibration).
+type Tap struct {
+	X, Y       int
+	RawX, RawY int
+}
 
 // Reader streams taps from a touch device.
 type Reader struct {
@@ -109,7 +113,7 @@ func (r *Reader) loop() {
 			if code == synReport && !down && pending && haveX && haveY {
 				x, y := r.mapCoords(rawX, rawY)
 				select {
-				case r.taps <- Tap{X: x, Y: y}:
+				case r.taps <- Tap{X: x, Y: y, RawX: rawX, RawY: rawY}:
 				default:
 				}
 				pending = false
