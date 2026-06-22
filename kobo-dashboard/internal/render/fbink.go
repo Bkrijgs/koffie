@@ -70,14 +70,18 @@ func (f *FBInk) Print(row int, msg string) error {
 
 // Refresh triggers an e-ink update without drawing, pushing whatever is in the
 // framebuffer (e.g. pixels we wrote directly) onto the panel. `--refresh` is a
-// core fbink feature present even in minimal builds without image support. We
-// try a couple of arg forms for resilience across fbink versions.
+// core fbink feature present even in minimal builds without image support.
+//
+// IMPORTANT: never fall back to anything that CLEARS the screen (e.g. `-c`).
+// A refresh that fails must leave our framebuffer pixels intact, not wipe them
+// to white — that turned a cold-boot EPDC hiccup into a blank screen (incident
+// #1, see docs/POSTMORTEM.md).
 func (f *FBInk) Refresh() error {
 	var lastErr error
 	for _, args := range [][]string{
 		{"-f", "--refresh"}, // flashing full refresh, avoids ghosting
 		{"--refresh"},
-		{"-f", "-c"}, // last resort: clear+flash (also refreshes)
+		{"-f"}, // last resort: flash the current fb (no clear, no draw)
 	} {
 		cmd := exec.Command(f.Bin, args...)
 		cmd.Stderr = os.Stderr
