@@ -6,6 +6,9 @@ export type Bean = {
   blend?: string;
   roastDate?: string;
   notes?: string;
+  /** Of er nog voorraad van deze boon is. Staat-ie uit, dan verdwijnt de boon
+   *  uit het keuze-menu van het shot-logformulier. Default true. */
+  inStock: boolean;
   createdAt: string;
 };
 
