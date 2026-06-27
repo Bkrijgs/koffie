@@ -24,6 +24,7 @@ export function BeanForm({ bean, onCreated, onUpdated, onCancel }: Props) {
   const [blend, setBlend] = useState(bean?.blend ?? "");
   const [roastDate, setRoastDate] = useState(bean?.roastDate ?? "");
   const [notes, setNotes] = useState(bean?.notes ?? "");
+  const [inStock, setInStock] = useState(bean?.inStock ?? true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,6 +44,7 @@ export function BeanForm({ bean, onCreated, onUpdated, onCancel }: Props) {
         blend: blend.trim() || undefined,
         roastDate: roastDate || undefined,
         notes: notes.trim() || undefined,
+        inStock,
       };
       if (bean) {
         await updateBean(bean.id, payload);
@@ -128,6 +130,23 @@ export function BeanForm({ bean, onCreated, onUpdated, onCancel }: Props) {
           placeholder="Smaakprofiel"
         />
       </Field>
+
+      <label className="flex items-start gap-3 rounded-lg border border-line bg-paper px-4 py-3 text-sm">
+        <input
+          id="bean-in-stock"
+          type="checkbox"
+          checked={inStock}
+          onChange={(e) => setInStock(e.target.checked)}
+          className="mt-0.5 h-4 w-4 cursor-pointer accent-ink-800"
+        />
+        <span className="min-w-0 flex-1">
+          <span className="font-medium text-ink-800">Op voorraad</span>
+          <span className="block text-xs text-ink-400">
+            Vink uit als de zak op is — de boon verdwijnt dan uit het
+            keuzemenu bij het loggen van een shot.
+          </span>
+        </span>
+      </label>
 
       {error && <p className="text-sm text-red-700">{error}</p>}
 

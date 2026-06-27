@@ -97,6 +97,14 @@ export function ShotForm({ initialBeanId, shot }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Alleen bonen die op voorraad staan in het keuzemenu. De al-gekozen boon
+  // blijft zichtbaar (bv. bij het bewerken van een oude shot van een boon die
+  // inmiddels op is), zodat de selectie niet stilletjes wegvalt.
+  const availableBeans = useMemo(
+    () => beans.filter((b) => b.inStock || b.id === beanId),
+    [beans, beanId],
+  );
+
   function toggleTag(tag: string) {
     setTags((prev) =>
       prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
@@ -144,7 +152,7 @@ export function ShotForm({ initialBeanId, shot }: Props) {
     const latest = [...shots].sort(
       (a, b) => +new Date(b.createdAt) - +new Date(a.createdAt),
     )[0];
-    if (latest && beans.some((b) => b.id === latest.beanId)) {
+    if (latest && beans.some((b) => b.id === latest.beanId && b.inStock)) {
       setBeanId(latest.beanId);
     }
   }, [isEdit, beanId, ready, shots, beans]);
@@ -294,7 +302,7 @@ export function ShotForm({ initialBeanId, shot }: Props) {
             onChange={(e) => setBeanId(e.target.value)}
           >
             <option value="">Kies een boon…</option>
-            {beans.map((b) => (
+            {availableBeans.map((b) => (
               <option key={b.id} value={b.id}>
                 {b.name}
                 {b.roaster ? ` — ${b.roaster}` : ""}
