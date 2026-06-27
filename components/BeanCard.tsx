@@ -22,7 +22,7 @@ export function BeanCard({ bean, shots }: Props) {
           <h3 className="flex items-center gap-2 font-display text-lg tracking-tightish text-ink-800 group-hover:underline">
             {bean.name}
             {!bean.inStock && (
-              <span className="shrink-0 rounded-full border border-line px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-ink-400 no-underline">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-ink-800 text-[10px] font-medium uppercase tracking-wider text-paper no-underline">
                 Op
               </span>
             )}
