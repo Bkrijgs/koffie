@@ -5,13 +5,14 @@ import { useKoffie } from "@/lib/useKoffie";
 import { BeanCard } from "@/components/BeanCard";
 import { BeanForm } from "@/components/BeanForm";
 import { EmptyState } from "@/components/EmptyState";
+import { LoadState } from "@/components/LoadState";
 
 export default function BeansPage() {
   const { ready, beans, shots } = useKoffie();
   const [showForm, setShowForm] = useState(false);
 
   if (!ready) {
-    return <p className="text-sm text-ink-300">Laden…</p>;
+    return <LoadState />;
   }
 
   const shotsByBean = new Map<string, typeof shots>();

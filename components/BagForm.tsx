@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useKoffie } from "@/lib/useKoffie";
+import { errorMessage, localDateKey } from "@/lib/utils";
 import { Field, inputClass } from "./Field";
 
 type Props = {
@@ -10,14 +11,10 @@ type Props = {
   onCancel?: () => void;
 };
 
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
 export function BagForm({ beanId, onCreated, onCancel }: Props) {
   const { addBag } = useKoffie();
   const [grams, setGrams] = useState("250");
-  const [openedAt, setOpenedAt] = useState(todayIso());
+  const [openedAt, setOpenedAt] = useState(() => localDateKey(new Date()));
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +40,8 @@ export function BagForm({ beanId, onCreated, onCancel }: Props) {
         notes: notes.trim() || undefined,
       });
       onCreated?.();
+    } catch (e) {
+      setError(errorMessage(e, "Opslaan mislukt. Probeer het opnieuw."));
     } finally {
       setSubmitting(false);
     }

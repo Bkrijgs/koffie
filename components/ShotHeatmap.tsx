@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { ShotLog } from "@/lib/types";
-import { effectiveShots, formatDateOnly } from "@/lib/utils";
+import { effectiveShots, formatDateOnly, localDateKey } from "@/lib/utils";
 
 type Props = {
   shots: ShotLog[];
@@ -79,7 +79,7 @@ export function ShotHeatmap({ shots, selectedDateKey, onSelectDay }: Props) {
   for (const s of effective) {
     const d = startOfDay(new Date(s.createdAt));
     if (+d < windowStart || +d > windowEnd) continue;
-    const key = d.toISOString().slice(0, 10);
+    const key = localDateKey(d);
     countByKey.set(key, (countByKey.get(key) ?? 0) + 1);
     total += 1;
   }
@@ -101,7 +101,7 @@ export function ShotHeatmap({ shots, selectedDateKey, onSelectDay }: Props) {
     for (let r = 0; r < 7; r++) {
       const d = new Date(firstMonday);
       d.setDate(firstMonday.getDate() + c * 7 + r);
-      const key = d.toISOString().slice(0, 10);
+      const key = localDateKey(d);
       col.push({
         date: d,
         count: countByKey.get(key) ?? 0,
@@ -144,7 +144,7 @@ export function ShotHeatmap({ shots, selectedDateKey, onSelectDay }: Props) {
                 </div>
                 {col.map((cell, ri) => {
                   if (cell.future) return <div key={ri} className="h-4 w-4" />;
-                  const key = cell.date.toISOString().slice(0, 10);
+                  const key = localDateKey(cell.date);
                   const isSelected = selectedDateKey === key;
                   const baseCls = `h-4 w-4 rounded-sm transition-transform duration-150 ${bucketClass(cell.count)}`;
                   const ringCls = isSelected

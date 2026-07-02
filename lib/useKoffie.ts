@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { storage } from "./storage";
 import { DEFAULT_SETUP } from "./setup";
+import { errorMessage } from "./utils";
 import type {
   Bag,
   BagInput,
@@ -19,6 +20,8 @@ type State = {
   bags: Bag[];
   setup: Setup;
   ready: boolean;
+  /** Laadfout bij init; `retry()` probeert het opnieuw. */
+  error: string | null;
 };
 
 const listeners = new Set<() => void>();
@@ -28,24 +31,39 @@ const state: State = {
   bags: [],
   setup: DEFAULT_SETUP,
   ready: false,
+  error: null,
 };
 let initStarted = false;
 
 async function init() {
   if (initStarted) return;
   initStarted = true;
-  const [beans, shots, bags, setup] = await Promise.all([
-    storage.listBeans(),
-    storage.listShots(),
-    storage.listBags(),
-    storage.getSetup(),
-  ]);
-  state.beans = beans;
-  state.shots = shots;
-  state.bags = bags;
-  state.setup = setup;
-  state.ready = true;
-  listeners.forEach((l) => l());
+  if (state.error) {
+    state.error = null;
+    notify();
+  }
+  try {
+    const [beans, shots, bags, setup] = await Promise.all([
+      storage.listBeans(),
+      storage.listShots(),
+      storage.listBags(),
+      storage.getSetup(),
+    ]);
+    state.beans = beans;
+    state.shots = shots;
+    state.bags = bags;
+    state.setup = setup;
+    state.ready = true;
+  } catch (e) {
+    // Guard terugzetten zodat retry() een nieuwe poging kan doen.
+    initStarted = false;
+    state.error = errorMessage(e, "Kon de gegevens niet laden.");
+  }
+  notify();
+}
+
+function retryInit() {
+  void init();
 }
 
 function notify() {
@@ -115,6 +133,8 @@ export function useKoffie() {
 
   return {
     ready: state.ready,
+    error: state.error,
+    retry: retryInit,
     beans: state.beans,
     shots: state.shots,
     bags: state.bags,

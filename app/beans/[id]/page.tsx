@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { BaristaTips } from "@/components/BaristaTips";
 import { CoachCard } from "@/components/CoachCard";
 import { RatingCurve } from "@/components/RatingCurve";
+import { LoadState } from "@/components/LoadState";
 import { average, effectiveShots, formatDateOnly, mode } from "@/lib/utils";
 import { tipsForBean } from "@/lib/tips";
 import type { ShotLog } from "@/lib/types";
@@ -45,7 +46,7 @@ export default function BeanDetailPage() {
     return arr;
   }, [beanShots, sortBy]);
 
-  if (!ready) return <p className="text-sm text-ink-300">Laden…</p>;
+  if (!ready) return <LoadState />;
   if (!bean) {
     return (
       <div className="space-y-3">

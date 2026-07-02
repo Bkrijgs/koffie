@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import type { Bag, ShotLog } from "@/lib/types";
 import { bagStats, openBagFor, type BagStats } from "@/lib/inventory";
-import { formatDateOnly } from "@/lib/utils";
+import { errorMessage, formatDateOnly, localDateKey } from "@/lib/utils";
 import { useKoffie } from "@/lib/useKoffie";
 import { BagForm } from "./BagForm";
 
@@ -16,6 +16,7 @@ type Props = {
 export function Inventory({ beanId, bags, shots }: Props) {
   const { updateBag } = useKoffie();
   const [showForm, setShowForm] = useState(false);
+  const [closeError, setCloseError] = useState<string | null>(null);
 
   const beanBags = useMemo(
     () =>
@@ -29,13 +30,18 @@ export function Inventory({ beanId, bags, shots }: Props) {
 
   async function handleClose(bag: Bag) {
     if (!confirm("Zak afsluiten op vandaag?")) return;
-    await updateBag(bag.id, {
-      beanId: bag.beanId,
-      grams: bag.grams,
-      openedAt: bag.openedAt,
-      finishedAt: new Date().toISOString().slice(0, 10),
-      notes: bag.notes,
-    });
+    setCloseError(null);
+    try {
+      await updateBag(bag.id, {
+        beanId: bag.beanId,
+        grams: bag.grams,
+        openedAt: bag.openedAt,
+        finishedAt: localDateKey(new Date()),
+        notes: bag.notes,
+      });
+    } catch (e) {
+      setCloseError(errorMessage(e, "Zak afsluiten mislukt."));
+    }
   }
 
   return (
@@ -72,6 +78,8 @@ export function Inventory({ beanId, bags, shots }: Props) {
           Nog geen open zak. Open er een om je verbruik bij te houden.
         </p>
       ) : null}
+
+      {closeError && <p className="text-sm text-red-700">{closeError}</p>}
 
       {closed.length > 0 && (
         <details className="group rounded-xl2 border border-line bg-paper px-5 py-3">

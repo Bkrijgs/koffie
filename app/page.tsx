@@ -8,7 +8,13 @@ import { EmptyState } from "@/components/EmptyState";
 import { BaristaTips } from "@/components/BaristaTips";
 import { ShotHeatmap } from "@/components/ShotHeatmap";
 import { BootSplash } from "@/components/BootSplash";
-import { average, effectiveShots, formatDateOnly } from "@/lib/utils";
+import { LoadState } from "@/components/LoadState";
+import {
+  average,
+  effectiveShots,
+  formatDateOnly,
+  localDateKey,
+} from "@/lib/utils";
 import { globalTips } from "@/lib/tips";
 import { useCountUp } from "@/lib/useCountUp";
 
@@ -22,14 +28,14 @@ export default function DashboardPage() {
   const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
 
   if (!ready) {
-    return <p className="text-sm text-ink-300">Laden…</p>;
+    return <LoadState />;
   }
 
   const beanById = new Map(beans.map((b) => [b.id, b]));
   const effective = effectiveShots(shots);
   const selectedDayShots = selectedDateKey
     ? [...shots]
-        .filter((s) => s.createdAt.slice(0, 10) === selectedDateKey)
+        .filter((s) => localDateKey(new Date(s.createdAt)) === selectedDateKey)
         .sort(
           (a, b) => +new Date(b.createdAt) - +new Date(a.createdAt),
         )

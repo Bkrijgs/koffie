@@ -22,6 +22,18 @@ npm run dev
 
 Open <http://localhost:3000>.
 
+## Tests & CI
+
+```bash
+npm test          # vitest, unit-tests voor lib/ (tips, inventory, utils, …)
+npm run test:watch
+npm run lint
+npm run typecheck
+```
+
+GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) draait
+lint, typecheck, tests en build op elke push.
+
 ## Database in Supabase opzetten
 
 1. **Project aanmaken** — ga naar <https://supabase.com>, klik *New project*,

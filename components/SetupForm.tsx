@@ -3,13 +3,16 @@
 import { useEffect, useState } from "react";
 import { useKoffie } from "@/lib/useKoffie";
 import type { Setup } from "@/lib/types";
+import { errorMessage } from "@/lib/utils";
 import { Field, inputClass } from "./Field";
+import { LoadState } from "./LoadState";
 
 export function SetupForm() {
   const { setup, updateSetup, ready } = useKoffie();
   const [draft, setDraft] = useState<Setup>(setup);
   const [submitting, setSubmitting] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // useKoffie laadt de echte setup async; zodra die binnen is nemen we
   // 'm over in het formulier.
@@ -25,18 +28,21 @@ export function SetupForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
+    setError(null);
     try {
       await updateSetup({
         ...draft,
         notes: draft.notes?.trim() ? draft.notes.trim() : undefined,
       });
       setSaved(true);
+    } catch (err) {
+      setError(errorMessage(err, "Opslaan mislukt. Probeer het opnieuw."));
     } finally {
       setSubmitting(false);
     }
   }
 
-  if (!ready) return <p className="text-sm text-ink-300">Laden…</p>;
+  if (!ready) return <LoadState />;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
@@ -159,6 +165,8 @@ export function SetupForm() {
           placeholder="Binnenburr-stand, water, bijzonderheden…"
         />
       </Field>
+
+      {error && <p className="text-sm text-red-700">{error}</p>}
 
       <div className="flex items-center gap-3 pt-1">
         <button

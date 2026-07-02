@@ -3,12 +3,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useKoffie } from "@/lib/useKoffie";
-import { calcBrewRatio, effectiveShots } from "@/lib/utils";
+import { calcBrewRatio, effectiveShots, errorMessage } from "@/lib/utils";
 import type { Rating, ShotLog } from "@/lib/types";
 import { Field, inputClass } from "./Field";
 import { StarRating } from "./StarRating";
 import { BeanForm } from "./BeanForm";
 import { Barista } from "./Barista";
+import { LoadState } from "./LoadState";
 import { TASTE_TAGS } from "@/lib/tags";
 
 type Props = {
@@ -242,13 +243,15 @@ export function ShotForm({ initialBeanId, shot }: Props) {
         await addShot(payload);
       }
       router.push(`/beans/${beanId}`);
+    } catch (e) {
+      setError(errorMessage(e, "Opslaan mislukt. Probeer het opnieuw."));
     } finally {
       setSubmitting(false);
     }
   }
 
   if (!ready) {
-    return <p className="text-sm text-ink-300">Laden…</p>;
+    return <LoadState />;
   }
 
   if (showNewBean) {

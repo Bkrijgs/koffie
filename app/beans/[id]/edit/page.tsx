@@ -4,13 +4,14 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useKoffie } from "@/lib/useKoffie";
 import { BeanForm } from "@/components/BeanForm";
+import { LoadState } from "@/components/LoadState";
 
 export default function EditBeanPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id;
   const { ready, beans } = useKoffie();
 
-  if (!ready) return <p className="text-sm text-ink-300">Laden…</p>;
+  if (!ready) return <LoadState />;
 
   const bean = id ? beans.find((b) => b.id === id) : undefined;
   if (!bean) {

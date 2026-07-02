@@ -34,12 +34,36 @@ export function formatDate(iso: string): string {
 
 export function formatDateOnly(iso?: string): string {
   if (!iso) return "";
-  const d = new Date(iso);
+  // Datum-strings zonder tijd ("2026-06-10") als lokale datum parsen;
+  // new Date(iso) leest ze als UTC-middernacht en kan dan een dag schuiven.
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  const d = m
+    ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+    : new Date(iso);
   return d.toLocaleDateString(undefined, {
     day: "2-digit",
     month: "short",
     year: "numeric",
   });
+}
+
+/** Dag-key (YYYY-MM-DD) in de lokale tijdzone. Niet via toISOString():
+ *  dat converteert naar UTC en schuift avond-/nachtshots een dag op. */
+export function localDateKey(d: Date): string {
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+
+/** Menselijke foutmelding uit een onbekende throw-waarde (Error,
+ *  Supabase PostgrestError, string), met Nederlandse fallback. */
+export function errorMessage(e: unknown, fallback: string): string {
+  if (typeof e === "string" && e) return e;
+  if (e && typeof e === "object" && "message" in e) {
+    const m = (e as { message?: unknown }).message;
+    if (typeof m === "string" && m) return m;
+  }
+  return fallback;
 }
 
 export function average(nums: number[]): number {

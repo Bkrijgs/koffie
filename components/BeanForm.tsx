@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useKoffie } from "@/lib/useKoffie";
 import type { Bean } from "@/lib/types";
+import { errorMessage } from "@/lib/utils";
 import { Field, inputClass } from "./Field";
 
 type Props = {
@@ -59,6 +60,8 @@ export function BeanForm({ bean, onCreated, onUpdated, onCancel }: Props) {
           router.push(`/beans/${created.id}`);
         }
       }
+    } catch (e) {
+      setError(errorMessage(e, "Opslaan mislukt. Probeer het opnieuw."));
     } finally {
       setSubmitting(false);
     }

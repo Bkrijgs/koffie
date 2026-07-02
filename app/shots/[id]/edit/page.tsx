@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { useKoffie } from "@/lib/useKoffie";
 import { ShotForm } from "@/components/ShotForm";
 import { BaristaTips } from "@/components/BaristaTips";
+import { LoadState } from "@/components/LoadState";
 import { tipsForShot } from "@/lib/tips";
 
 export default function EditShotPage() {
@@ -30,7 +31,7 @@ export default function EditShotPage() {
     [shot, bean, beanShots],
   );
 
-  if (!ready) return <p className="text-sm text-ink-300">Laden…</p>;
+  if (!ready) return <LoadState />;
 
   if (!shot) {
     return (
