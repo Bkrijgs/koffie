@@ -63,6 +63,7 @@ drop policy if exists "anon update beans"  on public.beans;
 drop policy if exists "anon read shots"    on public.shots;
 drop policy if exists "anon write shots"   on public.shots;
 drop policy if exists "anon update shots"  on public.shots;
+drop policy if exists "anon delete shots"  on public.shots;
 drop policy if exists "anon read bags"     on public.bags;
 drop policy if exists "anon write bags"    on public.bags;
 drop policy if exists "anon update bags"   on public.bags;
@@ -73,6 +74,7 @@ create policy "anon update beans"  on public.beans for update using (true) with 
 create policy "anon read shots"    on public.shots for select using (true);
 create policy "anon write shots"   on public.shots for insert with check (true);
 create policy "anon update shots"  on public.shots for update using (true) with check (true);
+create policy "anon delete shots"  on public.shots for delete using (true);
 create policy "anon read bags"     on public.bags  for select using (true);
 create policy "anon write bags"    on public.bags  for insert with check (true);
 create policy "anon update bags"   on public.bags  for update using (true) with check (true);

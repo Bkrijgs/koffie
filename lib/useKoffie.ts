@@ -110,6 +110,12 @@ export function useKoffie() {
     return shot;
   }, []);
 
+  const deleteShot = useCallback(async (id: string) => {
+    await storage.deleteShot(id);
+    state.shots = state.shots.filter((s) => s.id !== id);
+    notify();
+  }, []);
+
   const addBag = useCallback(async (input: BagInput) => {
     const bag = await storage.addBag(input);
     state.bags = [bag, ...state.bags];
@@ -143,6 +149,7 @@ export function useKoffie() {
     updateBean,
     addShot,
     updateShot,
+    deleteShot,
     addBag,
     updateBag,
     updateSetup,

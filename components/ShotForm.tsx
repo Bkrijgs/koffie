@@ -69,7 +69,8 @@ function ratioToPct(r: number): number {
 
 export function ShotForm({ initialBeanId, shot }: Props) {
   const router = useRouter();
-  const { beans, shots, setup, addShot, updateShot, ready } = useKoffie();
+  const { beans, shots, setup, addShot, updateShot, deleteShot, ready } =
+    useKoffie();
   const isEdit = Boolean(shot);
 
   const [beanId, setBeanId] = useState<string>(
@@ -96,6 +97,7 @@ export function ShotForm({ initialBeanId, shot }: Props) {
   const [dialIn, setDialIn] = useState<boolean>(shot?.dialIn ?? false);
   const [tags, setTags] = useState<string[]>(shot?.tags ?? []);
   const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function toggleTag(tag: string) {
@@ -247,6 +249,21 @@ export function ShotForm({ initialBeanId, shot }: Props) {
       setError(errorMessage(e, "Opslaan mislukt. Probeer het opnieuw."));
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!shot) return;
+    if (!confirm("Deze shot definitief verwijderen?")) return;
+    setError(null);
+    setDeleting(true);
+    try {
+      await deleteShot(shot.id);
+      router.push(`/beans/${shot.beanId}`);
+    } catch (e) {
+      setError(errorMessage(e, "Verwijderen mislukt. Probeer het opnieuw."));
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -594,7 +611,7 @@ export function ShotForm({ initialBeanId, shot }: Props) {
 
       <button
         type="submit"
-        disabled={submitting}
+        disabled={submitting || deleting}
         className="flex w-full items-center justify-center gap-2 rounded-lg bg-ink-800 px-4 py-3 text-sm font-medium text-paper transition hover:bg-ink-700 disabled:opacity-50"
       >
         {submitting ? (
@@ -606,6 +623,17 @@ export function ShotForm({ initialBeanId, shot }: Props) {
           <span>{isEdit ? "Bijwerken" : "Opslaan"}</span>
         )}
       </button>
+
+      {isEdit && (
+        <button
+          type="button"
+          onClick={handleDelete}
+          disabled={submitting || deleting}
+          className="w-full rounded-lg border border-red-200 px-4 py-2.5 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:opacity-50"
+        >
+          {deleting ? "Verwijderen…" : "Shot verwijderen"}
+        </button>
+      )}
     </form>
   );
 }
