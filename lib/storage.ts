@@ -49,6 +49,12 @@ function normalizeShot(s: ShotLog): ShotLog {
   return { ...s, grindSize: Number.isFinite(parsed) ? parsed : 5 };
 }
 
+/** Bonen die zijn opgeslagen vóór de voorraad-feature hebben geen inStock-veld.
+ *  Behandel die als "op voorraad" zodat ze gewoon beschikbaar blijven. */
+function normalizeBean(b: Bean): Bean {
+  return typeof b.inStock === "boolean" ? b : { ...b, inStock: true };
+}
+
 function read<T>(key: string): T[] {
   if (typeof window === "undefined") return [];
   try {
@@ -68,15 +74,16 @@ function write<T>(key: string, value: T[]): void {
 
 export const localStorageBackend: KoffieStorage = {
   async listBeans() {
-    return read<Bean>(BEANS_KEY).sort(
-      (a, b) => +new Date(b.createdAt) - +new Date(a.createdAt),
-    );
+    return read<Bean>(BEANS_KEY)
+      .map(normalizeBean)
+      .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
   },
   async addBean(input) {
     const bean: Bean = {
       id: uid(),
       createdAt: new Date().toISOString(),
       ...input,
+      inStock: input.inStock ?? true,
     };
     const all = read<Bean>(BEANS_KEY);
     all.push(bean);
@@ -93,7 +100,8 @@ export const localStorageBackend: KoffieStorage = {
     return updated;
   },
   async getBean(id) {
-    return read<Bean>(BEANS_KEY).find((b) => b.id === id);
+    const bean = read<Bean>(BEANS_KEY).find((b) => b.id === id);
+    return bean ? normalizeBean(bean) : undefined;
   },
   async listShots() {
     return read<ShotLog>(SHOTS_KEY)
@@ -190,6 +198,7 @@ type BeanRow = {
   price_euros: number | string | null;
   bag_weight_grams: number | string | null;
   notes: string | null;
+  in_stock: boolean | null;
   created_at: string;
 };
 
@@ -221,6 +230,7 @@ function beanFromRow(row: BeanRow): Bean {
     bagWeightGrams:
       row.bag_weight_grams != null ? Number(row.bag_weight_grams) : undefined,
     notes: row.notes ?? undefined,
+    inStock: row.in_stock ?? true,
     createdAt: row.created_at,
   };
 }
@@ -287,6 +297,7 @@ export const supabaseBackend: KoffieStorage = {
         price_euros: input.priceEuros ?? null,
         bag_weight_grams: input.bagWeightGrams ?? null,
         notes: input.notes ?? null,
+        in_stock: input.inStock ?? true,
       })
       .select("*")
       .single();
@@ -305,6 +316,7 @@ export const supabaseBackend: KoffieStorage = {
         price_euros: input.priceEuros ?? null,
         bag_weight_grams: input.bagWeightGrams ?? null,
         notes: input.notes ?? null,
+        in_stock: input.inStock ?? true,
       })
       .eq("id", id)
       .select("*")

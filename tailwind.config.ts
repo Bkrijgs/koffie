@@ -82,6 +82,19 @@ const config: Config = {
     },
   },
   plugins: [],
+  // Oude e-ink browsers (Kobo) ondersteunen geen `rgb(r g b / var(--tw-*))`-
+  // kleursyntaxis. Door de opacity-coreplugins uit te zetten geeft Tailwind
+  // platte hex-kleuren (bv. `#f4f6fb`) i.p.v. de var-gebaseerde rgb-vorm.
+  // Voor moderne browsers verandert er niets (bij volle dekking is hex
+  // identiek); de losse `/opacity`-modifiers (bv. `bg-paper/85`) blijven werken.
+  corePlugins: {
+    backgroundOpacity: false,
+    textOpacity: false,
+    borderOpacity: false,
+    divideOpacity: false,
+    ringOpacity: false,
+    placeholderOpacity: false,
+  },
 };
 
 export default config;

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useKoffie } from "@/lib/useKoffie";
 import { ShotCard } from "@/components/ShotCard";
 import { EmptyState } from "@/components/EmptyState";
@@ -18,11 +18,26 @@ import { useCountUp } from "@/lib/useCountUp";
 const COUNT_DELAY = 2200;
 
 export default function DashboardPage() {
-  const { ready, beans, shots } = useKoffie();
+  const { ready, error, beans, shots } = useKoffie();
   const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
+  // Diagnose: deze effect draait alleen als de client-side React écht
+  // hydrateert. Zie je hieronder "JS actief…" dan draait de app-code; blijf je
+  // de kale server-tekst "Laden…" zien, dan voert deze Kobo de React-bundle
+  // niet uit en is een server-gerenderde variant nodig.
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
 
   if (!ready) {
-    return <p className="text-sm text-ink-300">Laden…</p>;
+    return (
+      <div className="text-sm text-ink-300">
+        <p>{hydrated ? "JS actief — verbinden met database…" : "Laden…"}</p>
+        {hydrated && error && (
+          <p className="mt-2 break-words text-clay-500">{error}</p>
+        )}
+      </div>
+    );
   }
 
   const beanById = new Map(beans.map((b) => [b.id, b]));
@@ -49,6 +64,12 @@ export default function DashboardPage() {
   return (
     <div className="space-y-10">
       <BootSplash />
+      {error && (
+        <div className="rounded-xl2 border border-clay-400 bg-card p-4 text-sm text-clay-500">
+          <p className="font-medium">Data kon niet geladen worden</p>
+          <p className="mt-1 break-words text-ink-300">{error}</p>
+        </div>
+      )}
       {shots.length > 0 && (
         <section className="grid grid-cols-3 gap-px overflow-hidden rounded-xl2 border border-line bg-line">
           <CountStat

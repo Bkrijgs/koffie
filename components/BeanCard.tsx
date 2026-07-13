@@ -26,8 +26,13 @@ export function BeanCard({ bean, shots }: Props) {
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="font-display text-lg tracking-tightish text-ink-800 group-hover:underline">
+          <h3 className="flex items-center gap-2 font-display text-lg tracking-tightish text-ink-800 group-hover:underline">
             {bean.name}
+            {!bean.inStock && (
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-ink-800 text-[10px] font-medium uppercase tracking-wider text-paper no-underline">
+                Op
+              </span>
+            )}
           </h3>
           {bean.roaster && (
             <p className="text-sm text-ink-500">{bean.roaster}</p>

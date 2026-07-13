@@ -6,7 +6,14 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Koffie",
   description: "Espresso dial-in log voor de Sage Barista Express.",
+  manifest: "/manifest.json",
 };
+
+// Oud-WebKit-veilig (geen const/let/arrow/URLSearchParams): zet de e-ink modus
+// aan zodra de Kobo de app met ?eink=1 opent en onthoudt dat in localStorage,
+// zodat de bookmark op het apparaat in e-ink modus blijft. ?eink=0 zet hem uit.
+// Draait vóór paint, dus geen flits; raakt alleen documentElement.className.
+const einkInitScript = `(function(){try{var s=window.location.search||"";var m=s.match(/[?&]eink=([^&]*)/);var v=m?m[1]:null;if(v==="1"){try{localStorage.setItem("eink","1");}catch(e){}}else if(v==="0"){try{localStorage.removeItem("eink");}catch(e){}}var on=v==="1";if(!on){try{on=localStorage.getItem("eink")==="1";}catch(e){}}if(on){var d=document.documentElement;d.className=d.className?d.className+" eink":"eink";}}catch(e){}})();`;
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -21,6 +28,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="nl">
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: einkInitScript }} />
+      </head>
       <body className="min-h-screen bg-paper font-sans text-ink-700 antialiased">
         <header className="sticky top-0 z-10 border-b border-line/70 bg-paper/85 backdrop-blur">
           <div className="mx-auto flex max-w-3xl items-center justify-between px-5 py-4">

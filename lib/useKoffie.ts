@@ -19,6 +19,7 @@ type State = {
   bags: Bag[];
   setup: Setup;
   ready: boolean;
+  error: string | null;
 };
 
 const listeners = new Set<() => void>();
@@ -28,22 +29,66 @@ const state: State = {
   bags: [],
   setup: DEFAULT_SETUP,
   ready: false,
+  error: null,
 };
 let initStarted = false;
+
+function errMsg(e: unknown): string {
+  if (e && typeof e === "object" && "message" in e) {
+    return String((e as { message: unknown }).message);
+  }
+  return String(e);
+}
+
+/**
+ * Een fetch die blijft hangen (bv. een Supabase-verbinding die op een oude
+ * e-reader niet tot stand komt en niet faalt) zou de app eeuwig op "Laden…"
+ * laten staan. Daarom geven we elke call een tijdslimiet: blijft hij te lang
+ * hangen, dan rejecten we zelf zodat de .catch eronder de app verder laat gaan.
+ */
+const LOAD_TIMEOUT_MS = 8000;
+function withTimeout<T>(p: Promise<T>, label: string): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((_, reject) => {
+      setTimeout(() => {
+        reject(new Error(label + " duurde te lang (>8s) — geen verbinding?"));
+      }, LOAD_TIMEOUT_MS);
+    }),
+  ]);
+}
 
 async function init() {
   if (initStarted) return;
   initStarted = true;
+  // Elke fetch krijgt een timeout én vangt zijn eigen fout op zodat één
+  // falende/hangende call (bv. Supabase die niet bereikbaar is op een oude
+  // e-reader) de app niet eeuwig op "Laden…" laat hangen. Fouten worden
+  // verzameld en zichtbaar getoond.
+  const errors: string[] = [];
   const [beans, shots, bags, setup] = await Promise.all([
-    storage.listBeans(),
-    storage.listShots(),
-    storage.listBags(),
-    storage.getSetup(),
+    withTimeout(storage.listBeans(), "bonen").catch((e) => {
+      errors.push("bonen: " + errMsg(e));
+      return [] as Bean[];
+    }),
+    withTimeout(storage.listShots(), "shots").catch((e) => {
+      errors.push("shots: " + errMsg(e));
+      return [] as ShotLog[];
+    }),
+    withTimeout(storage.listBags(), "zakken").catch((e) => {
+      errors.push("zakken: " + errMsg(e));
+      return [] as Bag[];
+    }),
+    withTimeout(storage.getSetup(), "setup").catch((e) => {
+      errors.push("setup: " + errMsg(e));
+      return DEFAULT_SETUP;
+    }),
   ]);
   state.beans = beans;
   state.shots = shots;
   state.bags = bags;
   state.setup = setup;
+  state.error = errors.length > 0 ? errors.join(" | ") : null;
   state.ready = true;
   listeners.forEach((l) => l());
 }
@@ -115,6 +160,7 @@ export function useKoffie() {
 
   return {
     ready: state.ready,
+    error: state.error,
     beans: state.beans,
     shots: state.shots,
     bags: state.bags,

@@ -10,6 +10,9 @@ export type Bean = {
   /** Gewicht van die zak in gram; samen met priceEuros geeft dit €/kg. */
   bagWeightGrams?: number;
   notes?: string;
+  /** Of er nog voorraad van deze boon is. Staat-ie uit, dan verdwijnt de boon
+   *  uit het keuze-menu van het shot-logformulier. Default true. */
+  inStock: boolean;
   createdAt: string;
 };
 

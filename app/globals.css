@@ -10,7 +10,9 @@
 
 html,
 body {
+  background: #f4f6fb;
   background: var(--paper);
+  color: #241a10;
   color: var(--ink);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -302,4 +304,46 @@ button {
     animation: none;
     transform: none;
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* E-ink modus (opt-in)                                                */
+/* Alleen actief als <html> de class `eink` heeft. Die wordt enkel    */
+/* gezet als de Kobo de app opent (zie layout.tsx). Moderne devices   */
+/* raken dit nooit, dus hun ervaring blijft identiek.                 */
+/* ------------------------------------------------------------------ */
+.eink *,
+.eink *::before,
+.eink *::after {
+  animation: none !important;
+  transition: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+
+/* Effen, hoog-contrast palet i.p.v. transparantie/gradients die op */
+/* grijswaarden vervagen. */
+.eink {
+  background: #ffffff !important;
+  color: #000000 !important;
+}
+
+.eink header {
+  background: #ffffff !important;
+  border-bottom: 1px solid #000000 !important;
+}
+
+.eink .divider {
+  background: #000000 !important;
+  opacity: 0.3;
+}
+
+/* Grotere, betrouwbaardere tap-targets voor traag/onnauwkeurig e-ink touch. */
+.eink button,
+.eink input,
+.eink select,
+.eink textarea {
+  min-height: 44px;
 }
