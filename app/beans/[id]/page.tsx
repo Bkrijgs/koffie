@@ -10,7 +10,16 @@ import { EmptyState } from "@/components/EmptyState";
 import { BaristaTips } from "@/components/BaristaTips";
 import { CoachCard } from "@/components/CoachCard";
 import { RatingCurve } from "@/components/RatingCurve";
-import { average, effectiveShots, formatDateOnly, mode } from "@/lib/utils";
+import {
+  average,
+  effectiveShots,
+  formatDateOnly,
+  formatEuro,
+  formatScore,
+  mode,
+  pricePerKg,
+  valueScore,
+} from "@/lib/utils";
 import { tipsForBean } from "@/lib/tips";
 import type { ShotLog } from "@/lib/types";
 
@@ -60,6 +69,11 @@ export default function BeanDetailPage() {
   const effective = effectiveShots(beanShots);
   const dialInCount = beanShots.length - effective.length;
   const avg = average(effective.map((s) => s.rating));
+  const perKg = pricePerKg(bean);
+  const score =
+    perKg !== undefined && effective.length > 0
+      ? valueScore(avg, perKg)
+      : undefined;
   const bestShots = [...effective].sort((a, b) => b.rating - a.rating);
   const top = bestShots[0];
   const bestGrind = mode(bestShots.slice(0, 3).map((s) => s.grindSize));
@@ -116,6 +130,16 @@ export default function BeanDetailPage() {
             value={effective.length > 0 ? avg.toFixed(1) : "—"}
             numeric
           />
+          {perKg !== undefined && (
+            <Meta label="Prijs" value={`${formatEuro(perKg)}/kg`} numeric />
+          )}
+          {score !== undefined && (
+            <Meta
+              label="Prijs/kwaliteit"
+              value={`${formatScore(score)} ★ per €10/kg`}
+              numeric
+            />
+          )}
         </dl>
 
         {bean.notes && (

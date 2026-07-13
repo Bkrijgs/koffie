@@ -1,6 +1,12 @@
 import Link from "next/link";
 import type { Bean, Rating, ShotLog } from "@/lib/types";
-import { average, effectiveShots, formatDateOnly } from "@/lib/utils";
+import {
+  average,
+  effectiveShots,
+  formatDateOnly,
+  formatEuro,
+  pricePerKg,
+} from "@/lib/utils";
 import { StarRating } from "./StarRating";
 
 type Props = {
@@ -12,6 +18,7 @@ export function BeanCard({ bean, shots }: Props) {
   const effective = effectiveShots(shots);
   const dialInCount = shots.length - effective.length;
   const avg = average(effective.map((s) => s.rating));
+  const perKg = pricePerKg(bean);
   return (
     <Link
       href={`/beans/${bean.id}`}
@@ -49,6 +56,12 @@ export function BeanCard({ bean, shots }: Props) {
             <dd className="numeric text-ink-600">
               {formatDateOnly(bean.roastDate)}
             </dd>
+          </>
+        )}
+        {perKg !== undefined && (
+          <>
+            <dt className="text-ink-300">Prijs</dt>
+            <dd className="numeric text-ink-600">{formatEuro(perKg)}/kg</dd>
           </>
         )}
       </dl>

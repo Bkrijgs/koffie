@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useKoffie } from "@/lib/useKoffie";
 import type { Bean } from "@/lib/types";
+import { parseDecimal } from "@/lib/utils";
 import { Field, inputClass } from "./Field";
 
 type Props = {
@@ -23,6 +24,12 @@ export function BeanForm({ bean, onCreated, onUpdated, onCancel }: Props) {
   const [origin, setOrigin] = useState(bean?.origin ?? "");
   const [blend, setBlend] = useState(bean?.blend ?? "");
   const [roastDate, setRoastDate] = useState(bean?.roastDate ?? "");
+  const [price, setPrice] = useState(
+    bean?.priceEuros != null ? String(bean.priceEuros).replace(".", ",") : "",
+  );
+  const [bagWeight, setBagWeight] = useState(
+    bean?.bagWeightGrams != null ? String(bean.bagWeightGrams) : "",
+  );
   const [notes, setNotes] = useState(bean?.notes ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,6 +38,16 @@ export function BeanForm({ bean, onCreated, onUpdated, onCancel }: Props) {
     e.preventDefault();
     if (!name.trim()) {
       setError("Naam vereist");
+      return;
+    }
+    const priceEuros = parseDecimal(price);
+    if (price.trim() && priceEuros === undefined) {
+      setError("Ongeldige prijs");
+      return;
+    }
+    const bagWeightGrams = parseDecimal(bagWeight);
+    if (bagWeight.trim() && bagWeightGrams === undefined) {
+      setError("Ongeldig zakgewicht");
       return;
     }
     setSubmitting(true);
@@ -42,6 +59,8 @@ export function BeanForm({ bean, onCreated, onUpdated, onCancel }: Props) {
         origin: origin.trim() || undefined,
         blend: blend.trim() || undefined,
         roastDate: roastDate || undefined,
+        priceEuros,
+        bagWeightGrams,
         notes: notes.trim() || undefined,
       };
       if (bean) {
@@ -115,6 +134,33 @@ export function BeanForm({ bean, onCreated, onUpdated, onCancel }: Props) {
             className={inputClass}
             value={roastDate}
             onChange={(e) => setRoastDate(e.target.value)}
+          />
+        </Field>
+      </div>
+
+      <div className="grid gap-5 sm:grid-cols-2">
+        <Field label="Prijs (€ per zak)" htmlFor="bean-price">
+          <input
+            id="bean-price"
+            type="text"
+            inputMode="decimal"
+            className={`${inputClass} numeric`}
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            placeholder="9,50"
+          />
+        </Field>
+        <Field label="Zakgewicht (g)" htmlFor="bean-bag-weight">
+          <input
+            id="bean-bag-weight"
+            type="number"
+            inputMode="numeric"
+            step="1"
+            min="0"
+            className={`${inputClass} numeric`}
+            value={bagWeight}
+            onChange={(e) => setBagWeight(e.target.value)}
+            placeholder="250"
           />
         </Field>
       </div>

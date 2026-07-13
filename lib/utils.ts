@@ -1,4 +1,4 @@
-import type { ShotLog } from "./types";
+import type { Bean, ShotLog } from "./types";
 
 /**
  * Filter out shots that the user marked as a dial-in attempt. Use this
@@ -45,6 +45,49 @@ export function formatDateOnly(iso?: string): string {
 export function average(nums: number[]): number {
   if (nums.length === 0) return 0;
   return nums.reduce((a, b) => a + b, 0) / nums.length;
+}
+
+/** Parse gebruikersinvoer als positief getal; accepteert een Nederlandse komma. */
+export function parseDecimal(value: string): number | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  const n = Number(trimmed.replace(",", "."));
+  if (!Number.isFinite(n) || n <= 0) return undefined;
+  return n;
+}
+
+export function pricePerKg(bean: Bean): number | undefined {
+  const { priceEuros, bagWeightGrams } = bean;
+  if (!priceEuros || priceEuros <= 0) return undefined;
+  if (!bagWeightGrams || bagWeightGrams <= 0) return undefined;
+  return priceEuros / (bagWeightGrams / 1000);
+}
+
+/** Prijs/kwaliteit: gemiddelde rating per €10/kg (raw ★ per €/kg is te klein). */
+export function valueScore(
+  avgRating: number,
+  perKg: number,
+): number | undefined {
+  if (avgRating <= 0 || perKg <= 0) return undefined;
+  return avgRating / (perKg / 10);
+}
+
+const euroFormat = new Intl.NumberFormat("nl-NL", {
+  style: "currency",
+  currency: "EUR",
+});
+
+export function formatEuro(n: number): string {
+  return euroFormat.format(n);
+}
+
+const scoreFormat = new Intl.NumberFormat("nl-NL", {
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1,
+});
+
+export function formatScore(n: number): string {
+  return scoreFormat.format(n);
 }
 
 export function mode<T extends string | number>(values: T[]): T | undefined {

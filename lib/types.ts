@@ -5,6 +5,10 @@ export type Bean = {
   origin?: string;
   blend?: string;
   roastDate?: string;
+  /** Betaalde prijs voor één zak, in euro's. */
+  priceEuros?: number;
+  /** Gewicht van die zak in gram; samen met priceEuros geeft dit €/kg. */
+  bagWeightGrams?: number;
   notes?: string;
   createdAt: string;
 };
