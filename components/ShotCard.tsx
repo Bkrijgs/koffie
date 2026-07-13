@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Bean, ShotLog } from "@/lib/types";
-import { formatDate } from "@/lib/utils";
+import { costPerShot, formatDate, formatEuro, pricePerKg } from "@/lib/utils";
 import { StarRating } from "./StarRating";
 
 type Props = {
@@ -11,6 +11,8 @@ type Props = {
 
 export function ShotCard({ shot, bean, showBean = true }: Props) {
   const dimmed = shot.dialIn ? "opacity-70" : "";
+  const perKg = bean ? pricePerKg(bean) : undefined;
+  const cost = perKg !== undefined ? costPerShot(shot.doseGrams, perKg) : undefined;
   return (
     <article className="group relative cursor-pointer rounded-xl2 border border-line bg-card p-5 shadow-soft transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lift hover:border-barista-100">
       {/* Stretched link overlay: covers the entire card so clicks anywhere
@@ -53,13 +55,14 @@ export function ShotCard({ shot, bean, showBean = true }: Props) {
       </header>
 
       <dl
-        className={`mt-4 grid grid-cols-3 gap-x-4 gap-y-3 sm:grid-cols-5 ${dimmed}`}
+        className={`mt-4 grid grid-cols-3 gap-x-4 gap-y-3 ${cost !== undefined ? "sm:grid-cols-6" : "sm:grid-cols-5"} ${dimmed}`}
       >
         <Stat label="Maalgraad" value={String(shot.grindSize)} />
         <Stat label="Dose" value={`${formatNum(shot.doseGrams)} g`} />
         <Stat label="Yield" value={`${formatNum(shot.yieldGrams)} g`} />
         <Stat label="Ratio" value={`1:${shot.brewRatio.toFixed(2)}`} />
         <Stat label="Tijd" value={`${shot.extractionTimeSeconds}s`} />
+        {cost !== undefined && <Stat label="Kosten" value={formatEuro(cost)} />}
       </dl>
 
       {(shot.notes || shot.nextAdjustment) && (

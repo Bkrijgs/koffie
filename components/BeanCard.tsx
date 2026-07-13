@@ -5,8 +5,10 @@ import {
   effectiveShots,
   formatDateOnly,
   formatEuro,
+  priceTier,
   pricePerKg,
 } from "@/lib/utils";
+import { PriceTierBadge } from "./PriceTierBadge";
 import { StarRating } from "./StarRating";
 
 type Props = {
@@ -66,7 +68,12 @@ export function BeanCard({ bean, shots }: Props) {
         {perKg !== undefined && (
           <>
             <dt className="text-ink-300">Prijs</dt>
-            <dd className="numeric text-ink-600">{formatEuro(perKg)}/kg</dd>
+            <dd className="flex items-center gap-1.5">
+              <span className="numeric text-ink-600">
+                {formatEuro(perKg)}/kg
+              </span>
+              <PriceTierBadge tier={priceTier(perKg)} />
+            </dd>
           </>
         )}
       </dl>

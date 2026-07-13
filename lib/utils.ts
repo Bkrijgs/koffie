@@ -72,6 +72,23 @@ export function valueScore(
   return avgRating / (perKg / 10);
 }
 
+export type PriceTier = "budget" | "midden" | "premium";
+
+/** Vuistregel voor NL-koffieprijzen: rond supermarktniveau tot ~€25/kg,
+ *  het gangbare specialty-segment tot ~€40/kg, en daarboven premium. */
+const PRICE_TIER_BUDGET_MAX = 25;
+const PRICE_TIER_MIDDEN_MAX = 40;
+
+export function priceTier(perKg: number): PriceTier {
+  if (perKg <= PRICE_TIER_BUDGET_MAX) return "budget";
+  if (perKg <= PRICE_TIER_MIDDEN_MAX) return "midden";
+  return "premium";
+}
+
+export function costPerShot(doseGrams: number, perKg: number): number {
+  return doseGrams * (perKg / 1000);
+}
+
 const euroFormat = new Intl.NumberFormat("nl-NL", {
   style: "currency",
   currency: "EUR",

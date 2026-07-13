@@ -10,13 +10,16 @@ import { EmptyState } from "@/components/EmptyState";
 import { BaristaTips } from "@/components/BaristaTips";
 import { CoachCard } from "@/components/CoachCard";
 import { RatingCurve } from "@/components/RatingCurve";
+import { PriceTierBadge } from "@/components/PriceTierBadge";
 import {
   average,
+  costPerShot,
   effectiveShots,
   formatDateOnly,
   formatEuro,
   formatScore,
   mode,
+  priceTier,
   pricePerKg,
   valueScore,
 } from "@/lib/utils";
@@ -73,6 +76,10 @@ export default function BeanDetailPage() {
   const score =
     perKg !== undefined && effective.length > 0
       ? valueScore(avg, perKg)
+      : undefined;
+  const avgCostPerShot =
+    perKg !== undefined && effective.length > 0
+      ? average(effective.map((s) => costPerShot(s.doseGrams, perKg)))
       : undefined;
   const bestShots = [...effective].sort((a, b) => b.rating - a.rating);
   const top = bestShots[0];
@@ -131,7 +138,23 @@ export default function BeanDetailPage() {
             numeric
           />
           {perKg !== undefined && (
-            <Meta label="Prijs" value={`${formatEuro(perKg)}/kg`} numeric />
+            <Meta
+              label="Prijs"
+              value={
+                <span className="inline-flex items-center gap-1.5">
+                  {formatEuro(perKg)}/kg
+                  <PriceTierBadge tier={priceTier(perKg)} />
+                </span>
+              }
+              numeric
+            />
+          )}
+          {avgCostPerShot !== undefined && (
+            <Meta
+              label="Kosten/shot"
+              value={formatEuro(avgCostPerShot)}
+              numeric
+            />
           )}
           {score !== undefined && (
             <Meta
@@ -229,7 +252,7 @@ function Meta({
   numeric = false,
 }: {
   label: string;
-  value?: string;
+  value?: React.ReactNode;
   sub?: string;
   numeric?: boolean;
 }) {
