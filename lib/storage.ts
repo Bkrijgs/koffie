@@ -26,6 +26,7 @@ export interface KoffieStorage {
   listShots(): Promise<ShotLog[]>;
   addShot(input: ShotInput): Promise<ShotLog>;
   updateShot(id: string, input: ShotInput): Promise<ShotLog>;
+  deleteShot(id: string): Promise<void>;
   shotsForBean(beanId: string): Promise<ShotLog[]>;
 
   listBags(): Promise<Bag[]>;
@@ -138,6 +139,13 @@ export const localStorageBackend: KoffieStorage = {
     all[idx] = updated;
     write(SHOTS_KEY, all);
     return updated;
+  },
+  async deleteShot(id) {
+    const all = read<ShotLog>(SHOTS_KEY);
+    write(
+      SHOTS_KEY,
+      all.filter((s) => s.id !== id),
+    );
   },
   async shotsForBean(beanId) {
     return read<ShotLog>(SHOTS_KEY)
@@ -385,6 +393,10 @@ export const supabaseBackend: KoffieStorage = {
       .single();
     if (error) throw error;
     return shotFromRow(data as ShotRow);
+  },
+  async deleteShot(id) {
+    const { error } = await getSupabase().from("shots").delete().eq("id", id);
+    if (error) throw error;
   },
   async shotsForBean(beanId) {
     const { data, error } = await getSupabase()

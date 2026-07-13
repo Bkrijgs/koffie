@@ -63,13 +63,14 @@ export function pricePerKg(bean: Bean): number | undefined {
   return priceEuros / (bagWeightGrams / 1000);
 }
 
-/** Prijs/kwaliteit: gemiddelde rating per €10/kg (raw ★ per €/kg is te klein). */
-export function valueScore(
+/** Waar-voor-je-geld: wat een gemiddelde ster kost, in euro's per shot.
+ *  Lager is beter — je betaalt minder per ster kwaliteit. */
+export function costPerStar(
+  avgCostPerShot: number,
   avgRating: number,
-  perKg: number,
 ): number | undefined {
-  if (avgRating <= 0 || perKg <= 0) return undefined;
-  return avgRating / (perKg / 10);
+  if (avgCostPerShot <= 0 || avgRating <= 0) return undefined;
+  return avgCostPerShot / avgRating;
 }
 
 export type PriceTier = "budget" | "midden" | "premium";
@@ -96,15 +97,6 @@ const euroFormat = new Intl.NumberFormat("nl-NL", {
 
 export function formatEuro(n: number): string {
   return euroFormat.format(n);
-}
-
-const scoreFormat = new Intl.NumberFormat("nl-NL", {
-  minimumFractionDigits: 1,
-  maximumFractionDigits: 1,
-});
-
-export function formatScore(n: number): string {
-  return scoreFormat.format(n);
 }
 
 export function mode<T extends string | number>(values: T[]): T | undefined {

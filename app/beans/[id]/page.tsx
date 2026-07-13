@@ -14,14 +14,13 @@ import { PriceTierBadge } from "@/components/PriceTierBadge";
 import {
   average,
   costPerShot,
+  costPerStar,
   effectiveShots,
   formatDateOnly,
   formatEuro,
-  formatScore,
   mode,
   priceTier,
   pricePerKg,
-  valueScore,
 } from "@/lib/utils";
 import { tipsForBean } from "@/lib/tips";
 import type { ShotLog } from "@/lib/types";
@@ -73,13 +72,13 @@ export default function BeanDetailPage() {
   const dialInCount = beanShots.length - effective.length;
   const avg = average(effective.map((s) => s.rating));
   const perKg = pricePerKg(bean);
-  const score =
-    perKg !== undefined && effective.length > 0
-      ? valueScore(avg, perKg)
-      : undefined;
   const avgCostPerShot =
     perKg !== undefined && effective.length > 0
       ? average(effective.map((s) => costPerShot(s.doseGrams, perKg)))
+      : undefined;
+  const starCost =
+    avgCostPerShot !== undefined
+      ? costPerStar(avgCostPerShot, avg)
       : undefined;
   const bestShots = [...effective].sort((a, b) => b.rating - a.rating);
   const top = bestShots[0];
@@ -156,10 +155,11 @@ export default function BeanDetailPage() {
               numeric
             />
           )}
-          {score !== undefined && (
+          {starCost !== undefined && (
             <Meta
-              label="Prijs/kwaliteit"
-              value={`${formatScore(score)} ★ per €10/kg`}
+              label="Kosten per ster"
+              value={formatEuro(starCost)}
+              sub="lager = beter"
               numeric
             />
           )}

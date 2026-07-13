@@ -1,6 +1,9 @@
+"use client";
+
 import Link from "next/link";
 import type { Bean, ShotLog } from "@/lib/types";
-import { costPerShot, formatDate, formatEuro, pricePerKg } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
+import { useKoffie } from "@/lib/useKoffie";
 import { StarRating } from "./StarRating";
 
 type Props = {
@@ -10,14 +13,23 @@ type Props = {
 };
 
 export function ShotCard({ shot, bean, showBean = true }: Props) {
+  const { deleteShot } = useKoffie();
   const dimmed = shot.dialIn ? "opacity-70" : "";
-  const perKg = bean ? pricePerKg(bean) : undefined;
-  const cost = perKg !== undefined ? costPerShot(shot.doseGrams, perKg) : undefined;
+
+  async function handleDelete() {
+    if (
+      !confirm("Deze shot verwijderen? Dit kan niet ongedaan worden gemaakt.")
+    )
+      return;
+    await deleteShot(shot.id);
+  }
+
   return (
     <article className="group relative cursor-pointer rounded-xl2 border border-line bg-card p-5 shadow-soft transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lift hover:border-barista-100">
       {/* Stretched link overlay: covers the entire card so clicks anywhere
-          open the shot for editing. The bean name uses `position: relative`
-          to sit above this overlay and keep its own destination. */}
+          open the shot for editing. The bean name and delete button use
+          `position: relative` to sit above this overlay and keep their own
+          behaviour. */}
       <Link
         href={`/shots/${shot.id}/edit`}
         aria-label={`Shot van ${bean?.name ?? "boon"} op ${formatDate(shot.createdAt)} openen`}
@@ -54,21 +66,18 @@ export function ShotCard({ shot, bean, showBean = true }: Props) {
         )}
       </header>
 
-      <dl
-        className={`mt-4 grid grid-cols-3 gap-x-4 gap-y-3 ${cost !== undefined ? "sm:grid-cols-6" : "sm:grid-cols-5"} ${dimmed}`}
-      >
+      <dl className={`mt-4 grid grid-cols-3 gap-x-4 gap-y-3 sm:grid-cols-5 ${dimmed}`}>
         <Stat label="Maalgraad" value={String(shot.grindSize)} />
         <Stat label="Dose" value={`${formatNum(shot.doseGrams)} g`} />
         <Stat label="Yield" value={`${formatNum(shot.yieldGrams)} g`} />
         <Stat label="Ratio" value={`1:${shot.brewRatio.toFixed(2)}`} />
         <Stat label="Tijd" value={`${shot.extractionTimeSeconds}s`} />
-        {cost !== undefined && <Stat label="Kosten" value={formatEuro(cost)} />}
       </dl>
 
-      {(shot.notes || shot.nextAdjustment) && (
-        <div
-          className={`mt-4 space-y-1.5 border-t border-line pt-3 text-sm ${dimmed}`}
-        >
+      <div
+        className={`relative z-20 mt-4 flex items-start justify-between gap-3 border-t border-line pt-3 text-sm ${dimmed}`}
+      >
+        <div className="min-w-0 space-y-1.5">
           {shot.notes && (
             <p className="text-ink-600">
               <span className="text-ink-400">Smaak.</span> {shot.notes}
@@ -81,7 +90,14 @@ export function ShotCard({ shot, bean, showBean = true }: Props) {
             </p>
           )}
         </div>
-      )}
+        <button
+          type="button"
+          onClick={handleDelete}
+          className="shrink-0 rounded-lg px-2 py-1 text-xs font-medium text-ink-300 transition hover:bg-clay-400/10 hover:text-clay-500"
+        >
+          Verwijder
+        </button>
+      </div>
     </article>
   );
 }

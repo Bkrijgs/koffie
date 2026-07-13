@@ -3,13 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useKoffie } from "@/lib/useKoffie";
-import {
-  calcBrewRatio,
-  costPerShot,
-  effectiveShots,
-  formatEuro,
-  pricePerKg,
-} from "@/lib/utils";
+import { calcBrewRatio, effectiveShots } from "@/lib/utils";
 import type { Rating, ShotLog } from "@/lib/types";
 import { Field, inputClass } from "./Field";
 import { StarRating } from "./StarRating";
@@ -210,20 +204,6 @@ export function ShotForm({ initialBeanId, shot }: Props) {
     () => (isFinite(dose) && isFinite(yld) ? calcBrewRatio(yld, dose) : 0),
     [dose, yld],
   );
-
-  // Live kostenraming: dose × prijs/gram van de gekozen boon. Alleen bonen
-  // met prijs + zakgewicht bekend leveren een prijs/kg op.
-  const selectedBean = useMemo(
-    () => beans.find((b) => b.id === beanId),
-    [beans, beanId],
-  );
-  const selectedBeanPerKg = selectedBean
-    ? pricePerKg(selectedBean)
-    : undefined;
-  const liveCost =
-    selectedBeanPerKg !== undefined && isFinite(dose) && dose > 0
-      ? costPerShot(dose, selectedBeanPerKg)
-      : undefined;
 
   // Compacte verhouding-tabel: gegeven de huidige (of placeholder-)dose
   // laten zien hoeveel er uit zou moeten komen voor de standaard
@@ -526,31 +506,13 @@ export function ShotForm({ initialBeanId, shot }: Props) {
         </div>
       )}
 
-      <div
-        className={`grid rounded-lg border border-barista-100 bg-card text-sm ${
-          liveCost !== undefined
-            ? "grid-cols-2 divide-x divide-barista-100"
-            : "grid-cols-1"
-        }`}
-      >
-        <div className="flex items-center justify-between px-4 py-3">
-          <span className="text-[11px] uppercase tracking-[0.14em] text-ink-400">
-            Brew ratio
-          </span>
-          <span className="numeric font-display text-lg tracking-tightish text-barista-400">
-            {ratio > 0 ? `1 : ${ratio.toFixed(2)}` : "—"}
-          </span>
-        </div>
-        {liveCost !== undefined && (
-          <div className="flex items-center justify-between px-4 py-3">
-            <span className="text-[11px] uppercase tracking-[0.14em] text-ink-400">
-              Kosten
-            </span>
-            <span className="numeric font-display text-lg tracking-tightish text-barista-400">
-              {formatEuro(liveCost)}
-            </span>
-          </div>
-        )}
+      <div className="flex items-center justify-between rounded-lg border border-barista-100 bg-card px-4 py-3 text-sm">
+        <span className="text-[11px] uppercase tracking-[0.14em] text-ink-400">
+          Brew ratio
+        </span>
+        <span className="numeric font-display text-lg tracking-tightish text-barista-400">
+          {ratio > 0 ? `1 : ${ratio.toFixed(2)}` : "—"}
+        </span>
       </div>
 
       <Field label="Tijd (sec.)" htmlFor="shot-time" required>
