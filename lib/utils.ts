@@ -94,22 +94,31 @@ export function costPerShot(doseGrams: number, perKg: number): number {
 
 /** Totale bonenkosten van een lijst shots, o.b.v. bonen met prijs + gewicht.
  *  Dial-in shots tellen gewoon mee: die bonen zijn net zo goed verbruikt.
- *  `counted` zegt hoeveel shots meededen (bonen zonder prijs vallen af). */
+ *  Cadeau-bonen vallen buiten `cost` (jij betaalde er niets voor); hun
+ *  geschatte winkelwaarde komt apart terug als `giftCost`/`giftCounted`.
+ *  `counted` zegt hoeveel betaalde shots meededen (zonder prijs valt af). */
 export function shotsCost(
   shots: ShotLog[],
   beans: Bean[],
-): { cost: number; counted: number } {
-  const perKgByBean = new Map<string, number | undefined>();
-  for (const b of beans) perKgByBean.set(b.id, pricePerKg(b));
+): { cost: number; counted: number; giftCost: number; giftCounted: number } {
+  const beanById = new Map(beans.map((b) => [b.id, b]));
   let cost = 0;
   let counted = 0;
+  let giftCost = 0;
+  let giftCounted = 0;
   for (const s of shots) {
-    const perKg = perKgByBean.get(s.beanId);
-    if (perKg === undefined) continue;
-    cost += costPerShot(s.doseGrams, perKg);
-    counted += 1;
+    const bean = beanById.get(s.beanId);
+    const perKg = bean ? pricePerKg(bean) : undefined;
+    if (!bean || perKg === undefined) continue;
+    if (bean.gift) {
+      giftCost += costPerShot(s.doseGrams, perKg);
+      giftCounted += 1;
+    } else {
+      cost += costPerShot(s.doseGrams, perKg);
+      counted += 1;
+    }
   }
-  return { cost, counted };
+  return { cost, counted, giftCost, giftCounted };
 }
 
 export function isSameMonth(iso: string, ref: Date): boolean {

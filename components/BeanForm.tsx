@@ -31,6 +31,7 @@ export function BeanForm({ bean, onCreated, onUpdated, onCancel }: Props) {
     bean?.bagWeightGrams != null ? String(bean.bagWeightGrams) : "",
   );
   const [notes, setNotes] = useState(bean?.notes ?? "");
+  const [gift, setGift] = useState(bean?.gift ?? false);
   const [inStock, setInStock] = useState(bean?.inStock ?? true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,6 +63,7 @@ export function BeanForm({ bean, onCreated, onUpdated, onCancel }: Props) {
         roastDate: roastDate || undefined,
         priceEuros,
         bagWeightGrams,
+        gift,
         notes: notes.trim() || undefined,
         inStock,
       };
@@ -141,7 +143,10 @@ export function BeanForm({ bean, onCreated, onUpdated, onCancel }: Props) {
       </div>
 
       <div className="grid gap-5 sm:grid-cols-2">
-        <Field label="Prijs (€ per zak)" htmlFor="bean-price">
+        <Field
+          label={gift ? "Winkelprijs, schatting (€)" : "Prijs (€ per zak)"}
+          htmlFor="bean-price"
+        >
           <input
             id="bean-price"
             type="text"
@@ -166,6 +171,23 @@ export function BeanForm({ bean, onCreated, onUpdated, onCancel }: Props) {
           />
         </Field>
       </div>
+
+      <label className="flex items-start gap-3 rounded-lg border border-line bg-paper px-4 py-3 text-sm">
+        <input
+          id="bean-gift"
+          type="checkbox"
+          checked={gift}
+          onChange={(e) => setGift(e.target.checked)}
+          className="mt-0.5 h-4 w-4 cursor-pointer accent-ink-800"
+        />
+        <span className="min-w-0 flex-1">
+          <span className="font-medium text-ink-800">Cadeau gekregen</span>
+          <span className="block text-xs text-ink-400">
+            Telt niet mee in je uitgaven. Vul de geschatte winkelprijs in om
+            de boon wél te kunnen vergelijken op waarde.
+          </span>
+        </span>
+      </label>
 
       <Field label="Opmerkingen" htmlFor="bean-notes">
         <textarea

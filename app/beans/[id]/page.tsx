@@ -10,7 +10,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { BaristaTips } from "@/components/BaristaTips";
 import { CoachCard } from "@/components/CoachCard";
 import { RatingCurve } from "@/components/RatingCurve";
-import { PriceTierBadge } from "@/components/PriceTierBadge";
+import { GiftBadge, PriceTierBadge } from "@/components/PriceTierBadge";
 import {
   average,
   costPerShot,
@@ -136,13 +136,18 @@ export default function BeanDetailPage() {
             value={effective.length > 0 ? avg.toFixed(1) : "—"}
             numeric
           />
-          {perKg !== undefined && (
+          {(perKg !== undefined || bean.gift) && (
             <Meta
               label="Prijs"
               value={
-                <span className="inline-flex items-center gap-1.5">
-                  {formatEuro(perKg)}/kg
-                  <PriceTierBadge tier={priceTier(perKg)} />
+                <span className="inline-flex flex-wrap items-center gap-1.5">
+                  {perKg !== undefined && (
+                    <>
+                      {formatEuro(perKg)}/kg
+                      <PriceTierBadge tier={priceTier(perKg)} />
+                    </>
+                  )}
+                  {bean.gift && <GiftBadge />}
                 </span>
               }
               numeric

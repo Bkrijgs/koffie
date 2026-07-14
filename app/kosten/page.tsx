@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo } from "react";
 import { useKoffie } from "@/lib/useKoffie";
 import { EmptyState } from "@/components/EmptyState";
+import { GiftBadge } from "@/components/PriceTierBadge";
 import type { Bean } from "@/lib/types";
 import {
   average,
@@ -38,6 +39,7 @@ type BeanCost = {
   total: number;
   perShot: number;
   starCost: number | undefined;
+  gift: boolean;
 };
 
 export default function KostenPage() {
@@ -68,6 +70,7 @@ export default function KostenPage() {
           total,
           perShot: total / beanShots.length,
           starCost,
+          gift: Boolean(bean.gift),
         };
       })
       .filter((x): x is BeanCost => x !== null)
@@ -114,7 +117,7 @@ export default function KostenPage() {
         </p>
       </header>
 
-      {all.counted === 0 ? (
+      {all.counted === 0 && all.giftCounted === 0 ? (
         <EmptyState
           title="Nog geen kostendata"
           description="Vul bij een boon de prijs en het zakgewicht in — daarna rekent elke shot automatisch mee."
@@ -133,6 +136,15 @@ export default function KostenPage() {
             <Tile label="Totaal" value={formatEuro(all.cost)} />
           </section>
 
+          {all.giftCost > 0 && (
+            <p className="flex flex-wrap items-center gap-1.5 text-xs text-ink-400">
+              <GiftBadge />
+              Daarnaast {formatEuro(all.giftCost)} aan cadeau-koffie gedronken
+              ({all.giftCounted} {all.giftCounted === 1 ? "shot" : "shots"}) —
+              telt niet mee in je uitgaven.
+            </p>
+          )}
+
           <section>
             <h2 className="mb-4 font-display text-lg tracking-tightish text-ink-800">
               Per boon
@@ -147,8 +159,9 @@ export default function KostenPage() {
                   }`}
                 >
                   <div className="min-w-0">
-                    <p className="truncate font-display text-base tracking-tightish text-ink-800">
-                      {row.bean.name}
+                    <p className="flex items-center gap-1.5 font-display text-base tracking-tightish text-ink-800">
+                      <span className="truncate">{row.bean.name}</span>
+                      {row.gift && <GiftBadge />}
                     </p>
                     <p className="numeric mt-0.5 text-xs text-ink-400">
                       {row.counted} {row.counted === 1 ? "shot" : "shots"} ·{" "}
@@ -157,7 +170,11 @@ export default function KostenPage() {
                         ` · ${formatEuro(row.starCost)}/ster`}
                     </p>
                   </div>
-                  <span className="numeric shrink-0 font-display text-lg tracking-tightish text-ink-800">
+                  <span
+                    className={`numeric shrink-0 font-display text-lg tracking-tightish ${
+                      row.gift ? "text-ink-300 line-through" : "text-ink-800"
+                    }`}
+                  >
                     {formatEuro(row.total)}
                   </span>
                 </Link>
@@ -195,8 +212,9 @@ export default function KostenPage() {
 
           {all.counted < shots.length && (
             <p className="text-xs text-ink-400">
-              Op basis van {all.counted} van de {shots.length} shots — bonen
-              zonder prijs en zakgewicht tellen niet mee.
+              Uitgaven op basis van {all.counted} van de {shots.length} shots
+              — bonen zonder prijs of zakgewicht en cadeau-bonen tellen niet
+              mee.
             </p>
           )}
         </>

@@ -21,3 +21,13 @@ export function PriceTierBadge({ tier }: { tier: PriceTier }) {
     </span>
   );
 }
+
+/** Cadeau-zak: telt niet mee in de uitgaven, prijs is de geschatte
+ *  winkelprijs. Zelfde chip-vorm als de tier-badge. */
+export function GiftBadge() {
+  return (
+    <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-emerald-600">
+      Cadeau
+    </span>
+  );
+}
