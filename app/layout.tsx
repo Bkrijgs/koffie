@@ -33,8 +33,8 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen bg-paper font-sans text-ink-700 antialiased">
         <header className="sticky top-0 z-10 border-b border-line/70 bg-paper/85 backdrop-blur">
-          <div className="mx-auto flex max-w-3xl items-center justify-end px-4 py-4 sm:px-5">
-            <nav className="flex items-center gap-1 text-sm">
+          <div className="mx-auto max-w-3xl px-4 py-4 sm:px-5">
+            <nav className="flex items-center justify-between text-sm">
               <NavLink href="/" aria-label="Dashboard">
                 <svg
                   viewBox="0 0 24 24"
@@ -70,7 +70,7 @@ export default function RootLayout({
               </NavLink>
               <Link
                 href="/shots/new"
-                className="ml-1 rounded-lg bg-ink-800 px-2.5 py-1.5 text-sm font-medium text-paper transition hover:bg-ink-700 sm:ml-2 sm:px-3"
+                className="rounded-lg bg-ink-800 px-2.5 py-1.5 text-sm font-medium text-paper transition hover:bg-ink-700 sm:px-3"
               >
                 Nieuw
               </Link>
