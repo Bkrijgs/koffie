@@ -33,14 +33,23 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen bg-paper font-sans text-ink-700 antialiased">
         <header className="sticky top-0 z-10 border-b border-line/70 bg-paper/85 backdrop-blur">
-          <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4 sm:px-5">
-            <Link
-              href="/"
-              className="font-display text-xl tracking-tightish text-barista-400 transition hover:text-barista-500"
-            >
-              koffie
-            </Link>
+          <div className="mx-auto flex max-w-3xl items-center justify-end px-4 py-4 sm:px-5">
             <nav className="flex items-center gap-1 text-sm">
+              <NavLink href="/" aria-label="Dashboard">
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <path d="M3 9.5 12 3l9 6.5" />
+                  <path d="M5 8.5V21h5v-6h4v6h5V8.5" />
+                </svg>
+              </NavLink>
               <NavLink href="/shots">Shots</NavLink>
               <NavLink href="/beans">Bonen</NavLink>
               <NavLink href="/kosten">Kosten</NavLink>
