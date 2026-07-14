@@ -110,7 +110,7 @@ export default function KostenPage() {
           Kosten
         </h1>
         <p className="mt-1 text-sm text-ink-400">
-          Wat je espresso's kosten, per boon en per maand
+          Wat je espresso&apos;s kosten, per boon en per maand
         </p>
       </header>
 
