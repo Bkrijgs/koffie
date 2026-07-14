@@ -347,3 +347,10 @@ button {
 .eink textarea {
   min-height: 44px;
 }
+
+/* Boot-splash maar één keer per sessie. Het inline head-script in
+   layout.tsx zet `boot-seen` op <html> vóór de eerste paint zodra de
+   sessionStorage-vlag bestaat, zodat de splash zonder flits wegblijft. */
+html.boot-seen .boot-splash {
+  display: none;
+}

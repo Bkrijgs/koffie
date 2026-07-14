@@ -597,20 +597,27 @@ export function ShotForm({ initialBeanId, shot }: Props) {
 
       {error && <p className="text-sm text-red-700">{error}</p>}
 
-      <button
-        type="submit"
-        disabled={submitting}
-        className="flex w-full items-center justify-center gap-2 rounded-lg bg-ink-800 px-4 py-3 text-sm font-medium text-paper transition hover:bg-ink-700 disabled:opacity-50"
-      >
-        {submitting ? (
-          <>
-            <Barista mood="pour" size={22} />
-            <span>Aan het zetten…</span>
-          </>
-        ) : (
-          <span>{isEdit ? "Bijwerken" : "Opslaan"}</span>
-        )}
-      </button>
+      {/* Op mobiel plakt de knop rechtsonder in beeld (dicht bij de
+          rechterduim) terwijl je door het lange formulier scrolt; op
+          desktop de vertrouwde knop over de volle breedte. */}
+      {/* pointer-events-none op de container: alleen de knop zelf vangt
+          tikken, zodat velden náást de zwevende knop bereikbaar blijven. */}
+      <div className="pointer-events-none sticky bottom-4 z-30 flex justify-end sm:static sm:bottom-auto">
+        <button
+          type="submit"
+          disabled={submitting}
+          className="pointer-events-auto flex items-center justify-center gap-2 rounded-full bg-ink-800 px-7 py-3.5 text-sm font-medium text-paper shadow-lift transition hover:bg-ink-700 disabled:opacity-50 sm:w-full sm:rounded-lg sm:px-4 sm:py-3 sm:shadow-none"
+        >
+          {submitting ? (
+            <>
+              <Barista mood="pour" size={22} />
+              <span>Aan het zetten…</span>
+            </>
+          ) : (
+            <span>{isEdit ? "Bijwerken" : "Opslaan"}</span>
+          )}
+        </button>
+      </div>
     </form>
   );
 }

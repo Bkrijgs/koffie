@@ -11,7 +11,9 @@ type Props = {
 };
 
 const MIN_WEEKS = 4;
-const MAX_WEEKS = 40;
+// Maximaal ~5 maanden terug: verder terug is het grid vooral leeg en
+// wordt de rij op brede schermen onnodig breed.
+const MAX_WEEKS = 20;
 const CELL_PX = 16;
 const GAP_PX = 4;
 const COL_PX = CELL_PX + GAP_PX;

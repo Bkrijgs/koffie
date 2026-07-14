@@ -2,6 +2,8 @@ import Link from "next/link";
 import type { Bean, Rating, ShotLog } from "@/lib/types";
 import {
   average,
+  costPerShot,
+  costPerStar,
   effectiveShots,
   formatDateOnly,
   formatEuro,
@@ -21,6 +23,13 @@ export function BeanCard({ bean, shots }: Props) {
   const dialInCount = shots.length - effective.length;
   const avg = average(effective.map((s) => s.rating));
   const perKg = pricePerKg(bean);
+  const starCost =
+    perKg !== undefined && effective.length > 0
+      ? costPerStar(
+          average(effective.map((s) => costPerShot(s.doseGrams, perKg))),
+          avg,
+        )
+      : undefined;
   return (
     <Link
       href={`/beans/${bean.id}`}
@@ -31,7 +40,7 @@ export function BeanCard({ bean, shots }: Props) {
           <h3 className="flex items-center gap-2 font-display text-lg tracking-tightish text-ink-800 group-hover:underline">
             {bean.name}
             {!bean.inStock && (
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-ink-800 text-[10px] font-medium uppercase tracking-wider text-paper no-underline">
+              <span className="shrink-0 rounded-full bg-ink-800 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-paper no-underline">
                 Op
               </span>
             )}
@@ -73,6 +82,14 @@ export function BeanCard({ bean, shots }: Props) {
                 {formatEuro(perKg)}/kg
               </span>
               <PriceTierBadge tier={priceTier(perKg)} />
+            </dd>
+          </>
+        )}
+        {starCost !== undefined && (
+          <>
+            <dt className="text-ink-300">Waarde</dt>
+            <dd className="numeric text-ink-600">
+              {formatEuro(starCost)}/ster
             </dd>
           </>
         )}

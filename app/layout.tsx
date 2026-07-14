@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 // aan zodra de Kobo de app met ?eink=1 opent en onthoudt dat in localStorage,
 // zodat de bookmark op het apparaat in e-ink modus blijft. ?eink=0 zet hem uit.
 // Draait vóór paint, dus geen flits; raakt alleen documentElement.className.
-const einkInitScript = `(function(){try{var s=window.location.search||"";var m=s.match(/[?&]eink=([^&]*)/);var v=m?m[1]:null;if(v==="1"){try{localStorage.setItem("eink","1");}catch(e){}}else if(v==="0"){try{localStorage.removeItem("eink");}catch(e){}}var on=v==="1";if(!on){try{on=localStorage.getItem("eink")==="1";}catch(e){}}if(on){var d=document.documentElement;d.className=d.className?d.className+" eink":"eink";}}catch(e){}})();`;
+const einkInitScript = `(function(){try{var s=window.location.search||"";var m=s.match(/[?&]eink=([^&]*)/);var v=m?m[1]:null;if(v==="1"){try{localStorage.setItem("eink","1");}catch(e){}}else if(v==="0"){try{localStorage.removeItem("eink");}catch(e){}}var on=v==="1";if(!on){try{on=localStorage.getItem("eink")==="1";}catch(e){}}if(on){var d=document.documentElement;d.className=d.className?d.className+" eink":"eink";}}catch(e){}try{if(window.sessionStorage&&sessionStorage.getItem("koffie:boot")==="1"){var b=document.documentElement;b.className=b.className?b.className+" boot-seen":"boot-seen";}}catch(e){}})();`;
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -33,7 +33,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen bg-paper font-sans text-ink-700 antialiased">
         <header className="sticky top-0 z-10 border-b border-line/70 bg-paper/85 backdrop-blur">
-          <div className="mx-auto flex max-w-3xl items-center justify-between px-5 py-4">
+          <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4 sm:px-5">
             <Link
               href="/"
               className="font-display text-xl tracking-tightish text-barista-400 transition hover:text-barista-500"
@@ -41,8 +41,9 @@ export default function RootLayout({
               koffie
             </Link>
             <nav className="flex items-center gap-1 text-sm">
-              <NavLink href="/">Shots</NavLink>
+              <NavLink href="/shots">Shots</NavLink>
               <NavLink href="/beans">Bonen</NavLink>
+              <NavLink href="/kosten">Kosten</NavLink>
               <NavLink href="/instellingen" aria-label="Instellingen">
                 <svg
                   viewBox="0 0 24 24"
@@ -60,7 +61,7 @@ export default function RootLayout({
               </NavLink>
               <Link
                 href="/shots/new"
-                className="ml-2 rounded-lg bg-ink-800 px-3 py-1.5 text-sm font-medium text-paper transition hover:bg-ink-700"
+                className="ml-1 rounded-lg bg-ink-800 px-2.5 py-1.5 text-sm font-medium text-paper transition hover:bg-ink-700 sm:ml-2 sm:px-3"
               >
                 Nieuw
               </Link>
@@ -91,7 +92,7 @@ function NavLink({
     <Link
       href={href}
       aria-label={ariaLabel}
-      className="flex items-center rounded-lg px-3 py-1.5 text-ink-500 transition hover:bg-ink-50/60 hover:text-ink-800"
+      className="flex items-center rounded-lg px-2 py-1.5 text-ink-500 transition hover:bg-ink-50/60 hover:text-ink-800 sm:px-3"
     >
       {children}
     </Link>

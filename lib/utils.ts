@@ -75,10 +75,12 @@ export function costPerStar(
 
 export type PriceTier = "budget" | "midden" | "premium";
 
-/** Vuistregel voor NL-koffieprijzen: rond supermarktniveau tot ~€25/kg,
- *  het gangbare specialty-segment tot ~€40/kg, en daarboven premium. */
-const PRICE_TIER_BUDGET_MAX = 25;
-const PRICE_TIER_MIDDEN_MAX = 40;
+/** Vuistregel voor NL-koffieprijzen: supermarkt/aanbieding tot ~€20/kg,
+ *  het gangbare specialty-segment tot ~€45/kg, en daarboven premium.
+ *  Zo blijft "Premium" gereserveerd voor echt dure zakken i.p.v. elke
+ *  standaard specialty-boon. */
+const PRICE_TIER_BUDGET_MAX = 20;
+const PRICE_TIER_MIDDEN_MAX = 45;
 
 export function priceTier(perKg: number): PriceTier {
   if (perKg <= PRICE_TIER_BUDGET_MAX) return "budget";
@@ -88,6 +90,33 @@ export function priceTier(perKg: number): PriceTier {
 
 export function costPerShot(doseGrams: number, perKg: number): number {
   return doseGrams * (perKg / 1000);
+}
+
+/** Totale bonenkosten van een lijst shots, o.b.v. bonen met prijs + gewicht.
+ *  Dial-in shots tellen gewoon mee: die bonen zijn net zo goed verbruikt.
+ *  `counted` zegt hoeveel shots meededen (bonen zonder prijs vallen af). */
+export function shotsCost(
+  shots: ShotLog[],
+  beans: Bean[],
+): { cost: number; counted: number } {
+  const perKgByBean = new Map<string, number | undefined>();
+  for (const b of beans) perKgByBean.set(b.id, pricePerKg(b));
+  let cost = 0;
+  let counted = 0;
+  for (const s of shots) {
+    const perKg = perKgByBean.get(s.beanId);
+    if (perKg === undefined) continue;
+    cost += costPerShot(s.doseGrams, perKg);
+    counted += 1;
+  }
+  return { cost, counted };
+}
+
+export function isSameMonth(iso: string, ref: Date): boolean {
+  const d = new Date(iso);
+  return (
+    d.getMonth() === ref.getMonth() && d.getFullYear() === ref.getFullYear()
+  );
 }
 
 const euroFormat = new Intl.NumberFormat("nl-NL", {
