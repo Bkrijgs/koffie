@@ -125,8 +125,8 @@ type ShaderParams = {
 // In app-kleuren: barista-500 als donker, paper als highlight.
 // Paper-bg met barista-blauwe rivieren door de polar swirl.
 const DEFAULT_PARAMS: ShaderParams = {
-  color1: [0.957, 0.965, 0.984], // paper #f4f6fb (basis)
-  color2: [0.118, 0.173, 0.922], // barista-400 #1e2ceb (rivieren)
+  color1: [0.957, 0.965, 0.984], // paper #faf9f7 (basis)
+  color2: [0.118, 0.173, 0.922], // barista-400 #c2410c (rivieren)
   color3: [0.957, 0.965, 0.984], // = color1
   proportion: 0.5,
   softness: 0.75,

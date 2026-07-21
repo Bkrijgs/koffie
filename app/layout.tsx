@@ -1,7 +1,20 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
+import { Inter, Space_Grotesk } from "next/font/google";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import "./globals.css";
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+});
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-space-grotesk",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Koffie",
@@ -18,7 +31,7 @@ const einkInitScript = `(function(){try{var s=window.location.search||"";var m=s
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#f4f6fb",
+  themeColor: "#faf9f7",
 };
 
 export default function RootLayout({
@@ -27,7 +40,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="nl">
+    <html lang="nl" className={`${inter.variable} ${spaceGrotesk.variable}`}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: einkInitScript }} />
       </head>
