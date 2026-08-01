@@ -206,6 +206,7 @@ type BeanRow = {
   price_euros: number | string | null;
   bag_weight_grams: number | string | null;
   gift: boolean | null;
+  caffeine_mg_per_gram: number | string | null;
   notes: string | null;
   in_stock: boolean | null;
   created_at: string;
@@ -239,6 +240,10 @@ function beanFromRow(row: BeanRow): Bean {
     bagWeightGrams:
       row.bag_weight_grams != null ? Number(row.bag_weight_grams) : undefined,
     gift: row.gift ?? undefined,
+    caffeineMgPerGram:
+      row.caffeine_mg_per_gram != null
+        ? Number(row.caffeine_mg_per_gram)
+        : undefined,
     notes: row.notes ?? undefined,
     inStock: row.in_stock ?? true,
     createdAt: row.created_at,
@@ -307,6 +312,7 @@ export const supabaseBackend: KoffieStorage = {
         price_euros: input.priceEuros ?? null,
         bag_weight_grams: input.bagWeightGrams ?? null,
         gift: input.gift ?? null,
+        caffeine_mg_per_gram: input.caffeineMgPerGram ?? null,
         notes: input.notes ?? null,
         in_stock: input.inStock ?? true,
       })
@@ -327,6 +333,7 @@ export const supabaseBackend: KoffieStorage = {
         price_euros: input.priceEuros ?? null,
         bag_weight_grams: input.bagWeightGrams ?? null,
         gift: input.gift ?? null,
+        caffeine_mg_per_gram: input.caffeineMgPerGram ?? null,
         notes: input.notes ?? null,
         in_stock: input.inStock ?? true,
       })

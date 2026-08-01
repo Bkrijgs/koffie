@@ -72,6 +72,12 @@ export default function EditShotPage() {
       <h1 className="font-display text-3xl tracking-tighter2 text-ink-800 sm:text-4xl">
         Shot bewerken
       </h1>
+      {bean?.caffeineMgPerGram !== undefined && (
+        <p className="numeric text-sm text-ink-400">
+          ±{Math.round(shot.doseGrams * bean.caffeineMgPerGram)} mg cafeïne in
+          deze shot
+        </p>
+      )}
 
       <BaristaTips tips={tips} />
 

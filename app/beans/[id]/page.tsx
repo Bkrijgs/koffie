@@ -11,6 +11,7 @@ import { BaristaTips } from "@/components/BaristaTips";
 import { CoachCard } from "@/components/CoachCard";
 import { RatingCurve } from "@/components/RatingCurve";
 import { GiftBadge, PriceTierBadge } from "@/components/PriceTierBadge";
+import { CaffeineMeta } from "@/components/CaffeineMeta";
 import {
   average,
   costPerShot,
@@ -168,6 +169,7 @@ export default function BeanDetailPage() {
               numeric
             />
           )}
+          <CaffeineMeta bean={bean} shots={beanShots} />
         </dl>
 
         {bean.notes && (
