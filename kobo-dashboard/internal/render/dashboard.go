@@ -132,19 +132,19 @@ func drawStats(c *Canvas, ms stats.MonthStats, top int) int {
 		{"Gem. ratio", ratioStr(ms.AvgRatio), ""},
 	}
 	h := 150
-	cw := contentW / len(cells)
+	gap := 8
+	n := len(cells)
+	tileW := (contentW - gap*(n-1)) / n
 	for i, cl := range cells {
-		cx := margin + i*cw + cw/2
-		if i > 0 {
-			c.Fill(margin+i*cw, top+20, 2, h-40, Line200)
-		}
-		c.TextCenter(cx, top+34, strings.ToUpper(cl.label), 18, false, Ink300)
-		c.TextCenter(cx, top+96, cl.value, 46, true, Ink)
+		x := margin + i*(tileW+gap)
+		cx := x + tileW/2
+		c.Fill(x, top, tileW, h, Black) // zwarte tegel, witte tekst = maximaal contrast
+		c.TextCenter(cx, top+34, strings.ToUpper(cl.label), 18, false, Line200)
+		c.TextCenter(cx, top+96, cl.value, 46, true, Paper)
 		if cl.sub != "" {
-			c.TextCenter(cx, top+128, cl.sub, 18, false, Ink300)
+			c.TextCenter(cx, top+128, cl.sub, 18, false, Line200)
 		}
 	}
-	c.HLine(margin, top+h+10, contentW, 2, Line)
 	return top + h + 10
 }
 
