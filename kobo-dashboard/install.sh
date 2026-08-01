@@ -8,12 +8,11 @@
 # Doet in één run: cross-compile (arm v7) -> FBInk regelen -> alles naar de
 # Kobo kopiëren -> KFMon-tegel plaatsen -> icoon genereren -> uitwerpen.
 #
-# Overrides via env: KOBO_VOL=/Volumes/… FBINK_VERSION=v1.25.0
+# Override via env: KOBO_VOL=/Volumes/…
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 VOL="${KOBO_VOL:-/Volumes/KOBOeReader}"
-FBINK_VERSION="${FBINK_VERSION:-v1.25.0}"
 cd "$HERE"
 
 # --- 0. Checks -------------------------------------------------------------
@@ -30,28 +29,26 @@ echo "==> Go-binary cross-compilen (linux/arm, GOARM=7)"
 GOTOOLCHAIN=local GOOS=linux GOARCH=arm GOARM=7 \
   go build -trimpath -ldflags="-s -w" -o build/espresso ./cmd/espresso
 
-# --- 2. FBInk regelen ------------------------------------------------------
-if [ ! -x "$HERE/device/fbink" ]; then
-  echo "==> FBInk ($FBINK_VERSION) ophalen"
-  URL="https://github.com/NiLuJe/FBInk/releases/download/${FBINK_VERSION}/FBInk-${FBINK_VERSION}.tar.xz"
-  TMP="$(mktemp -d)"
-  if curl -fL "$URL" -o "$TMP/fbink.tar.xz" 2>/dev/null && tar -xJf "$TMP/fbink.tar.xz" -C "$TMP" 2>/dev/null; then
-    FB="$(find "$TMP" -type f -iname 'fbink' -path '*[Kk]obo*' | head -1)"
-    [ -n "$FB" ] || FB="$(find "$TMP" -type f -iname 'fbink' | head -1)"
-    if [ -n "$FB" ]; then
-      cp "$FB" "$HERE/device/fbink"
-      chmod +x "$HERE/device/fbink"
-    fi
-  fi
-  rm -rf "$TMP"
+# --- 2. FBInk regelen: hergebruik wat al op de Kobo staat ------------------
+# FBInk wordt NIET als kant-en-klare binary op GitHub verspreid (alleen bron).
+# Maar KOReader en KFMon hebben er al een op het toestel staan — die pakken we.
+FBINK_SRC=""
+if [ -x "$HERE/device/fbink" ]; then
+  FBINK_SRC="$HERE/device/fbink"        # handmatig neergezet: heeft voorrang
+else
+  echo "==> FBInk zoeken op de Kobo (KOReader/KFMon gebruiken 'm al)"
+  for c in "$VOL/.adds/koreader/fbink" "$VOL/.adds/kfmon/bin/fbink"; do
+    [ -f "$c" ] && { FBINK_SRC="$c"; break; }
+  done
+  [ -n "$FBINK_SRC" ] || FBINK_SRC="$(find "$VOL/.adds" -maxdepth 3 -type f -iname 'fbink' 2>/dev/null | head -1)"
 fi
-if [ ! -x "$HERE/device/fbink" ]; then
-  echo "!! Kon FBInk niet automatisch regelen."
-  echo "   Download de Kobo (armhf) 'fbink' handmatig van:"
-  echo "     https://github.com/NiLuJe/FBInk/releases"
-  echo "   en plaats de binary als: kobo-dashboard/device/fbink"
-  echo "   Draai daarna install.sh opnieuw."
-  exit 1
+if [ -n "$FBINK_SRC" ]; then
+  echo "   gevonden: $FBINK_SRC"
+else
+  echo "   !! Geen fbink op de Kobo gevonden. De app probeert 'm bij het draaien"
+  echo "      alsnog te vinden (.adds/koreader/fbink). Blijft het scherm leeg,"
+  echo "      haal dan de prebuilt FBInk (Kobo/armhf) van de MobileRead FBInk-"
+  echo "      thread en leg 'm neer als kobo-dashboard/device/fbink; run opnieuw."
 fi
 
 # --- 3. Deploy naar de Kobo ------------------------------------------------
@@ -59,10 +56,11 @@ echo "==> Kopiëren naar de Kobo"
 APP="$VOL/.adds/espresso"
 mkdir -p "$APP" "$VOL/.adds/kfmon/config"
 cp build/espresso "$APP/espresso"
-cp device/fbink   "$APP/fbink"
+[ -n "$FBINK_SRC" ] && cp "$FBINK_SRC" "$APP/fbink"
 cp device/launch.sh "$APP/launch.sh"
 cp device/kfmon/espresso.ini "$VOL/.adds/kfmon/config/espresso.ini"
-chmod +x "$APP/espresso" "$APP/fbink" "$APP/launch.sh"
+chmod +x "$APP/espresso" "$APP/launch.sh"
+[ -f "$APP/fbink" ] && chmod +x "$APP/fbink"
 
 # --- 4. Launcher-icoon (native gegenereerd op de Mac) ----------------------
 echo "==> Launcher-icoon genereren"

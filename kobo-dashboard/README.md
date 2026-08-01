@@ -68,8 +68,11 @@ Dit cross-compileert de ARM-binary, regelt FBInk, kopieert alles naar
 `/.adds/espresso/`, plaatst de KFMon-tegel, genereert het icoon en werpt de Kobo
 uit. Daarna: USB loskoppelen → **Espresso**-tegel in de bibliotheek tikken.
 
-> Lukt de automatische FBInk-download niet, dan zegt het script waar je de
-> Kobo-`fbink` binary handmatig neerzet (`device/fbink`).
+> **FBInk** wordt niet gedownload (GitHub heeft alleen de bron): het script
+> hergebruikt de `fbink` die KOReader/KFMon al op de Kobo hebben staan. Vindt
+> het er geen, dan probeert de app 'm bij het draaien alsnog te vinden; lukt
+> ook dat niet, leg dan een prebuilt Kobo-`fbink` (van de MobileRead FBInk-
+> thread) neer als `device/fbink` en draai opnieuw.
 
 Updaten later = hetzelfde commando nog eens.
 

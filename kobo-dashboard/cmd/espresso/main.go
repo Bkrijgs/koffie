@@ -163,15 +163,25 @@ func interruptibleSleep(d time.Duration) bool {
 	return isDisabled()
 }
 
-// resolveFBInk zoekt de fbink-binary: env → naast onze binary → PATH.
+// resolveFBInk zoekt de fbink-binary: env → naast onze binary → de fbink die
+// KOReader/KFMon al op het toestel hebben → PATH. Zo hoeven we niets te
+// downloaden als er al een fbink aanwezig is.
 func resolveFBInk() string {
 	if p := os.Getenv("ESPRESSO_FBINK"); p != "" {
 		return p
 	}
+	candidates := []string{}
 	if exe, err := os.Executable(); err == nil {
-		cand := filepath.Join(filepath.Dir(exe), "fbink")
-		if _, err := os.Stat(cand); err == nil {
-			return cand
+		candidates = append(candidates, filepath.Join(filepath.Dir(exe), "fbink"))
+	}
+	candidates = append(candidates,
+		"/mnt/onboard/.adds/koreader/fbink",
+		"/mnt/onboard/.adds/kfmon/bin/fbink",
+		"/usr/local/kfmon/bin/fbink",
+	)
+	for _, c := range candidates {
+		if _, err := os.Stat(c); err == nil {
+			return c
 		}
 	}
 	if p, err := exec.LookPath("fbink"); err == nil {

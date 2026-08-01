@@ -3,7 +3,9 @@
 # Draait op de Kobo. Nickel/KOReader blijven staan; dit is volledig omkeerbaar.
 
 DIR="/mnt/onboard/.adds/espresso"
-export ESPRESSO_FBINK="$DIR/fbink"
+# Gebruik de meegeleverde fbink als die er is; anders vindt de app zelf de
+# fbink van KOReader/KFMon op het toestel.
+[ -x "$DIR/fbink" ] && export ESPRESSO_FBINK="$DIR/fbink"
 
 cd "$DIR" || exit 1
 
