@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
-import { useParams } from "next/navigation";
+import { useMemo, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { useKoffie } from "@/lib/useKoffie";
 import { ShotForm } from "@/components/ShotForm";
 import { BaristaTips } from "@/components/BaristaTips";
@@ -11,7 +11,9 @@ import { tipsForShot } from "@/lib/tips";
 export default function EditShotPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id;
-  const { ready, beans, shots } = useKoffie();
+  const router = useRouter();
+  const { ready, beans, shots, deleteShot } = useKoffie();
+  const [deleting, setDeleting] = useState(false);
 
   const shot = useMemo(
     () => (id ? shots.find((s) => s.id === id) : undefined),
@@ -29,6 +31,22 @@ export default function EditShotPage() {
     () => (shot ? tipsForShot(shot, bean, beanShots) : []),
     [shot, bean, beanShots],
   );
+
+  async function handleDelete() {
+    if (!shot) return;
+    if (
+      !confirm("Deze shot verwijderen? Dit kan niet ongedaan worden gemaakt.")
+    )
+      return;
+    setDeleting(true);
+    try {
+      const beanId = shot.beanId;
+      await deleteShot(shot.id);
+      router.push(`/beans/${beanId}`);
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   if (!ready) return <p className="text-sm text-ink-300">Laden…</p>;
 
@@ -54,11 +72,28 @@ export default function EditShotPage() {
       <h1 className="font-display text-3xl tracking-tighter2 text-ink-800 sm:text-4xl">
         Shot bewerken
       </h1>
+      {bean?.caffeineMgPerGram !== undefined && (
+        <p className="numeric text-sm text-ink-400">
+          ±{Math.round(shot.doseGrams * bean.caffeineMgPerGram)} mg cafeïne in
+          deze shot
+        </p>
+      )}
 
       <BaristaTips tips={tips} />
 
       <div className="rounded-xl2 border border-line bg-card p-6 shadow-soft">
         <ShotForm shot={shot} />
+      </div>
+
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={handleDelete}
+          disabled={deleting}
+          className="rounded-lg border border-clay-300/60 px-4 py-2.5 text-sm font-medium text-clay-500 transition hover:bg-clay-400/10 disabled:opacity-50"
+        >
+          {deleting ? "Verwijderen…" : "Shot verwijderen"}
+        </button>
       </div>
     </div>
   );

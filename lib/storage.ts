@@ -26,6 +26,7 @@ export interface KoffieStorage {
   listShots(): Promise<ShotLog[]>;
   addShot(input: ShotInput): Promise<ShotLog>;
   updateShot(id: string, input: ShotInput): Promise<ShotLog>;
+  deleteShot(id: string): Promise<void>;
   shotsForBean(beanId: string): Promise<ShotLog[]>;
 
   listBags(): Promise<Bag[]>;
@@ -49,6 +50,12 @@ function normalizeShot(s: ShotLog): ShotLog {
   return { ...s, grindSize: Number.isFinite(parsed) ? parsed : 5 };
 }
 
+/** Bonen die zijn opgeslagen vóór de voorraad-feature hebben geen inStock-veld.
+ *  Behandel die als "op voorraad" zodat ze gewoon beschikbaar blijven. */
+function normalizeBean(b: Bean): Bean {
+  return typeof b.inStock === "boolean" ? b : { ...b, inStock: true };
+}
+
 function read<T>(key: string): T[] {
   if (typeof window === "undefined") return [];
   try {
@@ -68,15 +75,16 @@ function write<T>(key: string, value: T[]): void {
 
 export const localStorageBackend: KoffieStorage = {
   async listBeans() {
-    return read<Bean>(BEANS_KEY).sort(
-      (a, b) => +new Date(b.createdAt) - +new Date(a.createdAt),
-    );
+    return read<Bean>(BEANS_KEY)
+      .map(normalizeBean)
+      .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
   },
   async addBean(input) {
     const bean: Bean = {
       id: uid(),
       createdAt: new Date().toISOString(),
       ...input,
+      inStock: input.inStock ?? true,
     };
     const all = read<Bean>(BEANS_KEY);
     all.push(bean);
@@ -93,7 +101,8 @@ export const localStorageBackend: KoffieStorage = {
     return updated;
   },
   async getBean(id) {
-    return read<Bean>(BEANS_KEY).find((b) => b.id === id);
+    const bean = read<Bean>(BEANS_KEY).find((b) => b.id === id);
+    return bean ? normalizeBean(bean) : undefined;
   },
   async listShots() {
     return read<ShotLog>(SHOTS_KEY)
@@ -130,6 +139,13 @@ export const localStorageBackend: KoffieStorage = {
     all[idx] = updated;
     write(SHOTS_KEY, all);
     return updated;
+  },
+  async deleteShot(id) {
+    const all = read<ShotLog>(SHOTS_KEY);
+    write(
+      SHOTS_KEY,
+      all.filter((s) => s.id !== id),
+    );
   },
   async shotsForBean(beanId) {
     return read<ShotLog>(SHOTS_KEY)
@@ -187,7 +203,12 @@ type BeanRow = {
   origin: string | null;
   blend: string | null;
   roast_date: string | null;
+  price_euros: number | string | null;
+  bag_weight_grams: number | string | null;
+  gift: boolean | null;
+  caffeine_mg_per_gram: number | string | null;
   notes: string | null;
+  in_stock: boolean | null;
   created_at: string;
 };
 
@@ -215,7 +236,16 @@ function beanFromRow(row: BeanRow): Bean {
     origin: row.origin ?? undefined,
     blend: row.blend ?? undefined,
     roastDate: row.roast_date ?? undefined,
+    priceEuros: row.price_euros != null ? Number(row.price_euros) : undefined,
+    bagWeightGrams:
+      row.bag_weight_grams != null ? Number(row.bag_weight_grams) : undefined,
+    gift: row.gift ?? undefined,
+    caffeineMgPerGram:
+      row.caffeine_mg_per_gram != null
+        ? Number(row.caffeine_mg_per_gram)
+        : undefined,
     notes: row.notes ?? undefined,
+    inStock: row.in_stock ?? true,
     createdAt: row.created_at,
   };
 }
@@ -279,7 +309,12 @@ export const supabaseBackend: KoffieStorage = {
         origin: input.origin ?? null,
         blend: input.blend ?? null,
         roast_date: input.roastDate ?? null,
+        price_euros: input.priceEuros ?? null,
+        bag_weight_grams: input.bagWeightGrams ?? null,
+        gift: input.gift ?? null,
+        caffeine_mg_per_gram: input.caffeineMgPerGram ?? null,
         notes: input.notes ?? null,
+        in_stock: input.inStock ?? true,
       })
       .select("*")
       .single();
@@ -295,7 +330,12 @@ export const supabaseBackend: KoffieStorage = {
         origin: input.origin ?? null,
         blend: input.blend ?? null,
         roast_date: input.roastDate ?? null,
+        price_euros: input.priceEuros ?? null,
+        bag_weight_grams: input.bagWeightGrams ?? null,
+        gift: input.gift ?? null,
+        caffeine_mg_per_gram: input.caffeineMgPerGram ?? null,
         notes: input.notes ?? null,
+        in_stock: input.inStock ?? true,
       })
       .eq("id", id)
       .select("*")
@@ -364,6 +404,10 @@ export const supabaseBackend: KoffieStorage = {
       .single();
     if (error) throw error;
     return shotFromRow(data as ShotRow);
+  },
+  async deleteShot(id) {
+    const { error } = await getSupabase().from("shots").delete().eq("id", id);
+    if (error) throw error;
   },
   async shotsForBean(beanId) {
     const { data, error } = await getSupabase()

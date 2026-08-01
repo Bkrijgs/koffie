@@ -5,7 +5,21 @@ export type Bean = {
   origin?: string;
   blend?: string;
   roastDate?: string;
+  /** Prijs voor één zak, in euro's. Bij een cadeau (gift) is dit de
+   *  geschatte winkelprijs, zodat waardevergelijkingen blijven werken. */
+  priceEuros?: number;
+  /** Gewicht van die zak in gram; samen met priceEuros geeft dit €/kg. */
+  bagWeightGrams?: number;
+  /** Cadeau gekregen: telt niet mee in je uitgaven (kostendashboard),
+   *  maar wél in waarde-statistieken via de geschatte winkelprijs. */
+  gift?: boolean;
+  /** AI-schatting: mg cafeïne per gram gemalen koffie die bij espresso-
+   *  extractie in het kopje belandt. Per shot: dose × deze waarde. */
+  caffeineMgPerGram?: number;
   notes?: string;
+  /** Of er nog voorraad van deze boon is. Staat-ie uit, dan verdwijnt de boon
+   *  uit het keuze-menu van het shot-logformulier. Default true. */
+  inStock: boolean;
   createdAt: string;
 };
 

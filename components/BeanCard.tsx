@@ -1,6 +1,16 @@
 import Link from "next/link";
 import type { Bean, Rating, ShotLog } from "@/lib/types";
-import { average, effectiveShots, formatDateOnly } from "@/lib/utils";
+import {
+  average,
+  costPerShot,
+  costPerStar,
+  effectiveShots,
+  formatDateOnly,
+  formatEuro,
+  priceTier,
+  pricePerKg,
+} from "@/lib/utils";
+import { GiftBadge, PriceTierBadge } from "./PriceTierBadge";
 import { StarRating } from "./StarRating";
 
 type Props = {
@@ -12,6 +22,14 @@ export function BeanCard({ bean, shots }: Props) {
   const effective = effectiveShots(shots);
   const dialInCount = shots.length - effective.length;
   const avg = average(effective.map((s) => s.rating));
+  const perKg = pricePerKg(bean);
+  const starCost =
+    perKg !== undefined && effective.length > 0
+      ? costPerStar(
+          average(effective.map((s) => costPerShot(s.doseGrams, perKg))),
+          avg,
+        )
+      : undefined;
   return (
     <Link
       href={`/beans/${bean.id}`}
@@ -19,8 +37,13 @@ export function BeanCard({ bean, shots }: Props) {
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="font-display text-lg tracking-tightish text-ink-800 group-hover:underline">
+          <h3 className="flex items-center gap-2 font-display text-lg tracking-tightish text-ink-800 group-hover:underline">
             {bean.name}
+            {!bean.inStock && (
+              <span className="shrink-0 rounded-full bg-ink-800 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-paper no-underline">
+                Op
+              </span>
+            )}
           </h3>
           {bean.roaster && (
             <p className="text-sm text-ink-500">{bean.roaster}</p>
@@ -48,6 +71,30 @@ export function BeanCard({ bean, shots }: Props) {
             <dt className="text-ink-300">Branddatum</dt>
             <dd className="numeric text-ink-600">
               {formatDateOnly(bean.roastDate)}
+            </dd>
+          </>
+        )}
+        {(perKg !== undefined || bean.gift) && (
+          <>
+            <dt className="text-ink-300">Prijs</dt>
+            <dd className="flex flex-wrap items-center gap-1.5">
+              {perKg !== undefined && (
+                <>
+                  <span className="numeric text-ink-600">
+                    {formatEuro(perKg)}/kg
+                  </span>
+                  <PriceTierBadge tier={priceTier(perKg)} />
+                </>
+              )}
+              {bean.gift && <GiftBadge />}
+            </dd>
+          </>
+        )}
+        {starCost !== undefined && (
+          <>
+            <dt className="text-ink-300">Waarde</dt>
+            <dd className="numeric text-ink-600">
+              {formatEuro(starCost)}/ster
             </dd>
           </>
         )}

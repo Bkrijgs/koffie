@@ -1,14 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useKoffie } from "@/lib/useKoffie";
 import { ShotCard } from "@/components/ShotCard";
 import { EmptyState } from "@/components/EmptyState";
 import { BaristaTips } from "@/components/BaristaTips";
 import { ShotHeatmap } from "@/components/ShotHeatmap";
 import { BootSplash } from "@/components/BootSplash";
-import { average, effectiveShots, formatDateOnly } from "@/lib/utils";
+import {
+  average,
+  effectiveShots,
+  formatDateOnly,
+  formatEuro,
+  isSameMonth,
+  shotsCost,
+} from "@/lib/utils";
 import { globalTips } from "@/lib/tips";
 import { useCountUp } from "@/lib/useCountUp";
 
@@ -18,11 +25,26 @@ import { useCountUp } from "@/lib/useCountUp";
 const COUNT_DELAY = 2200;
 
 export default function DashboardPage() {
-  const { ready, beans, shots } = useKoffie();
+  const { ready, error, beans, shots } = useKoffie();
   const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
+  // Diagnose: deze effect draait alleen als de client-side React écht
+  // hydrateert. Zie je hieronder "JS actief…" dan draait de app-code; blijf je
+  // de kale server-tekst "Laden…" zien, dan voert deze Kobo de React-bundle
+  // niet uit en is een server-gerenderde variant nodig.
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
 
   if (!ready) {
-    return <p className="text-sm text-ink-300">Laden…</p>;
+    return (
+      <div className="text-sm text-ink-300">
+        <p>{hydrated ? "JS actief — verbinden met database…" : "Laden…"}</p>
+        {hydrated && error && (
+          <p className="mt-2 break-words text-clay-500">{error}</p>
+        )}
+      </div>
+    );
   }
 
   const beanById = new Map(beans.map((b) => [b.id, b]));
@@ -45,24 +67,52 @@ export default function DashboardPage() {
 
   const avgRating = average(effective.map((s) => s.rating));
   const tips = globalTips(beans, shots);
+  const monthCost = shotsCost(
+    shots.filter((s) => isSameMonth(s.createdAt, new Date())),
+    beans,
+  ).cost;
+  // Als de boot-splash deze sessie al is geweest (html.boot-seen, gezet vóór
+  // paint) hoeven de tellers niet op het fade-out moment te wachten.
+  const splashSkipped =
+    typeof document !== "undefined" &&
+    document.documentElement.classList.contains("boot-seen");
+  const countDelay = splashSkipped ? 150 : COUNT_DELAY;
 
   return (
     <div className="space-y-10">
       <BootSplash />
+      {error && (
+        <div className="rounded-xl2 border border-clay-400 bg-card p-4 text-sm text-clay-500">
+          <p className="font-medium">Data kon niet geladen worden</p>
+          <p className="mt-1 break-words text-ink-300">{error}</p>
+        </div>
+      )}
       {shots.length > 0 && (
-        <section className="grid grid-cols-3 gap-px overflow-hidden rounded-xl2 border border-line bg-line">
+        <section className="grid grid-cols-2 gap-px overflow-hidden rounded-xl2 border border-line bg-line sm:grid-cols-4">
           <CountStat
             label="Shots"
             target={shots.length}
             sub={dialInCount > 0 ? `${dialInCount} dial-in` : undefined}
+            delay={countDelay}
           />
-          <CountStat label="Bonen" target={beans.length} />
+          <CountStat label="Bonen" target={beans.length} delay={countDelay} />
           <CountStat
             label="Gem. rating"
             target={avgRating}
             decimals={1}
             fallback="—"
+            delay={countDelay}
           />
+          <Link href="/kosten" className="group block">
+            <CountStat
+              label="Kosten"
+              target={monthCost}
+              euro
+              fallback="—"
+              sub="deze maand →"
+              delay={countDelay}
+            />
+          </Link>
         </section>
       )}
 
@@ -118,7 +168,7 @@ export default function DashboardPage() {
           title="Laatste shots"
           action={
             shots.length > 5 ? (
-              <Link href="/beans" className="text-ink-400 hover:text-ink-700">
+              <Link href="/shots" className="text-ink-400 hover:text-ink-700">
                 Alles →
               </Link>
             ) : null
@@ -177,21 +227,30 @@ function CountStat({
   sub,
   decimals = 0,
   fallback,
+  euro = false,
+  delay = COUNT_DELAY,
 }: {
   label: string;
   target: number;
   sub?: string;
   decimals?: number;
   fallback?: string;
+  euro?: boolean;
+  delay?: number;
 }) {
   const shown = useCountUp(target, {
-    delay: COUNT_DELAY,
+    delay,
     duration: 900,
-    decimals,
+    decimals: euro ? 2 : decimals,
   });
-  const display = fallback && target <= 0 ? fallback : shown;
+  const display =
+    fallback && target <= 0
+      ? fallback
+      : euro
+        ? formatEuro(parseFloat(shown))
+        : shown;
   return (
-    <div className="bg-card px-4 py-5 text-center">
+    <div className="h-full bg-card px-4 py-5 text-center transition group-hover:bg-ink-50/40">
       <p className="text-[10px] uppercase tracking-[0.18em] text-ink-300">
         {label}
       </p>

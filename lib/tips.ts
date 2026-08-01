@@ -1,5 +1,14 @@
 import type { Bean, ShotLog } from "./types";
-import { average, effectiveShots } from "./utils";
+import {
+  average,
+  costPerShot,
+  costPerStar,
+  effectiveShots,
+  formatEuro,
+  isSameMonth,
+  pricePerKg,
+  shotsCost,
+} from "./utils";
 import type { BaristaMood } from "@/components/Barista";
 
 export type TipKind = "tweak" | "info" | "praise" | "warn";
@@ -530,6 +539,60 @@ export function globalTips(beans: Bean[], shots: ShotLog[]): Tip[] {
       id: "best-bean",
       kind: "info",
       text: `${winner.bean.name} scoort het hoogst: gem. ${winner.avg.toFixed(1)}★ over ${winner.n} shots.`,
+    });
+  }
+
+  // Prijs-bewuste inzichten. Beste waar-voor-je-geld: alleen tonen bij
+  // meerdere geprijsde bonen met genoeg data én een duidelijk verschil.
+  const valueRanked = beans
+    .map((b) => {
+      const perKg = pricePerKg(b);
+      const bs = effective.filter((s) => s.beanId === b.id);
+      if (perKg === undefined || bs.length < 3) return null;
+      const starCost = costPerStar(
+        average(bs.map((s) => costPerShot(s.doseGrams, perKg))),
+        average(bs.map((s) => s.rating)),
+      );
+      return starCost === undefined ? null : { bean: b, starCost };
+    })
+    .filter((x): x is { bean: Bean; starCost: number } => x !== null)
+    .sort((a, b) => a.starCost - b.starCost);
+  if (valueRanked.length >= 2) {
+    const best = valueRanked[0];
+    const worst = valueRanked[valueRanked.length - 1];
+    if (worst.starCost >= best.starCost * 1.5) {
+      tips.push({
+        id: "best-value",
+        kind: "info",
+        text: `${best.bean.name} is je beste waar-voor-je-geld: ${formatEuro(best.starCost)} per ster, tegenover ${formatEuro(worst.starCost)} bij ${worst.bean.name}.`,
+      });
+    }
+  }
+
+  const month = shotsCost(
+    shots.filter((s) => isSameMonth(s.createdAt, new Date())),
+    beans,
+  );
+  if (month.counted >= 5 && month.cost > 0) {
+    tips.push({
+      id: "month-cost",
+      kind: "info",
+      text: `Deze maand ${formatEuro(month.cost)} aan koffie gezet, verdeeld over ${month.counted} shots.`,
+    });
+  }
+
+  // Nudge: bonen mét shots maar zonder prijsinfo doen niet mee in de
+  // kostenvergelijking. Alleen zeuren als er al minstens één geprijsde
+  // boon is (anders kent de gebruiker de feature waarschijnlijk nog niet).
+  const hasPricedBean = beans.some((b) => pricePerKg(b) !== undefined);
+  const unpriced = beans.filter(
+    (b) => pricePerKg(b) === undefined && beansWithShots.has(b.id),
+  );
+  if (hasPricedBean && unpriced.length > 0) {
+    tips.push({
+      id: "missing-price",
+      kind: "info",
+      text: `Vul prijs en zakgewicht in bij ${unpriced[0].name} om kosten en waar-voor-je-geld mee te vergelijken.`,
     });
   }
 

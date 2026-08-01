@@ -10,7 +10,19 @@ import { EmptyState } from "@/components/EmptyState";
 import { BaristaTips } from "@/components/BaristaTips";
 import { CoachCard } from "@/components/CoachCard";
 import { RatingCurve } from "@/components/RatingCurve";
-import { average, effectiveShots, formatDateOnly, mode } from "@/lib/utils";
+import { GiftBadge, PriceTierBadge } from "@/components/PriceTierBadge";
+import { CaffeineMeta } from "@/components/CaffeineMeta";
+import {
+  average,
+  costPerShot,
+  costPerStar,
+  effectiveShots,
+  formatDateOnly,
+  formatEuro,
+  mode,
+  priceTier,
+  pricePerKg,
+} from "@/lib/utils";
 import { tipsForBean } from "@/lib/tips";
 import type { ShotLog } from "@/lib/types";
 
@@ -60,6 +72,15 @@ export default function BeanDetailPage() {
   const effective = effectiveShots(beanShots);
   const dialInCount = beanShots.length - effective.length;
   const avg = average(effective.map((s) => s.rating));
+  const perKg = pricePerKg(bean);
+  const avgCostPerShot =
+    perKg !== undefined && effective.length > 0
+      ? average(effective.map((s) => costPerShot(s.doseGrams, perKg)))
+      : undefined;
+  const starCost =
+    avgCostPerShot !== undefined
+      ? costPerStar(avgCostPerShot, avg)
+      : undefined;
   const bestShots = [...effective].sort((a, b) => b.rating - a.rating);
   const top = bestShots[0];
   const bestGrind = mode(bestShots.slice(0, 3).map((s) => s.grindSize));
@@ -116,6 +137,39 @@ export default function BeanDetailPage() {
             value={effective.length > 0 ? avg.toFixed(1) : "—"}
             numeric
           />
+          {(perKg !== undefined || bean.gift) && (
+            <Meta
+              label="Prijs"
+              value={
+                <span className="inline-flex flex-wrap items-center gap-1.5">
+                  {perKg !== undefined && (
+                    <>
+                      {formatEuro(perKg)}/kg
+                      <PriceTierBadge tier={priceTier(perKg)} />
+                    </>
+                  )}
+                  {bean.gift && <GiftBadge />}
+                </span>
+              }
+              numeric
+            />
+          )}
+          {avgCostPerShot !== undefined && (
+            <Meta
+              label="Kosten/shot"
+              value={formatEuro(avgCostPerShot)}
+              numeric
+            />
+          )}
+          {starCost !== undefined && (
+            <Meta
+              label="Kosten per ster"
+              value={formatEuro(starCost)}
+              sub="lager = beter"
+              numeric
+            />
+          )}
+          <CaffeineMeta bean={bean} shots={beanShots} />
         </dl>
 
         {bean.notes && (
@@ -205,7 +259,7 @@ function Meta({
   numeric = false,
 }: {
   label: string;
-  value?: string;
+  value?: React.ReactNode;
   sub?: string;
   numeric?: boolean;
 }) {
