@@ -1,0 +1,4 @@
+# Build-output en opgehaalde binaries
+/build/
+/device/fbink
+*.log
