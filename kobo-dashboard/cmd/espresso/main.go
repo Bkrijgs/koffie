@@ -71,6 +71,15 @@ func main() {
 		return
 	}
 
+	// Kill-switch / achterdeur: staat het uit-vlaggetje op de Kobo-schijf, dan
+	// starten we niet. Bereikbaar vanaf elke Mac/PC via de gewone USB-schijf —
+	// geen ext4-tools nodig. (Zie disableFlags.)
+	if isDisabled() {
+		showImage(fbink, *outPath, render.Message("Dashboard uit",
+			"verwijder 'espresso-uit.txt' van de Kobo-schijf om weer te starten"))
+		return
+	}
+
 	cfg := supabase.DefaultConfig()
 	client := supabase.New(cfg)
 
@@ -106,11 +115,52 @@ func main() {
 		return
 	}
 
-	ticker := time.NewTicker(time.Duration(*interval) * time.Minute)
-	defer ticker.Stop()
-	for range ticker.C {
+	for {
+		// Slaap tot de volgende verversing, maar controleer ondertussen de
+		// kill-switch zodat je 'm binnen ~30s kunt uitzetten.
+		if interruptibleSleep(time.Duration(*interval) * time.Minute) {
+			showImage(fbink, *outPath, render.Message("Dashboard uit",
+				"verwijder 'espresso-uit.txt' van de Kobo-schijf om weer te starten"))
+			return
+		}
 		refresh()
 	}
+}
+
+// disableFlags: bestaat één van deze paden, dan start/stopt het dashboard.
+// Het eerste staat in de root van de KOBOeReader-schijf, dus je maakt 'm zo
+// aan vanaf je Mac (geen speciale tools): een leeg bestand 'espresso-uit.txt'.
+var disableFlags = []string{
+	"/mnt/onboard/espresso-uit.txt",
+	"/mnt/onboard/.adds/espresso/DISABLED",
+}
+
+func isDisabled() bool {
+	for _, p := range disableFlags {
+		if _, err := os.Stat(p); err == nil {
+			return true
+		}
+	}
+	return false
+}
+
+// interruptibleSleep slaapt d, maar checkt elke 30s de kill-switch. Geeft true
+// terug zodra het uit-vlaggetje verschijnt (dan stopt de caller).
+func interruptibleSleep(d time.Duration) bool {
+	const step = 30 * time.Second
+	deadline := time.Now().Add(d)
+	for time.Now().Before(deadline) {
+		if isDisabled() {
+			return true
+		}
+		remaining := time.Until(deadline)
+		if remaining < step {
+			time.Sleep(remaining)
+		} else {
+			time.Sleep(step)
+		}
+	}
+	return isDisabled()
 }
 
 // resolveFBInk zoekt de fbink-binary: env → naast onze binary → PATH.

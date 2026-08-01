@@ -35,6 +35,27 @@ go run ./cmd/espresso -demo -out /tmp/dash.png && open /tmp/dash.png
 Fase 4 heeft toestel-specifieke input-info nodig — draai daarvoor eerst
 `probe.sh` **op** de Kobo (zie onder).
 
+## Veiligheid — je kunt nooit meer vastlopen
+
+Anders dan de oude "kiosk" raakt dit project **het opstart-script (`rcS`) nooit
+aan**. Drie vangnetten, van sterk naar sterker:
+
+1. **Herstart = altijd terug in Nickel.** Het dashboard start alleen als jij de
+   **Espresso**-tegel aantikt (via KFMon), niet bij het opstarten. Zet je de
+   Kobo uit en aan, dan boot 'ie gewoon normaal naar Nickel. Vastzitten kan dus
+   niet.
+2. **Kill-switch via de gewone USB-schijf (geen ext4-tools).** Sluit de Kobo aan
+   op je Mac, en zet een leeg bestand **`espresso-uit.txt`** in de root van de
+   **KOBOeReader**-schijf. Dan weigert het dashboard te starten (en een draaiend
+   dashboard stopt binnen ~30 s). Weghalen = weer aan. Dit is precies bereikbaar
+   in de situatie waar je nu vastzat — via de normale schijf, zonder Linux/ext4.
+3. **Schoon verwijderen.** `./kobo-dashboard/uninstall.sh` haalt alles weg
+   (app + KFMon-tegel + icoon) van de vfat-schijf. Nickel/KOReader blijven
+   staan; de Kobo is weer volledig stock.
+
+Kortom: er is geen enkele stap die de boot kan breken, en er is altijd een
+achterdeur die je vanaf je Mac kunt bereiken.
+
 ## Installeren (één commando op de Mac)
 
 Kobo via USB aansluiten en op het toestel **Verbinden** tikken, daarna:
