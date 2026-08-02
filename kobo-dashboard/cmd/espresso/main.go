@@ -474,7 +474,11 @@ func wifiUp(dev config.Device) {
 			continue
 		}
 		log.Printf("wall: bringing wifi up via %s", s)
-		_ = exec.Command("/bin/sh", s).Run()
+		// Bound the script: a hung enable-wifi.sh must never freeze the whole
+		// app on the loading screen (that reads as "nothing starts").
+		ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+		_ = exec.CommandContext(ctx, "/bin/sh", s).Run()
+		cancel()
 		for i := 0; i < 8; i++ { // wait up to ~16s for association + DHCP
 			if reachable() {
 				return
