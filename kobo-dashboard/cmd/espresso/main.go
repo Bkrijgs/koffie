@@ -192,20 +192,46 @@ func run(o runOpts) error {
 // if the framebuffer can't be opened. A PNG copy is always kept for debugging.
 func displayCanvas(dev config.Device, fbink *render.FBInk, c *render.Canvas, out string) error {
 	_ = render.SavePNG(c, out)
-	if dev.FBDev != "" {
-		if f, err := fb.Open(dev.FBDev); err == nil {
-			f.Blit(c.Img)
-			_ = f.Close()
-			if rerr := fbink.Refresh(); rerr != nil {
-				log.Printf("fbink refresh failed: %v", rerr)
-			}
-			log.Printf("displayed via framebuffer (%dx%d %dbpp)", f.XRes, f.YRes, f.BPP)
-			return nil
-		} else {
-			log.Printf("fb open failed (%v); falling back to fbink -g", err)
-		}
+
+	// Primary path: write pixels straight into the framebuffer, then ask fbink
+	// only to REFRESH. This works even on the minimal fbink builds KOReader/KFMon
+	// ship (image display is compiled out of those — see the espresso.run.log
+	// "[FBInk] Image support is disabled" line). Guard against a bad/empty FBDev
+	// in device.conf by defaulting to /dev/fb0, and retry a few times in case the
+	// EPDC/framebuffer is momentarily busy right after a KFMon launch.
+	fbdev := dev.FBDev
+	if fbdev == "" {
+		fbdev = "/dev/fb0"
 	}
-	return fbink.DisplayImage(out)
+	var lastErr error
+	for attempt := 0; attempt < 3; attempt++ {
+		f, err := fb.Open(fbdev)
+		if err != nil {
+			lastErr = err
+			time.Sleep(300 * time.Millisecond)
+			continue
+		}
+		xr, yr, bpp := f.XRes, f.YRes, f.BPP
+		f.Blit(c.Img)
+		_ = f.Close()
+		if rerr := fbink.Refresh(); rerr != nil {
+			log.Printf("fbink refresh failed: %v", rerr)
+		}
+		log.Printf("displayed via framebuffer (%dx%d %dbpp)", xr, yr, bpp)
+		return nil
+	}
+	log.Printf("fb open failed after retries (%v); trying fbink image", lastErr)
+
+	// Fallback 1: fbink's own image display — only works on a full fbink build.
+	if err := fbink.DisplayImage(out); err == nil {
+		return nil
+	} else {
+		log.Printf("fbink image display failed (%v); falling back to text", err)
+	}
+
+	// Fallback 2: never leave the panel silently blank — print a text line so at
+	// least there's a readable hint pointing at the log.
+	return fbink.Print(4, "Espresso: kan scherm niet tekenen (zie espresso.log)")
 }
 
 // showLoading blits a loading splash so the panel isn't blank during fetch.
