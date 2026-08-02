@@ -109,7 +109,13 @@ done
 # Preserve any device.conf probe.sh already wrote; otherwise the binary uses
 # its built-in Aura HD defaults.
 [ -f "$ADDS_DIR/device.conf" ] && ok "device.conf bewaard" || note "geen device.conf (defaults worden gebruikt; draai probe.sh op het toestel)"
-ok "bestanden gekopieerd"
+
+# macOS schrijft AppleDouble-sidecars (._naam) en .DS_Store op de FAT-schijf.
+# KFMon leest élk bestand in z'n config-map; die metadata kan de launcher in de
+# war brengen, waardoor de tegel niet meer afvuurt. Opruimen na het kopiëren.
+find "$KFMON_CFG_DIR" "$ADDS_DIR" "$ICON_DIR" -name '._*' -delete 2>/dev/null || true
+find "$KFMON_CFG_DIR" "$ADDS_DIR" "$ICON_DIR" -name '.DS_Store' -delete 2>/dev/null || true
+ok "bestanden gekopieerd (macOS-metadata opgeruimd)"
 
 # --- 5. eject ---------------------------------------------------------------
 sync
