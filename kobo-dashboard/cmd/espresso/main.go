@@ -64,6 +64,22 @@ func main() {
 	}
 	logTo(dev.DataDir)
 
+	// Last-resort safety net: a panic during startup or render must never leave
+	// the tile silently dead. Log it, show a readable error, and exit non-zero
+	// so the run.sh supervisor relaunches us.
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("panic: %v", r)
+			if !*preview {
+				func() {
+					defer func() { _ = recover() }()
+					showError(dev, out, fmt.Errorf("interne fout: %v", r))
+				}()
+			}
+			os.Exit(1)
+		}
+	}()
+
 	opts := runOpts{
 		dev:          dev,
 		out:          out,

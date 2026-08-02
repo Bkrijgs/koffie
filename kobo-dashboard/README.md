@@ -45,6 +45,12 @@ de app met **`-wall`**:
   blijft nooit op een leeg laadscherm hangen.
 - Terug naar Nickel = **power-cycle** (geen boot-hook, dus altijd veilig).
 
+De launcher `kfmon/run.sh` is een **supervisor**: crasht of stopt de binary ooit,
+dan herstart 'ie automatisch (met backoff), zodat de tegel aantikken áltijd in
+een draaiend dashboard eindigt. Een panic in de binary wordt opgevangen en toont
+een leesbaar foutscherm i.p.v. stil te sterven. `touch STOP` naast `run.sh` stopt
+de supervisor netjes (gebruikt door `deploy-ssh.sh` tijdens een update).
+
 ## Draadloos updaten (zonder USB)
 
 Voor een ingeklikt wanddisplay is USB onhandig. Update over wifi via SSH:
