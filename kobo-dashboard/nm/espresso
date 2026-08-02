@@ -5,4 +5,4 @@
 # entry to Nickel's own menu that spawns run.sh directly. Use it when KFMon
 # isn't running (its IPC socket /tmp/kfmon-ipc.ctl is missing) — the tile won't
 # fire then, but this menu entry still works.
-menu_item :main :Espresso dashboard :cmd_spawn :quiet:exec /mnt/onboard/.adds/espresso/run.sh
+menu_item :main :Espresso dashboard :cmd_spawn :quiet:exec /mnt/onboard/.adds/espresso/start.sh

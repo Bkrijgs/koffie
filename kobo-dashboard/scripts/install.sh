@@ -99,7 +99,8 @@ note "Kopiëren naar ${ADDS_DIR}…"
 mkdir -p "$ADDS_DIR" "$KFMON_CFG_DIR" "$ICON_DIR"
 install -m 0755 "$WORK/espresso"            "$ADDS_DIR/espresso"
 install -m 0755 "$WORK/fbink"               "$ADDS_DIR/fbink"
-install -m 0755 "$PROJECT_DIR/kfmon/run.sh" "$ADDS_DIR/run.sh"
+install -m 0755 "$PROJECT_DIR/kfmon/run.sh"   "$ADDS_DIR/run.sh"
+install -m 0755 "$PROJECT_DIR/kfmon/start.sh" "$ADDS_DIR/start.sh"
 # Vervang het tegel-icoon NIET als het er al staat: een nieuw bestand krijgt een
 # nieuwe inode, en dan is KFMon's inotify-watch (van de laatste boot) ongeldig →
 # de tegel vuurt niet meer af tot een reboot. Behouden = watch blijft geldig, dus
