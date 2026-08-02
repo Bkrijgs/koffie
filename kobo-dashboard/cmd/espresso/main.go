@@ -131,6 +131,7 @@ func run(o runOpts) error {
 	var fb *render.FBInk
 	if !o.preview {
 		fb = resolveFBInk(o.dev)
+		logStartupHealth(o.dev, fb)
 		if !fb.Available() {
 			return fmt.Errorf("fbink not found/executable at %s", o.dev.FBInkBin)
 		}
@@ -190,6 +191,24 @@ func run(o runOpts) error {
 // write pixels straight into the framebuffer (works regardless of fbink's image
 // support), then ask fbink to refresh. Falls back to fbink's own image display
 // if the framebuffer can't be opened. A PNG copy is always kept for debugging.
+// logStartupHealth writes a one-glance health line at every launch, so a
+// display/startup problem is diagnosable from the first log lines instead of
+// buried in fbink's own output. The framebuffer line is the important one: if it
+// says OK, the reliable display path works regardless of fbink's image support.
+func logStartupHealth(dev config.Device, fbink *render.FBInk) {
+	log.Printf("startup: fbink=%s available=%v", fbink.Bin, fbink.Available())
+	fbdev := dev.FBDev
+	if fbdev == "" {
+		fbdev = "/dev/fb0"
+	}
+	if f, err := fb.Open(fbdev); err == nil {
+		log.Printf("startup: framebuffer OK %s (%dx%d %dbpp stride=%d)", fbdev, f.XRes, f.YRes, f.BPP, f.Stride)
+		_ = f.Close()
+	} else {
+		log.Printf("startup: framebuffer OPEN FAILED %s: %v", fbdev, err)
+	}
+}
+
 func displayCanvas(dev config.Device, fbink *render.FBInk, c *render.Canvas, out string) error {
 	_ = render.SavePNG(c, out)
 
