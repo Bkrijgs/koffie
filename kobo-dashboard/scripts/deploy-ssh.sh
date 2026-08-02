@@ -38,10 +38,9 @@ $SSH "cat > $DEST/run.sh" < kfmon/run.sh
 $SSH "chmod +x $DEST/espresso.new $DEST/run.sh && mv -f $DEST/espresso.new $DEST/espresso"
 
 echo "==> App herstarten in wanddisplay-modus"
-# 1) STOP-vlag zetten en de binary killen → de supervisor (run.sh) ziet STOP en
-#    stopt netjes. 2) STOP weghalen en een verse supervisor losgekoppeld starten
-#    zodat 'ie blijft draaien nadat de SSH-sessie sluit.
-$SSH "touch $DEST/STOP; kill \$(pidof espresso) 2>/dev/null; sleep 3; rm -f $DEST/STOP; cd $DEST && (setsid ./run.sh >/dev/null 2>&1 </dev/null & ) || (nohup ./run.sh >/dev/null 2>&1 & ); true"
+# Stop de oude dashboard-binary en start 'm losgekoppeld opnieuw, zodat 'ie
+# blijft draaien nadat de SSH-sessie sluit.
+$SSH "kill \$(pidof espresso) 2>/dev/null; sleep 1; cd $DEST && (setsid ./run.sh >/dev/null 2>&1 </dev/null & ) || (nohup ./run.sh >/dev/null 2>&1 & ); true"
 
 echo
 echo "Klaar ✅  Het dashboard hoort binnen een paar tellen op de Kobo te verschijnen"
