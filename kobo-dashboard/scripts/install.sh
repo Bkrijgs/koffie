@@ -100,7 +100,16 @@ mkdir -p "$ADDS_DIR" "$KFMON_CFG_DIR" "$ICON_DIR"
 install -m 0755 "$WORK/espresso"            "$ADDS_DIR/espresso"
 install -m 0755 "$WORK/fbink"               "$ADDS_DIR/fbink"
 install -m 0755 "$PROJECT_DIR/kfmon/run.sh" "$ADDS_DIR/run.sh"
-cp "$WORK/icon.png"                         "$ICON_DIR/espresso.png"
+# Vervang het tegel-icoon NIET als het er al staat: een nieuw bestand krijgt een
+# nieuwe inode, en dan is KFMon's inotify-watch (van de laatste boot) ongeldig →
+# de tegel vuurt niet meer af tot een reboot. Behouden = watch blijft geldig, dus
+# code-updates vereisen geen reboot meer. Icoon vernieuwen? Verwijder het bestand.
+if [ -f "$ICON_DIR/espresso.png" ]; then
+  ok "tegel-icoon behouden (KFMon-watch blijft geldig)"
+else
+  cp "$WORK/icon.png" "$ICON_DIR/espresso.png"
+  ok "tegel-icoon geplaatst"
+fi
 cp "$PROJECT_DIR/kfmon/espresso.ini"        "$KFMON_CFG_DIR/espresso.ini"
 # On-device helper scripts (probe + kiosk), ready to run over SSH.
 for s in probe.sh kiosk-probe.sh kiosk-install.sh kiosk-uninstall.sh; do
