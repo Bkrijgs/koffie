@@ -6,4 +6,6 @@ DIR="$(dirname "$0")"
 cd "$DIR" || exit 1
 
 # Give the binary its own working dir + device profile (written by probe.sh).
-exec ./espresso -device "$DIR/device.conf" >>"$DIR/espresso.run.log" 2>&1
+# -wall = always-on wall display: never auto-close, refresh itself hourly, and
+# hold the last frame if a refresh fails. Power-cycle returns to Nickel.
+exec ./espresso -device "$DIR/device.conf" -wall >>"$DIR/espresso.run.log" 2>&1

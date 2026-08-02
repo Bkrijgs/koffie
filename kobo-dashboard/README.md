@@ -33,6 +33,32 @@ sh /mnt/onboard/.adds/espresso/probe.sh    # of: scp probe.sh erheen en draai 'm
 Zonder `device.conf` gebruikt de app de Aura-HD-defaults. Landen taps op de
 verkeerde plek, pas dan `TOUCH_SWAP_XY` / `TOUCH_INVERT_*` in `device.conf` aan.
 
+## Wanddisplay-modus (`-wall`)
+
+Voor een vast, altijd-aan paneel op de machine (aan de stroom) start de launcher
+de app met **`-wall`**:
+
+- **Sluit nooit vanzelf af** (geen 5-min idle-timeout).
+- **Ververst zichzelf** elk uur, en zet daarvoor best-effort de wifi even aan
+  (hergebruikt KOReader/KFMon's `enable-wifi.sh`).
+- **Houdt het laatste dashboard vast** als een verversing faalt (cache), dus je
+  blijft nooit op een leeg laadscherm hangen.
+- Terug naar Nickel = **power-cycle** (geen boot-hook, dus altijd veilig).
+
+## Draadloos updaten (zonder USB)
+
+Voor een ingeklikt wanddisplay is USB onhandig. Update over wifi via SSH:
+
+```sh
+# start eenmalig KOReader's SSH-server (Menu → SSH server) en lees IP + poort af,
+# daarna op de Mac:
+./kobo-dashboard/scripts/deploy-ssh.sh <kobo-ip>
+```
+
+Dat cross-compileert, pusht de nieuwe binary + launcher over wifi (met `cat`
+over SSH, dus geen scp op het toestel nodig) en herstart de app in
+wanddisplay-modus.
+
 ## Vastgelopen kiosk herstellen
 
 De kiosk heeft meerdere **touch-vrije** uitwegen terug naar Nickel:

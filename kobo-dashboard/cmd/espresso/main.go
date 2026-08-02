@@ -10,8 +10,11 @@ import (
 	"fmt"
 	"image"
 	"log"
+	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/bkrijgs/koffie/kobo-dashboard/internal/config"
@@ -37,6 +40,7 @@ func main() {
 		fixtureBeans = flag.String("fixture-beans", "", "PostgREST beans JSON file (offline preview)")
 		fixtureShots = flag.String("fixture-shots", "", "PostgREST shots JSON file (offline preview)")
 		kiosk        = flag.Bool("kiosk", false, "kiosk mode: never auto-exit; hold the screen (boot-to-dashboard)")
+		wall         = flag.Bool("wall", false, "wall-display mode: never exit, refresh periodically (always-on, plugged-in panel)")
 		touchtest    = flag.Bool("touchtest", false, "print touch taps (calibration) and exit")
 	)
 	flag.Parse()
@@ -68,6 +72,7 @@ func main() {
 		fixtureBeans: *fixtureBeans,
 		fixtureShots: *fixtureShots,
 		kiosk:        *kiosk,
+		wall:         *wall,
 	}
 	if err := run(opts); err != nil {
 		log.Printf("fatal: %v", err)
@@ -85,6 +90,7 @@ type runOpts struct {
 	month                      string
 	fixtureBeans, fixtureShots string
 	kiosk                      bool
+	wall                       bool
 }
 
 // resolveFBInk returns an fbink wrapper, preferring the configured binary but
@@ -118,8 +124,23 @@ func run(o runOpts) error {
 		}
 	}
 
+	live := o.fixtureBeans == "" && o.fixtureShots == ""
+
+	// Wall display: bring wifi up before the first fetch so a plugged-in panel
+	// that's been idle can still reach Supabase.
+	if o.wall && !o.preview && live {
+		wifiUp(o.dev)
+	}
+
 	snap, err := loadData(o)
 	if err != nil {
+		// A wall display must never die on a cold start with no cache: show the
+		// error, then enter the loop, which keeps retrying until data arrives.
+		if o.wall && !o.preview {
+			showError(o.dev, o.out, err)
+			(&app{o: o, snap: snap, month: pickMonth(o.month, nil), fb: fb}).wallLoop()
+			return nil
+		}
 		return err
 	}
 	log.Printf("data: %d beans, %d shots (stale=%v)", len(snap.Beans), len(snap.Shots), snap.Stale)
@@ -133,7 +154,11 @@ func run(o runOpts) error {
 		return nil
 	}
 	// Fixture runs are non-interactive (dev machine has no touch panel).
-	if o.fixtureBeans != "" || o.fixtureShots != "" {
+	if !live {
+		return nil
+	}
+	if o.wall {
+		a.wallLoop()
 		return nil
 	}
 	a.loop()
@@ -272,6 +297,111 @@ func (a *app) loop() {
 			}
 		}
 	}
+}
+
+// wallLoop runs the dashboard as an always-on wall display (a plugged-in panel
+// on the machine). Unlike the interactive loop it NEVER exits on idle and NEVER
+// exits when touch is missing: it just re-fetches on a timer and re-renders,
+// holding the last good frame when a refresh fails. The only way back to Nickel
+// is a power-cycle — no boot hook is involved, so that stays safe.
+func (a *app) wallLoop() {
+	const refreshEvery = time.Hour
+
+	// Touch is a bonus here (month nav / manual refresh), never a requirement.
+	var taps <-chan input.Tap
+	if reader, err := input.Open(a.o.dev); err == nil {
+		defer reader.Close()
+		taps = reader.Taps()
+	} else {
+		log.Printf("wall: touch unavailable (%v); running refresh-only", err)
+	}
+
+	hb := render.DashboardHitboxes()
+	ticker := time.NewTicker(refreshEvery)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			a.safeRefresh()
+		case tap, ok := <-taps:
+			if !ok {
+				taps = nil // touch reader died; keep the panel running anyway
+				continue
+			}
+			p := image.Pt(tap.X, tap.Y)
+			first, last, hasData := stats.DataRange(a.snap.Shots)
+			switch {
+			case p.In(hb.Refresh):
+				a.safeRefresh()
+			case p.In(hb.Prev) && hasData && first.Before(a.month):
+				a.month = a.month.Add(-1)
+				_ = a.renderShow()
+			case p.In(hb.Next) && hasData && a.month.Before(last):
+				a.month = a.month.Add(1)
+				_ = a.renderShow()
+			}
+		}
+	}
+}
+
+// safeRefresh re-fetches and re-renders, recovering from any panic so a single
+// bad refresh can never take down an always-on wall display.
+func (a *app) safeRefresh() {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("wall: refresh panicked: %v", r)
+		}
+	}()
+	wifiUp(a.o.dev)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	client := supa.New(config.SupabaseURL, config.SupabaseAnonKey, 25*time.Second)
+	if snap, err := supa.Load(ctx, client, a.o.dev.DataDir); err == nil {
+		a.snap = snap
+	} else {
+		log.Printf("wall: refresh failed (%v); keeping last frame", err)
+	}
+	_ = a.renderShow()
+}
+
+// wifiUp best-effort brings the Kobo wifi online before a fetch, reusing the
+// enable-wifi scripts KOReader/KFMon already ship. It never blocks for long and
+// never fails the caller: if wifi can't be brought up, the fetch simply falls
+// back to the cached snapshot.
+func wifiUp(dev config.Device) {
+	host := strings.TrimPrefix(strings.TrimPrefix(config.SupabaseURL, "https://"), "http://")
+	addr := net.JoinHostPort(host, "443")
+
+	reachable := func() bool {
+		c, err := net.DialTimeout("tcp", addr, 3*time.Second)
+		if err != nil {
+			return false
+		}
+		_ = c.Close()
+		return true
+	}
+	if reachable() { // already online — don't touch the radio
+		return
+	}
+	for _, s := range []string{
+		"/mnt/onboard/.adds/koreader/enable-wifi.sh",
+		"/mnt/onboard/.adds/kfmon/bin/enable-wifi.sh",
+	} {
+		if _, err := os.Stat(s); err != nil {
+			continue
+		}
+		log.Printf("wall: bringing wifi up via %s", s)
+		_ = exec.Command("/bin/sh", s).Run()
+		for i := 0; i < 8; i++ { // wait up to ~16s for association + DHCP
+			if reachable() {
+				return
+			}
+			time.Sleep(2 * time.Second)
+		}
+		return
+	}
+	log.Printf("wall: no enable-wifi script found; relying on existing connection")
 }
 
 // runTouchTest opens the touch panel and prints each tap (mapped to screen
