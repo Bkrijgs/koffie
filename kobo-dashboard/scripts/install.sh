@@ -111,6 +111,14 @@ else
   ok "tegel-icoon geplaatst"
 fi
 cp "$PROJECT_DIR/kfmon/espresso.ini"        "$KFMON_CFG_DIR/espresso.ini"
+# NickelMenu entry — a KFMon-independent launcher. Works even when KFMon isn't
+# running (its IPC socket /tmp/kfmon-ipc.ctl is missing), so the dashboard can
+# always be started from Nickel's own menu.
+if [ -f "$PROJECT_DIR/nm/espresso" ]; then
+  mkdir -p "$KOBO_MOUNT/.adds/nm"
+  cp "$PROJECT_DIR/nm/espresso" "$KOBO_MOUNT/.adds/nm/espresso"
+  ok "NickelMenu-entry geplaatst"
+fi
 # On-device helper scripts (probe + kiosk), ready to run over SSH.
 for s in probe.sh kiosk-probe.sh kiosk-install.sh kiosk-uninstall.sh; do
   [ -f "$PROJECT_DIR/scripts/$s" ] && install -m 0755 "$PROJECT_DIR/scripts/$s" "$ADDS_DIR/$s"
