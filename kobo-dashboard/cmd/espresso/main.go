@@ -163,7 +163,12 @@ func run(o runOpts) error {
 
 	a := &app{o: o, snap: snap, month: pickMonth(o.month, snap.Shots), fb: fb}
 	if err := a.renderShow(); err != nil {
-		return err
+		// A wall display must not die on a transient render hiccup: log it and
+		// let the loop retry. Only the one-shot/interactive paths surface it.
+		if !o.wall || o.preview {
+			return err
+		}
+		log.Printf("wall: initial render failed (%v); entering loop anyway", err)
 	}
 	if o.preview {
 		fmt.Println(o.out)
@@ -321,8 +326,6 @@ func (a *app) loop() {
 // holding the last good frame when a refresh fails. The only way back to Nickel
 // is a power-cycle — no boot hook is involved, so that stays safe.
 func (a *app) wallLoop() {
-	const refreshEvery = time.Hour
-
 	// Touch is a bonus here (month nav / manual refresh), never a requirement.
 	var taps <-chan input.Tap
 	if reader, err := input.Open(a.o.dev); err == nil {
@@ -333,13 +336,21 @@ func (a *app) wallLoop() {
 	}
 
 	hb := render.DashboardHitboxes()
-	ticker := time.NewTicker(refreshEvery)
-	defer ticker.Stop()
+
+	// Draw whatever we already have immediately (data, or the error/last frame),
+	// so a failed pre-loop render never leaves a stale splash on screen.
+	_ = a.renderShow()
+
+	// Adaptive cadence: while we have no data yet (cold start, wifi still coming
+	// up) retry every couple of minutes; once data is in, settle to hourly.
+	timer := time.NewTimer(a.wallInterval())
+	defer timer.Stop()
 
 	for {
 		select {
-		case <-ticker.C:
+		case <-timer.C:
 			a.safeRefresh()
+			timer.Reset(a.wallInterval())
 		case tap, ok := <-taps:
 			if !ok {
 				taps = nil // touch reader died; keep the panel running anyway
@@ -350,6 +361,7 @@ func (a *app) wallLoop() {
 			switch {
 			case p.In(hb.Refresh):
 				a.safeRefresh()
+				timer.Reset(a.wallInterval())
 			case p.In(hb.Prev) && hasData && first.Before(a.month):
 				a.month = a.month.Add(-1)
 				_ = a.renderShow()
@@ -359,6 +371,15 @@ func (a *app) wallLoop() {
 			}
 		}
 	}
+}
+
+// wallInterval refreshes soon while there's still no data to show (cold start /
+// wifi warming up), then relaxes to hourly once the dashboard has shots.
+func (a *app) wallInterval() time.Duration {
+	if len(a.snap.Shots) == 0 {
+		return 2 * time.Minute
+	}
+	return time.Hour
 }
 
 // safeRefresh re-fetches and re-renders, recovering from any panic so a single
