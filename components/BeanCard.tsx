@@ -20,7 +20,8 @@ type Props = {
 
 export function BeanCard({ bean, shots }: Props) {
   const effective = effectiveShots(shots);
-  const dialInCount = shots.length - effective.length;
+  const draftCount = shots.filter((s) => s.draft).length;
+  const dialInCount = shots.filter((s) => s.dialIn && !s.draft).length;
   const avg = average(effective.map((s) => s.rating));
   const perKg = pricePerKg(bean);
   const starCost =
@@ -54,6 +55,11 @@ export function BeanCard({ bean, shots }: Props) {
           {dialInCount > 0 && (
             <span className="block text-[10px] text-ink-300">
               {dialInCount} dial-in
+            </span>
+          )}
+          {draftCount > 0 && (
+            <span className="block text-[10px] text-gold-500">
+              {draftCount} concept
             </span>
           )}
         </span>

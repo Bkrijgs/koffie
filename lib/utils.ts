@@ -1,12 +1,20 @@
 import type { Bean, ShotLog } from "./types";
 
 /**
- * Filter out shots that the user marked as a dial-in attempt. Use this
- * everywhere we aggregate or sort by rating so dial-in shots stay
- * visible in lists but never skew averages, top-shot detection or trends.
+ * Filter out shots that the user marked as a dial-in attempt, plus concepten
+ * waarvan de rating nog moet komen. Use this everywhere we aggregate or sort
+ * by rating so die shots zichtbaar blijven in lijsten maar nooit gemiddeldes,
+ * top-shot detectie of trends vertekenen.
  */
 export function effectiveShots(shots: ShotLog[]): ShotLog[] {
-  return shots.filter((s) => !s.dialIn);
+  return shots.filter((s) => !s.dialIn && !s.draft);
+}
+
+/** Concepten: gelogd, maar de rating volgt nog. Nieuwste eerst. */
+export function draftShots(shots: ShotLog[]): ShotLog[] {
+  return shots
+    .filter((s) => s.draft)
+    .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
 }
 
 export function uid(): string {

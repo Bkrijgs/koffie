@@ -177,8 +177,10 @@ local function computeStats(shots)
             bean_counts[bn] = (bean_counts[bn] or 0) + 1
         end
         if not s.dial_in then
+            -- Concepten (draft) hebben nog geen rating: rating 0 zou het
+            -- gemiddelde omlaag trekken en als 1 ster in het histogram belanden.
             local r = tonumber(s.rating)
-            if r then
+            if r and r > 0 and not s.draft then
                 table.insert(r_vals, r)
                 table.insert(ratings_desc, r)
                 local b = math.floor(r + 0.5)
@@ -232,7 +234,7 @@ end
 
 local function buildUrl()
     local sel = "created_at,dose_grams,yield_grams,brew_ratio,grind_size,"
-        .. "extraction_time_seconds,rating,dial_in,notes,next_adjustment,tags,"
+        .. "extraction_time_seconds,rating,dial_in,draft,notes,next_adjustment,tags,"
         .. "beans(name,roaster)"
     return string.format("%s/rest/v1/%s?select=%s&order=created_at.desc&limit=%d",
         CONFIG.base_url, CONFIG.table, sel, CONFIG.fetch_limit)
@@ -519,12 +521,20 @@ local function showShotDetail(s)
     add(TextWidget:new{ text = fmtDateTime(s.created_at), face = FACE_SMALL, fgcolor = GRAY66 })
     gap(10)
 
-    if r then
+    if r and r > 0 then
         add(TextWidget:new{ text = starStr(r), face = FACE_STARS })
         add(VerticalSpan:new{ width = dp(2) })
         add(TextWidget:new{ text = string.format("%s / 5", num(r)), face = FACE_SMALL, fgcolor = GRAY66 })
     else
-        add(TextWidget:new{ text = "geen rating", face = FACE_SMALL, fgcolor = GRAY66 })
+        add(TextWidget:new{
+            text = s.draft and "rating volgt nog" or "geen rating",
+            face = FACE_SMALL, fgcolor = GRAY66 })
+    end
+    if s.draft then
+        gap(6)
+        add(FrameContainer:new{ bordersize = dp(1), radius = dp(8), padding = dp(4),
+            background = Blitbuffer.Color8(0xDD),
+            TextWidget:new{ text = "concept", face = FACE_SMALL } })
     end
     if s.dial_in then
         gap(6)
@@ -596,8 +606,8 @@ function ShotCard:init()
     self.ges_events.Tap = { GestureRange:new{ ges = "tap", range = self.dimen } }
     local s = self.shot
     local r = tonumber(s.rating)
-    local rstr = r and string.format("%.1f★", r) or "—"
-    local dial = s.dial_in and "  (dial-in)" or ""
+    local rstr = (r and r > 0) and string.format("%.1f★", r) or "—"
+    local dial = s.dial_in and "  (dial-in)" or (s.draft and "  (concept)" or "")
     local ratio = tonumber(s.brew_ratio)
     local rt = ratio and string.format("1:%.1f", ratio) or "?"
     local bean = (type(s.beans) == "table" and s.beans.name) or "?"

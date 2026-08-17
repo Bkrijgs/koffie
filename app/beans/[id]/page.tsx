@@ -43,9 +43,11 @@ export default function BeanDetailPage() {
   const sorted = useMemo(() => {
     const arr = [...beanShots];
     if (sortBy === "rating") {
+      // Shots zonder meetellende rating (dial-in, concept) zakken naar onder.
+      const pending = (s: ShotLog) => (s.dialIn || s.draft ? 1 : 0);
       arr.sort(
         (a, b) =>
-          (a.dialIn ? 1 : 0) - (b.dialIn ? 1 : 0) ||
+          pending(a) - pending(b) ||
           b.rating - a.rating ||
           +new Date(b.createdAt) - +new Date(a.createdAt),
       );
@@ -70,7 +72,15 @@ export default function BeanDetailPage() {
   }
 
   const effective = effectiveShots(beanShots);
-  const dialInCount = beanShots.length - effective.length;
+  const draftCount = beanShots.filter((s) => s.draft).length;
+  const dialInCount = beanShots.filter((s) => s.dialIn && !s.draft).length;
+  const pendingLabel =
+    [
+      dialInCount > 0 ? `${dialInCount} dial-in` : null,
+      draftCount > 0 ? `${draftCount} concept` : null,
+    ]
+      .filter(Boolean)
+      .join(" · ") || undefined;
   const avg = average(effective.map((s) => s.rating));
   const perKg = pricePerKg(bean);
   const avgCostPerShot =
@@ -129,7 +139,7 @@ export default function BeanDetailPage() {
           <Meta
             label="Shots"
             value={String(beanShots.length)}
-            sub={dialInCount > 0 ? `${dialInCount} dial-in` : undefined}
+            sub={pendingLabel}
             numeric
           />
           <Meta

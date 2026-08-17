@@ -42,12 +42,16 @@ const SHOTS_KEY = "koffie:shots:v1";
 const BAGS_KEY = "koffie:bags:v1";
 const SETUP_KEY = "koffie:setup:v1";
 
-/** Oudere shots hadden grindSize als string. Bij het lezen normaliseren we
- *  naar een getal zodat de rest van de app er consistent mee kan rekenen. */
+/** Oudere shots hadden grindSize als string en kenden nog geen concept-vlag.
+ *  Bij het lezen normaliseren we beide zodat de rest van de app er consistent
+ *  mee kan rekenen. */
 function normalizeShot(s: ShotLog): ShotLog {
-  if (typeof s.grindSize === "number") return s;
+  const draft = s.draft ?? false;
+  if (typeof s.grindSize === "number") {
+    return s.draft === undefined ? { ...s, draft } : s;
+  }
   const parsed = parseFloat(String(s.grindSize));
-  return { ...s, grindSize: Number.isFinite(parsed) ? parsed : 5 };
+  return { ...s, draft, grindSize: Number.isFinite(parsed) ? parsed : 5 };
 }
 
 /** Bonen die zijn opgeslagen vóór de voorraad-feature hebben geen inStock-veld.
@@ -117,6 +121,7 @@ export const localStorageBackend: KoffieStorage = {
       brewRatio: calcBrewRatio(input.yieldGrams, input.doseGrams),
       ...input,
       dialIn: input.dialIn ?? false,
+      draft: input.draft ?? false,
       tags: tags.length > 0 ? tags : undefined,
     };
     const all = read<ShotLog>(SHOTS_KEY);
@@ -134,6 +139,7 @@ export const localStorageBackend: KoffieStorage = {
       ...input,
       brewRatio: calcBrewRatio(input.yieldGrams, input.doseGrams),
       dialIn: input.dialIn ?? false,
+      draft: input.draft ?? false,
       tags: tags.length > 0 ? tags : undefined,
     };
     all[idx] = updated;
@@ -224,6 +230,7 @@ type ShotRow = {
   next_adjustment: string | null;
   rating: number;
   dial_in: boolean | null;
+  draft: boolean | null;
   tags: string[] | null;
   created_at: string;
 };
@@ -286,6 +293,7 @@ function shotFromRow(row: ShotRow): ShotLog {
     nextAdjustment: row.next_adjustment ?? undefined,
     rating: Number(row.rating) as ShotLog["rating"],
     dialIn: row.dial_in ?? false,
+    draft: row.draft ?? false,
     tags: tags.length > 0 ? tags : undefined,
     createdAt: row.created_at,
   };
@@ -375,6 +383,7 @@ export const supabaseBackend: KoffieStorage = {
         next_adjustment: input.nextAdjustment ?? null,
         rating: input.rating,
         dial_in: input.dialIn ?? false,
+        draft: input.draft ?? false,
         tags: sanitizeTags(input.tags),
       })
       .select("*")
@@ -397,6 +406,7 @@ export const supabaseBackend: KoffieStorage = {
         next_adjustment: input.nextAdjustment ?? null,
         rating: input.rating,
         dial_in: input.dialIn ?? false,
+        draft: input.draft ?? false,
         tags: sanitizeTags(input.tags),
       })
       .eq("id", id)

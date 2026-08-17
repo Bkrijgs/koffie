@@ -46,9 +46,12 @@ export type ShotLog = {
   extractionTimeSeconds: number;
   notes?: string;
   nextAdjustment?: string;
-  /** 0 alleen toegestaan voor dial-in shots zonder rating. */
+  /** 0 alleen toegestaan voor concept- en dial-in shots zonder rating. */
   rating: Rating | 0;
   dialIn: boolean;
+  /** Concept: shot is gelogd, de rating volgt nog. Telt tot die tijd niet
+   *  mee in gemiddeldes, top-shots, trends of de coach. */
+  draft: boolean;
   tags?: string[];
 };
 

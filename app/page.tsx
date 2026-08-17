@@ -10,6 +10,7 @@ import { ShotHeatmap } from "@/components/ShotHeatmap";
 import { BootSplash } from "@/components/BootSplash";
 import {
   average,
+  draftShots,
   effectiveShots,
   formatDateOnly,
   formatEuro,
@@ -56,7 +57,8 @@ export default function DashboardPage() {
           (a, b) => +new Date(b.createdAt) - +new Date(a.createdAt),
         )
     : [];
-  const dialInCount = shots.length - effective.length;
+  const drafts = draftShots(shots);
+  const dialInCount = shots.filter((s) => s.dialIn && !s.draft).length;
   const recent = shots.slice(0, 5);
   const top = [...effective]
     .sort((a, b) => {
@@ -92,7 +94,14 @@ export default function DashboardPage() {
           <CountStat
             label="Shots"
             target={shots.length}
-            sub={dialInCount > 0 ? `${dialInCount} dial-in` : undefined}
+            sub={
+              [
+                dialInCount > 0 ? `${dialInCount} dial-in` : null,
+                drafts.length > 0 ? `${drafts.length} concept` : null,
+              ]
+                .filter(Boolean)
+                .join(" · ") || undefined
+            }
             delay={countDelay}
           />
           <CountStat label="Bonen" target={beans.length} delay={countDelay} />
@@ -113,6 +122,28 @@ export default function DashboardPage() {
               delay={countDelay}
             />
           </Link>
+        </section>
+      )}
+
+      {drafts.length > 0 && (
+        <section>
+          <SectionHeader
+            title="Concepten"
+            action={
+              <span className="numeric text-ink-300">
+                {drafts.length} zonder rating
+              </span>
+            }
+          />
+          <p className="-mt-2 mb-4 text-sm text-ink-400">
+            Deze shots zijn gelogd maar tellen nog niet mee. Tik erop om de
+            rating aan te vullen.
+          </p>
+          <div className="space-y-3">
+            {drafts.map((s) => (
+              <ShotCard key={s.id} shot={s} bean={beanById.get(s.beanId)} />
+            ))}
+          </div>
         </section>
       )}
 

@@ -89,7 +89,7 @@ export async function GET(req: NextRequest) {
 
 <div class="field">
 <label class="fld" for="rating">Rating</label>
-<select id="rating" name="rating"><option value="0">— (geen / dial-in)</option>${ratingOptions}</select>
+<select id="rating" name="rating"><option value="0">— (nog geen rating)</option>${ratingOptions}</select>
 </div>
 
 <div class="field"><label class="check"><input type="checkbox" name="dialIn" value="1">Dial-in shot (telt niet mee in gemiddeldes)</label></div>
@@ -100,6 +100,8 @@ export async function GET(req: NextRequest) {
 </div>
 
 <button type="submit" class="btn btn-block">Opslaan</button>
+<button type="submit" name="action" value="draft" class="btn btn-light btn-block" style="margin-top:10px">Concept opslaan</button>
+<p class="hint" style="margin-top:8px">Concept: bewaart de shot zonder rating, die vul je later in de app aan.</p>
 </form>`;
 
   return htmlPage("Shot loggen · Kobo", top + errorHtml + form);

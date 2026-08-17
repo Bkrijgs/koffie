@@ -42,6 +42,11 @@ Open <http://localhost:3000>.
 > Zonder env-vars valt de app automatisch terug op `localStorage`, zodat
 > previews ook werken zonder Supabase-config.
 
+Draaide je het schema eerder al? Voer dan ook de latere migraties in
+`supabase/migrations/` op volgorde uit (ze zijn idempotent). Voor
+concept-shots is `0009_draft_shots.sql` nodig: die voegt de `draft`-kolom toe
+en staat `rating = 0` toe voor concept- en dial-in shots.
+
 ## Data persistence
 
 De storage-laag zit achter de `KoffieStorage` interface in

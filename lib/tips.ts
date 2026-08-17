@@ -681,7 +681,8 @@ export function tipsForShot(
   const effectiveBeanShots = effectiveShots(beanShots);
   if (bean && effectiveBeanShots.length >= 3) {
     const others = effectiveBeanShots.filter((s) => s.id !== shot.id);
-    if (others.length > 0 && !shot.dialIn) {
+    // Zonder eigen rating (concept) valt er niets te vergelijken.
+    if (others.length > 0 && !shot.dialIn && shot.rating > 0) {
       const avg = average(others.map((s) => s.rating));
       if (shot.rating - avg >= 1) {
         tips.push({

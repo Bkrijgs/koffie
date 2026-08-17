@@ -70,7 +70,7 @@ export default function EditShotPage() {
         ← Boon
       </Link>
       <h1 className="font-display text-3xl tracking-tighter2 text-ink-800 sm:text-4xl">
-        Shot bewerken
+        {shot.draft ? "Concept afmaken" : "Shot bewerken"}
       </h1>
       {bean?.caffeineMgPerGram !== undefined && (
         <p className="numeric text-sm text-ink-400">

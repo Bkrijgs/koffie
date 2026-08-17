@@ -29,6 +29,9 @@ export async function POST(req: NextRequest) {
   const extractionTimeSeconds = parseInt(get("extractionTimeSeconds"), 10);
   const ratingRaw = parseFloat(get("rating"));
   const dialIn = get("dialIn") === "1";
+  // De "Concept opslaan"-knop stuurt action=draft mee: shot bewaren terwijl
+  // de rating nog volgt.
+  const asDraft = get("action") === "draft";
   const notes = get("notes");
   const nextAdjustment = get("nextAdjustment");
 
@@ -40,8 +43,10 @@ export async function POST(req: NextRequest) {
     return fail("Tijd vereist");
   }
   const rating = (isFinite(ratingRaw) ? ratingRaw : 0) as Rating | 0;
-  if (!dialIn && !rating) {
-    return fail("Geef een rating, of vink 'dial-in shot' aan");
+  if (!asDraft && !dialIn && !rating) {
+    return fail(
+      "Geef een rating, vink 'dial-in shot' aan, of sla 'm op als concept",
+    );
   }
 
   const input: ShotInput = {
@@ -52,6 +57,7 @@ export async function POST(req: NextRequest) {
     extractionTimeSeconds,
     rating,
     dialIn,
+    draft: asDraft,
     notes: notes || undefined,
     nextAdjustment: nextAdjustment || undefined,
     tags: undefined,

@@ -80,6 +80,7 @@ export async function GET() {
         .map((s) => {
           const name =
             (beanById.get(s.beanId)?.name ?? "Onbekende boon") +
+            (s.draft ? " · concept" : "") +
             (s.dialIn ? " · dial-in" : "");
           return `<li>
 <div class="row-between"><span class="name small">${esc(name)}</span><span class="muted small">${esc(formatDateOnly(s.createdAt))}</span></div>
