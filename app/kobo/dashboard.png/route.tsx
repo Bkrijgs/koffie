@@ -23,7 +23,11 @@ const RULE = "#000000";
 const FILL = "#e2e2e2";
 
 const TZ = "Europe/Amsterdam";
-const DAYS_IN_STRIP = 28;
+/** Alles op dit scherm gaat over dit venster: de tegels, de activiteitsstrip
+ *  en het beste recept. Levenslange totalen bewegen nauwelijks, en het zijn
+ *  juist de grootste cijfers op het scherm — die horen iets te zeggen over
+ *  hoe je er nú voor staat. */
+const WINDOW_DAYS = 30;
 const STRIP_HEIGHT = 82;
 /** Staafjes met een shot worden nooit lager dan dit, anders past het aantal
  *  er niet leesbaar in. */
@@ -128,38 +132,52 @@ function png(element: JSX.Element): ImageResponse {
 function Dashboard({ beans, shots, bags }: Data) {
   const now = Date.now();
   const beanById = new Map(beans.map((b) => [b.id, b]));
-  const effective = effectiveShots(shots);
-  const avgRating = average(effective.map((s) => s.rating));
-  const dialInCount = shots.filter((s) => s.dialIn).length;
-  const draftCount = shots.filter((s) => s.draft).length;
-  const excluded = [
-    dialInCount > 0 ? `${dialInCount} dial-in` : null,
-    draftCount > 0 ? `${draftCount} concept` : null,
-  ].filter(Boolean);
 
   const recent = shots.slice(0, MAX_RECENT);
-  const best = [...effective].sort((a, b) => {
-    if (b.rating !== a.rating) return b.rating - a.rating;
-    return +new Date(b.createdAt) - +new Date(a.createdAt);
-  })[0];
-
   const last = shots[0];
   const currentBean = beanById.get(last.beanId);
   const currentBag = currentBean ? openBagFor(currentBean.id, bags) : undefined;
   const stats = currentBag ? bagStats(currentBag, shots) : null;
 
-  // Activiteit: shots per dag over de laatste 28 dagen, oudste links.
+  // Activiteit: shots per dag over het venster, oudste links.
   const perDay = new Map<string, number>();
   for (const s of shots) {
     const key = dateKey(s.createdAt);
     perDay.set(key, (perDay.get(key) ?? 0) + 1);
   }
-  const strip = Array.from({ length: DAYS_IN_STRIP }, (_, i) => {
-    const key = dateKey(new Date(now - (DAYS_IN_STRIP - 1 - i) * 86400000));
+  const strip = Array.from({ length: WINDOW_DAYS }, (_, i) => {
+    const key = dateKey(new Date(now - (WINDOW_DAYS - 1 - i) * 86400000));
     return { key, count: perDay.get(key) ?? 0 };
   });
   const peak = Math.max(1, ...strip.map((d) => d.count));
   const last7 = strip.slice(-7).reduce((sum, d) => sum + d.count, 0);
+
+  // De tegels rekenen over exact dezelfde dagen als de strip: filteren op de
+  // dagsleutels die de strip al heeft opgebouwd, i.p.v. op een losse
+  // tijdstempel-drempel. Anders lopen tegels en staafjes een dag uit de pas
+  // rond middernacht en bij zomertijd.
+  const windowKeys = new Set(strip.map((d) => d.key));
+  const windowShots = shots.filter((s) => windowKeys.has(dateKey(s.createdAt)));
+  const windowEffective = effectiveShots(windowShots);
+  const avgRating = average(windowEffective.map((s) => s.rating));
+  const beansUsed = new Set(windowShots.map((s) => s.beanId)).size;
+
+  const dialInCount = windowShots.filter((s) => s.dialIn && !s.draft).length;
+  const draftCount = windowShots.filter((s) => s.draft).length;
+  const excluded = [
+    dialInCount > 0 ? `${dialInCount} dial-in` : null,
+    draftCount > 0 ? `${draftCount} concept` : null,
+  ].filter(Boolean);
+
+  const best = [...windowEffective].sort((a, b) => {
+    if (b.rating !== a.rating) return b.rating - a.rating;
+    return +new Date(b.createdAt) - +new Date(a.createdAt);
+  })[0];
+
+  // Wel shots, maar geen enkele in het venster: dan is "0" misleidend en een
+  // foutmelding overdreven. Streepje, met wanneer je voor het laatst zette.
+  const idle = windowShots.length === 0;
+  const idleSub = `laatst ${safe(whenLabel(last, now))}`;
 
   const updated = new Date(now).toLocaleString("nl-NL", {
     timeZone: TZ,
@@ -184,23 +202,35 @@ function Dashboard({ beans, shots, bags }: Data) {
         }}
       >
         <Stat
-          label="Shots"
-          value={String(shots.length)}
-          sub={excluded.length > 0 ? excluded.join(" • ") : "alle beoordeeld"}
+          label={`Shots · ${WINDOW_DAYS} dagen`}
+          value={idle ? "—" : String(windowShots.length)}
+          sub={
+            idle
+              ? idleSub
+              : excluded.length > 0
+                ? excluded.join(" • ")
+                : "alle beoordeeld"
+          }
         />
         <Stat
           label="Bonen"
-          value={String(beans.length)}
-          sub={`${last7} ${last7 === 1 ? "shot" : "shots"} deze week`}
+          value={idle ? "—" : String(beansUsed)}
+          sub={
+            idle
+              ? `${beans.length} in de kast`
+              : `${last7} ${last7 === 1 ? "shot" : "shots"} deze week`
+          }
           divider
         />
         <Stat
           label="Gem. rating"
-          value={effective.length > 0 ? nl(avgRating, 1) : "—"}
+          value={windowEffective.length > 0 ? nl(avgRating, 1) : "—"}
           sub={
-            effective.length > 0
-              ? `over ${effective.length} ${effective.length === 1 ? "shot" : "shots"}`
-              : "nog niets beoordeeld"
+            windowEffective.length > 0
+              ? `over ${windowEffective.length} ${windowEffective.length === 1 ? "shot" : "shots"}`
+              : idle
+                ? idleSub
+                : "nog niets beoordeeld"
           }
           divider
         />
@@ -271,7 +301,7 @@ function Dashboard({ beans, shots, bags }: Data) {
         )}
       </div>
 
-      <Section title={`Activiteit — ${DAYS_IN_STRIP} dagen`} />
+      <Section title={`Activiteit — ${WINDOW_DAYS} dagen`} />
       <div style={{ display: "flex", flexShrink: 0, alignItems: "flex-end", height: STRIP_HEIGHT }}>
         {strip.map((d, i) => (
           <div
@@ -344,7 +374,7 @@ function Dashboard({ beans, shots, bags }: Data) {
         {best ? (
           <div style={{ display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", fontSize: 20, letterSpacing: 3, color: MUTED }}>
-              {`BEST TOT NU TOE — ${nl(best.rating, 1)} VAN 5`}
+              {`BESTE · ${WINDOW_DAYS} DAGEN — ${nl(best.rating, 1)} VAN 5`}
             </div>
             <div style={{ display: "flex", marginTop: 10, fontSize: 30, fontWeight: 700 }}>
               {recipeLine(best)}
@@ -361,7 +391,7 @@ function Dashboard({ beans, shots, bags }: Data) {
         ) : (
           <div style={{ display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", fontSize: 20, letterSpacing: 3, color: MUTED }}>
-              BEST TOT NU TOE
+              {`BESTE · ${WINDOW_DAYS} DAGEN`}
             </div>
             <div style={{ display: "flex", marginTop: 10, fontSize: 30, fontWeight: 700 }}>
               Nog geen beoordeelde shot
@@ -601,7 +631,7 @@ function Stat({
       }}
     >
       <div style={{ display: "flex", fontSize: 20, letterSpacing: 3, color: MUTED }}>
-        {label.toUpperCase()}
+        {safe(label).toUpperCase()}
       </div>
       <div style={{ display: "flex", marginTop: 6, fontSize: 76, fontWeight: 700 }}>
         {value}
