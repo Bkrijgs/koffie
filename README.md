@@ -54,6 +54,27 @@ De storage-laag zit achter de `KoffieStorage` interface in
 `@supabase/supabase-js`; `localStorageBackend` is de fallback. De keuze
 gebeurt op basis van `isSupabaseConfigured` in `lib/supabase.ts`.
 
+## Espresso Compass
+
+De knop linksonder opent de *Espresso Compass* van
+[BaristaHustle](https://baristahustle.com) als pop-up: een naslagkaart die
+smaak uitzet tegen extractie en sterkte. Bewust een overlay en geen aparte
+pagina — je hebt hem nodig terwijl je een shot logt, en wegnavigeren vanuit
+`/shots/new` zou het half ingevulde formulier weggooien. Tik op de plaat om
+in te zoomen op het punt dat je aanraakt; Escape, de terugknop of een tik
+ernaast sluit hem weer.
+
+De plaat staat in `public/kompas/espresso-compass.webp` (2048 px breed,
+±240 kB). Opnieuw maken vanaf de bron-PDF:
+
+```bash
+pip install pillow pymupdf
+python3 scripts/make-kompas-asset.py ~/Downloads/EspressoCompass.pdf
+```
+
+In e-ink modus (`?eink=1`) blijft de knop verborgen: dat apparaat heeft geen
+werkende aanraking.
+
 ## Deploy
 
 Push naar GitHub, importeer in Vercel en zet de twee

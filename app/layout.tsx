@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { isSupabaseConfigured } from "@/lib/supabase";
+import { CompassPopup } from "@/components/CompassPopup";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -79,6 +80,8 @@ export default function RootLayout({
         </header>
 
         <main className="mx-auto max-w-3xl px-5 py-8 pb-24">{children}</main>
+
+        <CompassPopup />
 
         <footer className="mx-auto max-w-3xl px-5 py-10 text-center text-[11px] uppercase tracking-[0.18em] text-ink-300">
           {isSupabaseConfigured ? "Opgeslagen in Supabase" : "Lokaal opgeslagen"}

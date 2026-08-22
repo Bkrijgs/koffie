@@ -354,3 +354,9 @@ button {
 html.boot-seen .boot-splash {
   display: none;
 }
+
+/* De kompas-knop is een tikknop; de Kobo heeft geen werkende aanraking, dus
+   daar heeft hij niets te zoeken. */
+.eink .kompas-knop {
+  display: none;
+}
