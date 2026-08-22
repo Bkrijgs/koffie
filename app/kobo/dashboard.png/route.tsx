@@ -24,7 +24,10 @@ const FILL = "#e2e2e2";
 
 const TZ = "Europe/Amsterdam";
 const DAYS_IN_STRIP = 28;
-const STRIP_HEIGHT = 96;
+const STRIP_HEIGHT = 82;
+/** Staafjes met een shot worden nooit lager dan dit, anders past het aantal
+ *  er niet leesbaar in. */
+const BAR_MIN_HEIGHT = 34;
 const MAX_RECENT = 4;
 
 /** Tekens die het meegeleverde latin-lettertype van next/og wél kent:
@@ -140,7 +143,8 @@ function Dashboard({ beans, shots, bags }: Data) {
     return +new Date(b.createdAt) - +new Date(a.createdAt);
   })[0];
 
-  const currentBean = beanById.get(shots[0].beanId);
+  const last = shots[0];
+  const currentBean = beanById.get(last.beanId);
   const currentBag = currentBean ? openBagFor(currentBean.id, bags) : undefined;
   const stats = currentBag ? bagStats(currentBag, shots) : null;
 
@@ -174,7 +178,7 @@ function Dashboard({ beans, shots, bags }: Data) {
         style={{
           display: "flex",
           flexShrink: 0,
-          marginTop: 28,
+          marginTop: 22,
           borderTop: `3px solid ${RULE}`,
           borderBottom: `3px solid ${RULE}`,
         }}
@@ -202,32 +206,66 @@ function Dashboard({ beans, shots, bags }: Data) {
         />
       </div>
 
-      <Section title="In de maler" />
-      <div style={{ display: "flex", flexShrink: 0, flexDirection: "column" }}>
-        <div style={{ display: "flex", alignItems: "baseline" }}>
-          <div style={{ display: "flex", fontSize: 44, fontWeight: 700 }}>
-            {currentBean ? clip(currentBean.name, 26) : "Onbekende boon"}
+      <div
+        style={{
+          display: "flex",
+          flexShrink: 0,
+          flexDirection: "column",
+          marginTop: 18,
+          padding: 16,
+          border: `3px solid ${RULE}`,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            fontSize: 20,
+            letterSpacing: 3,
+            color: MUTED,
+          }}
+        >
+          <div style={{ display: "flex" }}>LAATST GEZET</div>
+          <div style={{ display: "flex" }}>{safe(whenLabel(last, now))}</div>
+        </div>
+
+        <div style={{ display: "flex", marginTop: 8, alignItems: "baseline" }}>
+          <div style={{ display: "flex", fontSize: 42, fontWeight: 700 }}>
+            {currentBean ? clip(currentBean.name, 24) : "Onbekende boon"}
           </div>
           {currentBean?.roaster ? (
-            <div
-              style={{
-                display: "flex",
-                marginLeft: 16,
-                fontSize: 26,
-                color: MUTED,
-              }}
-            >
-              {clip(currentBean.roaster, 20)}
+            <div style={{ display: "flex", marginLeft: 14, fontSize: 25, color: MUTED }}>
+              {clip(currentBean.roaster, 18)}
             </div>
           ) : null}
         </div>
-        <div style={{ display: "flex", marginTop: 8, fontSize: 26, color: MUTED }}>
+
+        <div
+          style={{
+            display: "flex",
+            marginTop: 8,
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <div style={{ display: "flex", fontSize: 25 }}>{recipeLine(last)}</div>
+          {last.draft || last.rating === 0 ? (
+            <div style={{ display: "flex", fontSize: 22, color: MUTED }}>
+              nog geen rating
+            </div>
+          ) : (
+            <Rating value={last.rating} />
+          )}
+        </div>
+
+        <div style={{ display: "flex", marginTop: 6, fontSize: 24, color: MUTED }}>
           {clip(beanMeta(currentBean, now), 62)}
         </div>
+
         {stats ? (
           <BagBar stats={stats} />
         ) : (
-          <div style={{ display: "flex", marginTop: 18, fontSize: 24, color: MUTED }}>
+          <div style={{ display: "flex", marginTop: 12, fontSize: 24, color: MUTED }}>
             Geen open zak geregistreerd.
           </div>
         )}
@@ -251,13 +289,32 @@ function Dashboard({ beans, shots, bags }: Data) {
             <div
               style={{
                 display: "flex",
+                justifyContent: "center",
+                paddingTop: 5,
                 height:
                   d.count === 0
                     ? 4
-                    : Math.max(14, Math.round((d.count / peak) * STRIP_HEIGHT)),
+                    : // ondergrens zodat het cijfer in de staaf past
+                      Math.max(
+                        BAR_MIN_HEIGHT,
+                        Math.round((d.count / peak) * STRIP_HEIGHT),
+                      ),
                 backgroundColor: d.count === 0 ? FILL : INK,
               }}
-            />
+            >
+              {d.count > 0 ? (
+                <div
+                  style={{
+                    display: "flex",
+                    fontSize: 18,
+                    fontWeight: 700,
+                    color: PAPER,
+                  }}
+                >
+                  {d.count}
+                </div>
+              ) : null}
+            </div>
           </div>
         ))}
       </div>
@@ -279,15 +336,15 @@ function Dashboard({ beans, shots, bags }: Data) {
           display: "flex",
           flexShrink: 0,
           flexDirection: "column",
-          marginTop: 12,
-          padding: 18,
+          marginTop: 10,
+          padding: 15,
           border: `3px solid ${RULE}`,
         }}
       >
         {best ? (
           <div style={{ display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", fontSize: 20, letterSpacing: 3, color: MUTED }}>
-              {`BESTE RECEPT — ${nl(best.rating, 1)} VAN 5`}
+              {`BEST TOT NU TOE — ${nl(best.rating, 1)} VAN 5`}
             </div>
             <div style={{ display: "flex", marginTop: 10, fontSize: 30, fontWeight: 700 }}>
               {recipeLine(best)}
@@ -304,7 +361,7 @@ function Dashboard({ beans, shots, bags }: Data) {
         ) : (
           <div style={{ display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", fontSize: 20, letterSpacing: 3, color: MUTED }}>
-              BESTE RECEPT
+              BEST TOT NU TOE
             </div>
             <div style={{ display: "flex", marginTop: 10, fontSize: 30, fontWeight: 700 }}>
               Nog geen beoordeelde shot
@@ -317,6 +374,20 @@ function Dashboard({ beans, shots, bags }: Data) {
       </div>
     </Frame>
   );
+}
+
+/** "vandaag 08:14" / "gisteren 08:14" / "3 dagen geleden" — voor de kop van
+ *  het laatst-gezet blok. */
+function whenLabel(shot: ShotLog, now: number): string {
+  const days = daysSince(shot.createdAt, now);
+  const clock = new Date(shot.createdAt).toLocaleTimeString("nl-NL", {
+    timeZone: TZ,
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  if (days <= 0) return `vandaag ${clock}`;
+  if (days === 1) return `gisteren ${clock}`;
+  return `${days} dagen geleden`;
 }
 
 function beanMeta(bean: Bean | undefined, now: number): string {
@@ -374,8 +445,8 @@ function ShotRow({
         alignItems: "center",
         justifyContent: "space-between",
         flexShrink: 0,
-        paddingTop: 12,
-        paddingBottom: 12,
+        paddingTop: 10,
+        paddingBottom: 10,
         borderBottom: `1px solid ${FILL}`,
       }}
     >
@@ -403,33 +474,56 @@ function ShotRow({
   );
 }
 
-/** Rating als vijf blokjes; een halve ster wordt een half gevuld blokje. */
+/** Vijfpuntige ster als pad; het lettertype van next/og heeft geen sterglyph,
+ *  dus tekenen we hem zelf. */
+const STAR_PATH =
+  "M12 1.6l3.2 6.5 7.2 1-5.2 5.1 1.2 7.2L12 18l-6.4 3.4 1.2-7.2L1.6 9.1l7.2-1z";
+const STAR_SIZE = 28;
+
+/** Eén ster, fill 0 = leeg, 0.5 = half, 1 = vol. De gevulde ster staat in een
+ *  smaller vakje met overflow hidden, zodat een halve ster echt half is. */
+function Star({ fill }: { fill: number }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        position: "relative",
+        width: STAR_SIZE,
+        height: STAR_SIZE,
+        marginLeft: 5,
+      }}
+    >
+      <svg width={STAR_SIZE} height={STAR_SIZE} viewBox="0 0 24 24">
+        <path d={STAR_PATH} fill="none" stroke={INK} strokeWidth="1.8" />
+      </svg>
+      {fill > 0 ? (
+        <div
+          style={{
+            display: "flex",
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: Math.round(STAR_SIZE * fill),
+            height: STAR_SIZE,
+            overflow: "hidden",
+          }}
+        >
+          <svg width={STAR_SIZE} height={STAR_SIZE} viewBox="0 0 24 24">
+            <path d={STAR_PATH} fill={INK} />
+          </svg>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** Rating als vijf sterren; halve ratings worden een halve ster. */
 function Rating({ value }: { value: number }) {
   return (
     <div style={{ display: "flex", alignItems: "center" }}>
-      {[0, 1, 2, 3, 4].map((i) => {
-        const filled = Math.max(0, Math.min(1, value - i));
-        return (
-          <div
-            key={i}
-            style={{
-              display: "flex",
-              width: 26,
-              height: 26,
-              marginLeft: 6,
-              border: `2px solid ${INK}`,
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                width: `${Math.round(filled * 100)}%`,
-                backgroundColor: INK,
-              }}
-            />
-          </div>
-        );
-      })}
+      {[0, 1, 2, 3, 4].map((i) => (
+        <Star key={i} fill={Math.max(0, Math.min(1, value - i))} />
+      ))}
     </div>
   );
 }
@@ -468,8 +562,8 @@ function Section({ title }: { title: string }) {
       style={{
         display: "flex",
         flexShrink: 0,
-        marginTop: 20,
-        marginBottom: 10,
+        marginTop: 14,
+        marginBottom: 8,
         paddingBottom: 8,
         borderBottom: `3px solid ${RULE}`,
         fontSize: 22,
@@ -501,8 +595,8 @@ function Stat({
         justifyContent: "center",
         flexGrow: 1,
         flexBasis: 0,
-        paddingTop: 14,
-        paddingBottom: 14,
+        paddingTop: 10,
+        paddingBottom: 10,
         borderLeft: divider ? `3px solid ${RULE}` : "none",
       }}
     >
@@ -530,7 +624,7 @@ function Header({ subtitle }: { subtitle: string }) {
         justifyContent: "space-between",
       }}
     >
-      <div style={{ display: "flex", fontSize: 62, fontWeight: 700, letterSpacing: -1 }}>
+      <div style={{ display: "flex", fontSize: 56, fontWeight: 700, letterSpacing: -1 }}>
         Koffie
       </div>
       <div style={{ display: "flex", fontSize: 24, color: MUTED }}>
