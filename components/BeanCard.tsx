@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Bean, Rating, ShotLog } from "@/lib/types";
+import type { BagStats } from "@/lib/inventory";
 import {
   average,
   costPerShot,
@@ -16,9 +17,11 @@ import { StarRating } from "./StarRating";
 type Props = {
   bean: Bean;
   shots: ShotLog[];
+  /** Cijfers van de open zak, als er een geregistreerd is. */
+  stock?: BagStats;
 };
 
-export function BeanCard({ bean, shots }: Props) {
+export function BeanCard({ bean, shots, stock }: Props) {
   const effective = effectiveShots(shots);
   const draftCount = shots.filter((s) => s.draft).length;
   const dialInCount = shots.filter((s) => s.dialIn && !s.draft).length;
@@ -106,6 +109,8 @@ export function BeanCard({ bean, shots }: Props) {
         )}
       </dl>
 
+      {stock && <StockBar stock={stock} />}
+
       {effective.length > 0 ? (
         <div className="mt-4 flex items-center justify-between border-t border-line pt-3">
           <StarRating value={roundHalf(avg)} readOnly size="sm" />
@@ -119,6 +124,40 @@ export function BeanCard({ bean, shots }: Props) {
         </div>
       )}
     </Link>
+  );
+}
+
+/** Open zak: hoeveel er nog in zit en hoe lang je daar nog mee doet. */
+function StockBar({ stock }: { stock: BagStats }) {
+  const pct =
+    stock.bag.grams > 0
+      ? Math.round((stock.remainingGrams / stock.bag.grams) * 100)
+      : 0;
+  const days = stock.projectedDaysLeft;
+  // Onder een week wordt het iets om rekening mee te houden.
+  const low = days !== null && days <= 7;
+
+  return (
+    <div className="mt-4 border-t border-line pt-3">
+      <div className="flex items-baseline justify-between gap-2 text-xs">
+        <span className="numeric text-ink-600">
+          ± {Math.round(stock.remainingGrams)} g over
+        </span>
+        <span className={`numeric ${low ? "text-clay-500" : "text-ink-400"}`}>
+          {days === null
+            ? "verbruik onbekend"
+            : days === 0
+              ? "vandaag op"
+              : `nog ~${days} ${days === 1 ? "dag" : "dagen"}`}
+        </span>
+      </div>
+      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-ink-100">
+        <div
+          className={`h-full rounded-full ${low ? "bg-clay-400" : "bg-ink-400"}`}
+          style={{ width: `${Math.max(2, pct)}%` }}
+        />
+      </div>
+    </div>
   );
 }
 

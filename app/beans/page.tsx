@@ -6,6 +6,7 @@ import { BeanCard } from "@/components/BeanCard";
 import { BeanForm } from "@/components/BeanForm";
 import { EmptyState } from "@/components/EmptyState";
 import type { ShotLog } from "@/lib/types";
+import { bagStats, openBagFor, type BagStats } from "@/lib/inventory";
 import {
   average,
   costPerShot,
@@ -14,10 +15,10 @@ import {
   pricePerKg,
 } from "@/lib/utils";
 
-type SortKey = "nieuwste" | "rating" | "prijs" | "waarde";
+type SortKey = "nieuwste" | "rating" | "prijs" | "waarde" | "voorraad";
 
 export default function BeansPage() {
-  const { ready, beans, shots } = useKoffie();
+  const { ready, beans, shots, bags } = useKoffie();
   const [showForm, setShowForm] = useState(false);
   const [sortBy, setSortBy] = useState<SortKey>("nieuwste");
 
@@ -30,6 +31,15 @@ export default function BeansPage() {
     }
     return map;
   }, [shots]);
+
+  const stockByBean = useMemo(() => {
+    const map = new Map<string, BagStats>();
+    for (const b of beans) {
+      const open = openBagFor(b.id, bags);
+      if (open) map.set(b.id, bagStats(open, shots));
+    }
+    return map;
+  }, [beans, bags, shots]);
 
   const sorted = useMemo(() => {
     // Per boon de vergelijkingscijfers: gem. rating, €/kg en €/ster.
@@ -75,11 +85,19 @@ export default function BeansPage() {
           (stats.get(a.id)?.starCost ?? Infinity) -
           (stats.get(b.id)?.starCost ?? Infinity),
       );
+    } else if (sortBy === "voorraad") {
+      // Wat het eerst op is bovenaan. Zonder open zak of zonder verbruik
+      // valt er niets te voorspellen; die gaan achteraan.
+      arr.sort(
+        (a, b) =>
+          (stockByBean.get(a.id)?.projectedDaysLeft ?? Infinity) -
+          (stockByBean.get(b.id)?.projectedDaysLeft ?? Infinity),
+      );
     } else {
       arr.sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
     }
     return arr;
-  }, [beans, shotsByBean, sortBy]);
+  }, [beans, shotsByBean, stockByBean, sortBy]);
 
   if (!ready) {
     return <p className="text-sm text-ink-300">Laden…</p>;
@@ -117,6 +135,8 @@ export default function BeansPage() {
         </div>
       )}
 
+      {stockByBean.size > 0 && <StockSummary stock={[...stockByBean.values()]} />}
+
       {beans.length === 0 ? (
         <EmptyState
           title="Geen bonen"
@@ -137,6 +157,7 @@ export default function BeansPage() {
                   key={b.id}
                   bean={b}
                   shots={shotsByBean.get(b.id) ?? []}
+                  stock={stockByBean.get(b.id)}
                 />
               ))}
             </div>
@@ -169,6 +190,68 @@ export default function BeansPage() {
   );
 }
 
+/**
+ * Wat staat er open en hoeveel zit erin. Alleen zichtbaar zodra je zakken
+ * registreert; zonder open zak valt er niets te tellen.
+ */
+function StockSummary({ stock }: { stock: BagStats[] }) {
+  const grams = stock.reduce((sum, s) => sum + s.remainingGrams, 0);
+  const soonest = stock
+    .map((s) => s.projectedDaysLeft)
+    .filter((d): d is number => d !== null)
+    .sort((a, b) => a - b)[0];
+
+  return (
+    <section className="grid grid-cols-3 gap-px overflow-hidden rounded-xl2 border border-line bg-line">
+      <SummaryStat
+        label="Open"
+        value={String(stock.length)}
+        sub={stock.length === 1 ? "zak" : "zakken"}
+      />
+      <SummaryStat
+        label="Voorraad"
+        value={`${Math.round(grams)}`}
+        sub="gram over"
+      />
+      <SummaryStat
+        label="Eerste op"
+        value={soonest === undefined ? "—" : `${soonest}`}
+        sub={
+          soonest === undefined
+            ? "verbruik onbekend"
+            : soonest === 1
+              ? "dag"
+              : "dagen"
+        }
+      />
+    </section>
+  );
+}
+
+function SummaryStat({
+  label,
+  value,
+  sub,
+}: {
+  label: string;
+  value: string;
+  sub: string;
+}) {
+  return (
+    <div className="bg-card px-4 py-4 text-center">
+      <p className="text-[10px] uppercase tracking-[0.18em] text-ink-300">
+        {label}
+      </p>
+      <p className="numeric mt-1 font-display text-2xl tracking-tightish text-ink-800">
+        {value}
+      </p>
+      <p className="mt-0.5 text-[10px] uppercase tracking-[0.18em] text-ink-300">
+        {sub}
+      </p>
+    </div>
+  );
+}
+
 function SortControl({
   value,
   onChange,
@@ -181,6 +264,7 @@ function SortControl({
     { key: "rating", label: "Rating" },
     { key: "prijs", label: "Prijs" },
     { key: "waarde", label: "Waarde" },
+    { key: "voorraad", label: "Voorraad" },
   ];
   return (
     <div className="inline-flex rounded-lg border border-line bg-card p-0.5 text-xs">

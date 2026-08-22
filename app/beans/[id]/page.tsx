@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { BaristaTips } from "@/components/BaristaTips";
 import { CoachCard } from "@/components/CoachCard";
 import { RatingCurve } from "@/components/RatingCurve";
+import { SweetSpotChart } from "@/components/SweetSpotChart";
 import { GiftBadge, PriceTierBadge } from "@/components/PriceTierBadge";
 import { CaffeineMeta } from "@/components/CaffeineMeta";
 import {
@@ -190,6 +191,18 @@ export default function BeanDetailPage() {
       </header>
 
       <BaristaTips tips={tips} />
+
+      {beanShots.length > 0 && (
+        <section className="rounded-xl2 border border-line bg-card p-5 shadow-soft">
+          <h2 className="font-display text-base tracking-tightish text-ink-800">
+            Dial-in
+          </h2>
+          <p className="mb-5 mt-1 text-sm text-ink-400">
+            Waar zaten je shots ten opzichte van de sweet spot van deze boon?
+          </p>
+          <SweetSpotChart shots={beanShots} />
+        </section>
+      )}
 
       {beanShots.length >= 2 && (
         <CoachCard bean={bean} setup={setup} shots={beanShots} />

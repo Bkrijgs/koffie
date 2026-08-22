@@ -72,7 +72,7 @@ function median(nums: number[]): number {
     : sorted[mid];
 }
 
-type SweetSpot = {
+export type SweetSpot = {
   timeLow: number;
   timeHigh: number;
   ratioLow: number;
@@ -88,7 +88,7 @@ type SweetSpot = {
  * hoog-beoordeelde shots (≥4★). Bij te weinig data valt het terug op de
  * algemene espresso-vuistregels, zodat advies altijd iets oplevert.
  */
-function beanSweetSpot(effective: ShotLog[]): SweetSpot {
+export function beanSweetSpot(effective: ShotLog[]): SweetSpot {
   const good = effective.filter((s) => s.rating >= 4);
   if (good.length < 3) {
     return {
