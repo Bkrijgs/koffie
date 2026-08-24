@@ -176,7 +176,7 @@ export function SweetSpotChart({ shots, limit = 10 }: Props) {
             {shown === latest ? "Laatste shot" : "Shot"} ·{" "}
             {shown.extractionTimeSeconds} s · 1:
             {shown.brewRatio.toFixed(1).replace(".", ",")} · maling{" "}
-            {shown.grindSize.toFixed(1).replace(".", ",")} ·{" "}
+            {fmtGrind(shown.grindSize)} ·{" "}
             {shown.rating.toFixed(1).replace(".", ",")}★
           </span>
           <span className="whitespace-nowrap text-ink-300">
@@ -203,6 +203,12 @@ function dotClass(rating: number): string {
   if (rating >= 3.5) return "fill-barista-400";
   if (rating >= 2.5) return "fill-barista-300";
   return "fill-ink-300";
+}
+
+/** Maalgraad zonder overbodige komma; een halve stap blijft "5,5". Zelfde
+ *  patroon als fmtNum in lib/tips.ts en formatNum in RatingCurve. */
+function fmtGrind(n: number): string {
+  return Number.isInteger(n) ? String(n) : n.toFixed(1).replace(".", ",");
 }
 
 function fmt(n: number): string {

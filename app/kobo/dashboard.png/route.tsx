@@ -3,6 +3,7 @@ import { supabaseBackend } from "@/lib/storage";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { bagStats, openBagFor, type BagStats } from "@/lib/inventory";
 import { average, effectiveShots } from "@/lib/utils";
+import { beanSweetSpot, type SweetSpot as SweetSpotRange } from "@/lib/tips";
 import type { Bag, Bean, ShotLog } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -32,7 +33,10 @@ const STRIP_HEIGHT = 82;
 /** Staafjes met een shot worden nooit lager dan dit, anders past het aantal
  *  er niet leesbaar in. */
 const BAR_MIN_HEIGHT = 34;
-const MAX_RECENT = 4;
+/** Rijen onder "Laatst gezet". Twee, niet meer: het sweet-spot blok eronder
+ *  moet erbij passen én het "Beste"-kader moet heel op het scherm blijven —
+ *  bij drie rijen liep de onderrand eraf. */
+const RECENT_ROWS = 2;
 
 /** Tekens die het meegeleverde latin-lettertype van next/og wél kent:
  *  latin-1, plus een paar leestekens uit General Punctuation. Al het andere
@@ -57,6 +61,12 @@ function clip(text: string, max: number): string {
 /** Nederlandse notatie: komma als decimaalteken. */
 function nl(value: number, decimals = 0): string {
   return value.toFixed(decimals).replace(".", ",");
+}
+
+/** Maalgraad zonder overbodige komma. Een hele stand toont als "10"; een
+ *  halve stap blijft "5,5" staan, want dat is een andere stand op de maler. */
+function grind(value: number): string {
+  return Number.isInteger(value) ? String(value) : nl(value, 1);
 }
 
 function dateKey(value: string | Date): string {
@@ -133,11 +143,20 @@ function Dashboard({ beans, shots, bags }: Data) {
   const now = Date.now();
   const beanById = new Map(beans.map((b) => [b.id, b]));
 
-  const recent = shots.slice(0, MAX_RECENT);
+  // Begint ná shots[0]: die staat al groot in het kader "Laatst gezet".
+  const recent = shots.slice(1, 1 + RECENT_ROWS);
   const last = shots[0];
   const currentBean = beanById.get(last.beanId);
   const currentBag = currentBean ? openBagFor(currentBean.id, bags) : undefined;
   const stats = currentBag ? bagStats(currentBag, shots) : null;
+
+  // De sweet spot van de boon die nú in de maler zit. beanSweetSpot leert de
+  // tijd- en ratio-range uit de shots van 4* en hoger van díe boon, en valt
+  // terug op de algemene vuistregel zolang er te weinig van zijn — dus dit
+  // blok is nooit leeg.
+  const spot = beanSweetSpot(
+    effectiveShots(shots.filter((s) => s.beanId === last.beanId)),
+  );
 
   // Activiteit: shots per dag over het venster, oudste links.
   const perDay = new Map<string, number>();
@@ -349,17 +368,25 @@ function Dashboard({ beans, shots, bags }: Data) {
         ))}
       </div>
 
-      <Section title="Laatste shots" />
-      <div style={{ display: "flex", flexDirection: "column", flexGrow: 1 }}>
-        {recent.map((s) => (
-          <ShotRow
-            key={s.id}
-            shot={s}
-            bean={beanById.get(s.beanId)}
-            now={now}
-          />
-        ))}
-      </div>
+      {recent.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          <Section title="Daarvoor" />
+          {recent.map((s) => (
+            <ShotRow
+              key={s.id}
+              shot={s}
+              bean={beanById.get(s.beanId)}
+              now={now}
+            />
+          ))}
+        </div>
+      )}
+
+      <SweetSpot
+        spot={spot}
+        bean={currentBean}
+        last={last}
+      />
 
       <div
         style={{
@@ -431,9 +458,59 @@ function beanMeta(bean: Bean | undefined, now: number): string {
   return parts.length > 0 ? parts.join(" • ") : "Geen boondetails ingevuld";
 }
 
+/**
+ * Waar moet je heen met déze boon, en waar zat je laatste shot. Het enige blok
+ * op dit scherm dat vooruit kijkt in plaats van terug — en je staat ernaar te
+ * kijken op het moment dat je gaat malen.
+ */
+function SweetSpot({
+  spot,
+  bean,
+  last,
+}: {
+  spot: SweetSpotRange;
+  bean?: Bean;
+  last: ShotLog;
+}) {
+  const t = last.extractionTimeSeconds;
+  const oordeel =
+    t < spot.timeLow
+      ? "te snel"
+      : t > spot.timeHigh
+        ? "te langzaam"
+        : "in balans";
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", flexGrow: 1 }}>
+      <Section
+        title={bean ? `Sweet spot — ${clip(bean.name, 26)}` : "Sweet spot"}
+      />
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          justifyContent: "space-between",
+        }}
+      >
+        <div style={{ display: "flex", fontSize: 34, fontWeight: 700 }}>
+          {`${nl(spot.timeLow)}-${nl(spot.timeHigh)} s • 1:${nl(spot.ratioLow, 1)}-${nl(spot.ratioHigh, 1)}`}
+        </div>
+        <div style={{ display: "flex", fontSize: 24, color: MUTED }}>
+          {`laatste: ${t} s — ${oordeel}`}
+        </div>
+      </div>
+      <div style={{ display: "flex", marginTop: 6, fontSize: 22, color: MUTED }}>
+        {spot.learned
+          ? `Geleerd uit je shots van 4 sterren en hoger met deze boon.`
+          : `Algemene vuistregel — vanaf drie shots van 4 sterren leert hij deze boon zelf.`}
+      </div>
+    </div>
+  );
+}
+
 function recipeLine(s: ShotLog): string {
   return [
-    `maling ${nl(s.grindSize, 1)}`,
+    `maling ${grind(s.grindSize)}`,
     `${nl(s.doseGrams, 1)} g in`,
     `${nl(s.yieldGrams, 1)} g uit`,
     `1:${nl(s.brewRatio, 1)}`,
@@ -465,7 +542,7 @@ function ShotRow({
     `${nl(shot.doseGrams, 1)}/${nl(shot.yieldGrams, 1)} g`,
     `1:${nl(shot.brewRatio, 1)}`,
     `${shot.extractionTimeSeconds} s`,
-    `maling ${nl(shot.grindSize, 1)}`,
+    `maling ${grind(shot.grindSize)}`,
   ].join(" • ");
 
   return (
