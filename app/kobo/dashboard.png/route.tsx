@@ -369,7 +369,7 @@ function Dashboard({ beans, shots, bags }: Data) {
       </div>
 
       {recent.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column" }}>
+        <div style={{ display: "flex", flexShrink: 0, flexDirection: "column" }}>
           <Section title="Daarvoor" />
           {recent.map((s) => (
             <ShotRow
@@ -382,11 +382,9 @@ function Dashboard({ beans, shots, bags }: Data) {
         </div>
       )}
 
-      <SweetSpot
-        spot={spot}
-        bean={currentBean}
-        last={last}
-      />
+      <SweetSpot spot={spot} bean={currentBean} last={last} />
+
+      <div style={{ display: "flex", flexGrow: 1 }} />
 
       <div
         style={{
@@ -481,28 +479,60 @@ function SweetSpot({
         : "in balans";
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", flexGrow: 1 }}>
-      <Section
-        title={bean ? `Sweet spot — ${clip(bean.name, 26)}` : "Sweet spot"}
-      />
+    <div
+      style={{
+        display: "flex",
+        flexShrink: 0,
+        flexDirection: "column",
+        marginTop: 14,
+        border: `3px solid ${RULE}`,
+      }}
+    >
+      {/* Omgekeerde titelbalk in plaats van een volledig donker blok: even
+          opvallend, maar veel minder inkt. Grote zwarte vlakken verversen
+          traag op e-ink en houden een nabeeld vast. */}
       <div
         style={{
           display: "flex",
-          alignItems: "baseline",
           justifyContent: "space-between",
+          backgroundColor: INK,
+          color: PAPER,
+          paddingLeft: 15,
+          paddingRight: 15,
+          paddingTop: 8,
+          paddingBottom: 8,
+          fontSize: 20,
+          letterSpacing: 3,
         }}
       >
-        <div style={{ display: "flex", fontSize: 34, fontWeight: 700 }}>
-          {`${nl(spot.timeLow)}-${nl(spot.timeHigh)} s • 1:${nl(spot.ratioLow, 1)}-${nl(spot.ratioHigh, 1)}`}
-        </div>
-        <div style={{ display: "flex", fontSize: 24, color: MUTED }}>
-          {`laatste: ${t} s — ${oordeel}`}
+        <div style={{ display: "flex" }}>SWEET SPOT</div>
+        <div style={{ display: "flex" }}>
+          {bean ? clip(bean.name, 26).toUpperCase() : ""}
         </div>
       </div>
-      <div style={{ display: "flex", marginTop: 6, fontSize: 22, color: MUTED }}>
-        {spot.learned
-          ? `Geleerd uit je shots van 4 sterren en hoger met deze boon.`
-          : `Algemene vuistregel — vanaf drie shots van 4 sterren leert hij deze boon zelf.`}
+
+      <div style={{ display: "flex", flexDirection: "column", padding: 15 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "baseline",
+            justifyContent: "space-between",
+          }}
+        >
+          <div style={{ display: "flex", fontSize: 30, fontWeight: 700 }}>
+            {`${nl(spot.timeLow)}-${nl(spot.timeHigh)} s • 1:${nl(spot.ratioLow, 1)}-${nl(spot.ratioHigh, 1)}`}
+          </div>
+          <div style={{ display: "flex", fontSize: 24, color: MUTED }}>
+            {`laatste: ${t} s — ${oordeel}`}
+          </div>
+        </div>
+        <div
+          style={{ display: "flex", marginTop: 6, fontSize: 22, color: MUTED }}
+        >
+          {spot.learned
+            ? `Geleerd uit je shots van 4 sterren en hoger met deze boon.`
+            : `Algemene vuistregel — vanaf drie shots van 4 sterren leert hij deze boon zelf.`}
+        </div>
       </div>
     </div>
   );
