@@ -213,11 +213,13 @@ function Dashboard({ beans, shots, bags }: Data) {
       ? `Beste · ${WINDOW_DAYS} dagen`
       : "Nog geen beoordeelde shot";
 
+  // Kort genoeg om naast de sweet spot op één regel te passen. De ratio is
+  // eruit: die lees je al af aan gram in en gram uit erboven.
   const bestContext = bestOwn
-    ? `beste van ${ownShots.length} ${ownShots.length === 1 ? "shot" : "shots"} met deze boon • 1:${nl(bestOwn.brewRatio, 1)} • ${agoLabel(bestOwn.createdAt, now)}`
+    ? `beste van ${ownShots.length} ${ownShots.length === 1 ? "shot" : "shots"} • ${agoLabel(bestOwn.createdAt, now)}`
     : bestAny
-      ? `${beanLabel(beanById.get(bestAny.beanId))} • 1:${nl(bestAny.brewRatio, 1)} • ${agoLabel(bestAny.createdAt, now)}`
-      : "Geef een shot een rating; dial-ins tellen niet mee.";
+      ? `${clip(beanLabel(beanById.get(bestAny.beanId)), 28)} • ${agoLabel(bestAny.createdAt, now)}`
+      : "Geef een shot een rating";
 
   const sweetLine =
     `sweet spot ${nl(spot.timeLow)} tot ${nl(spot.timeHigh)} s` +
@@ -304,15 +306,27 @@ function Dashboard({ beans, shots, bags }: Data) {
           />
         </div>
 
+        {/* Eén balk over de volle breedte van het kader: de marges heffen de
+            padding van het kader op, zodat hij tot aan de rand loopt. */}
         <div
-          style={{ display: "flex", marginTop: GAP_L, fontSize: S, color: MUTED }}
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            marginTop: GAP_L,
+            marginLeft: -21,
+            marginRight: -21,
+            marginBottom: -21,
+            paddingLeft: 21,
+            paddingRight: 21,
+            paddingTop: GAP_M,
+            paddingBottom: GAP_M,
+            backgroundColor: INK,
+            color: PAPER,
+            fontSize: S,
+          }}
         >
-          {clip(bestContext, 74)}
-        </div>
-        <div
-          style={{ display: "flex", marginTop: GAP_S, fontSize: S, color: MUTED }}
-        >
-          {safe(sweetLine)}
+          <div style={{ display: "flex" }}>{safe(bestContext)}</div>
+          <div style={{ display: "flex" }}>{safe(sweetLine)}</div>
         </div>
       </div>
 
@@ -321,8 +335,19 @@ function Dashboard({ beans, shots, bags }: Data) {
       {/* ---- Band 3: de boon in de maler ----
            Geen kopregel meer: de boonnaam zegt zelf al wat dit is. Het tijdstip
            van de laatste shot schuift mee naar die regel, en de brander staat
-           eronder op dezelfde kantlijn i.p.v. te zweven achter de naam. */}
-      <div style={{ display: "flex", flexShrink: 0, flexDirection: "column" }}>
+           eronder op dezelfde kantlijn i.p.v. te zweven achter de naam.
+           Zelfde kader als band 2, anders zweeft dit blok ertussen. */}
+      <div
+        style={{
+          display: "flex",
+          flexShrink: 0,
+          flexDirection: "column",
+          marginLeft: -24,
+          marginRight: -24,
+          padding: 21,
+          border: `3px solid ${RULE}`,
+        }}
+      >
         <div
           style={{
             display: "flex",
@@ -444,14 +469,19 @@ function Dashboard({ beans, shots, bags }: Data) {
         </div>
 
         <div style={{ display: "flex", marginTop: GAP_XL }}>
-          <MidNumber
+          <TotalBlock
             value={idle ? "—" : String(windowShots.length)}
             label="Shots"
           />
-          <MidNumber value={idle ? "—" : String(beansUsed)} label="Bonen" />
-          <MidNumber
+          <TotalBlock
+            value={idle ? "—" : String(beansUsed)}
+            label="Bonen"
+            gap
+          />
+          <TotalBlock
             value={windowEffective.length > 0 ? nl(avgRating, 1) : "—"}
             label="Gem. rating"
+            gap
           />
         </div>
       </div>
@@ -522,22 +552,6 @@ function LabelRow({
 }
 
 function BigNumber({ value, label }: { value: string; label: string }) {
-  return <NumberColumn value={value} label={label} size={XL} />;
-}
-
-function MidNumber({ value, label }: { value: string; label: string }) {
-  return <NumberColumn value={value} label={label} size={L} />;
-}
-
-function NumberColumn({
-  value,
-  label,
-  size,
-}: {
-  value: string;
-  label: string;
-  size: number;
-}) {
   return (
     <div
       style={{
@@ -548,7 +562,7 @@ function NumberColumn({
         flexBasis: 0,
       }}
     >
-      <div style={{ display: "flex", fontSize: size, fontWeight: 700 }}>
+      <div style={{ display: "flex", fontSize: XL, fontWeight: 700 }}>
         {value}
       </div>
       <div
@@ -558,6 +572,49 @@ function NumberColumn({
           fontSize: XS,
           letterSpacing: 3,
           color: MUTED,
+        }}
+      >
+        {safe(label).toUpperCase()}
+      </div>
+    </div>
+  );
+}
+
+/** De drie totalen als gevulde blokken over de volle breedte. */
+function TotalBlock({
+  value,
+  label,
+  gap,
+}: {
+  value: string;
+  label: string;
+  gap?: boolean;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        flexGrow: 1,
+        flexBasis: 0,
+        marginLeft: gap ? GAP_S : 0,
+        paddingTop: GAP_M,
+        paddingBottom: GAP_M,
+        backgroundColor: INK,
+        color: PAPER,
+      }}
+    >
+      <div style={{ display: "flex", fontSize: L, fontWeight: 700 }}>
+        {value}
+      </div>
+      <div
+        style={{
+          display: "flex",
+          marginTop: GAP_S,
+          fontSize: XS,
+          letterSpacing: 3,
         }}
       >
         {safe(label).toUpperCase()}
@@ -611,12 +668,14 @@ function Calendar({
                   marginRight: i === row.length - 1 ? 0 : GAP_S,
                   backgroundColor: fill,
                   border: d.count === 0 ? `3px solid ${INK}` : "none",
-                  color: d.count >= 3 ? PAPER : INK,
+                  // Een nul in gedempt grijs: de dag telt mee, er is alleen
+                  // niets gezet. Een leeg vakje las als "hier ontbreekt data".
+                  color: d.count >= 3 ? PAPER : d.count === 0 ? MUTED : INK,
                   fontSize: M,
                   fontWeight: 700,
                 }}
               >
-                {d.count > 0 ? String(d.count) : ""}
+                {String(d.count)}
               </div>
             );
           })}
@@ -743,17 +802,21 @@ function BagBar({ stats }: { stats: BagStats }) {
   // écht wilt weten is wanneer je moet bijkopen, dus dat blijft als enige
   // tekst staan — naast een balk die groot genoeg is om van afstand te lezen.
   return (
+    // Beide breedtes vast in procenten. Met flexGrow op de balk rekende satori
+    // de beschikbare ruimte binnen het kader verkeerd en liep de tekst dwars
+    // door de rand heen; zo valt er niets te onderhandelen.
     <div
       style={{
         display: "flex",
-        marginTop: GAP_L,
+        justifyContent: "space-between",
         alignItems: "center",
+        marginTop: GAP_L,
       }}
     >
       <div
         style={{
           display: "flex",
-          flexGrow: 1,
+          width: "72%",
           height: 40,
           border: `3px solid ${RULE}`,
         }}
@@ -763,9 +826,8 @@ function BagBar({ stats }: { stats: BagStats }) {
       <div
         style={{
           display: "flex",
-          flexShrink: 0,
-          whiteSpace: "nowrap",
-          marginLeft: GAP_L,
+          justifyContent: "flex-end",
+          width: "24%",
           fontSize: S,
           color: MUTED,
         }}
