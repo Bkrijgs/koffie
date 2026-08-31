@@ -798,42 +798,51 @@ function BagBar({ stats }: { stats: BagStats }) {
       : `nog ~${stats.projectedDaysLeft} ${
           stats.projectedDaysLeft === 1 ? "dag" : "dagen"
         }`;
+  // "verbruik onbekend" is de langste tekst die hier kan staan; onder ruwweg
+  // een kwart van de balk past die niet meer binnen de zwarte vulling.
+  const binnen = pct >= 28;
+
   // De grammen stonden dubbelop: de balk laat de verhouding al zien. Wat je
-  // écht wilt weten is wanneer je moet bijkopen, dus dat blijft als enige
-  // tekst staan — naast een balk die groot genoeg is om van afstand te lezen.
+  // écht wilt weten is wanneer je moet bijkopen, en dat staat nu ín de balk.
   return (
-    // Beide breedtes vast in procenten. Met flexGrow op de balk rekende satori
-    // de beschikbare ruimte binnen het kader verkeerd en liep de tekst dwars
-    // door de rand heen; zo valt er niets te onderhandelen.
+    // De balk over de volle breedte, met de resterende dagen ín de zwarte
+    // vulling. Past die daar niet in — bij een bijna lege zak — dan staat hij
+    // ernaast in het witte deel.
     <div
       style={{
         display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
         marginTop: GAP_L,
+        height: 48,
+        border: `3px solid ${RULE}`,
       }}
     >
       <div
         style={{
           display: "flex",
-          width: "72%",
-          height: 40,
-          border: `3px solid ${RULE}`,
-        }}
-      >
-        <div style={{ display: "flex", width: `${pct}%`, backgroundColor: INK }} />
-      </div>
-      <div
-        style={{
-          display: "flex",
+          alignItems: "center",
           justifyContent: "flex-end",
-          width: "24%",
+          width: `${pct}%`,
+          paddingRight: GAP_M,
+          backgroundColor: INK,
+          color: PAPER,
           fontSize: S,
-          color: MUTED,
         }}
       >
-        {safe(left)}
+        {binnen ? safe(left) : ""}
       </div>
+      {binnen ? null : (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            paddingLeft: GAP_M,
+            fontSize: S,
+            color: MUTED,
+          }}
+        >
+          {safe(left)}
+        </div>
+      )}
     </div>
   );
 }
