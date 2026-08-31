@@ -229,44 +229,53 @@ function Dashboard({ beans, shots, bags }: Data) {
   const bestIsLast = Boolean(best) && best.id === last.id;
 
   const stamp = new Date(now);
-  const updated =
-    stamp.toLocaleDateString("nl-NL", {
-      timeZone: TZ,
-      weekday: "short",
-      day: "numeric",
-      month: "short",
-    }) +
-    " • " +
-    stamp.toLocaleTimeString("nl-NL", {
-      timeZone: TZ,
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+  const datePart = stamp.toLocaleDateString("nl-NL", {
+    timeZone: TZ,
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+  const timePart = stamp.toLocaleTimeString("nl-NL", {
+    timeZone: TZ,
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
   return (
     <Frame>
-      {/* ---- Band 1: kop ---- */}
+      {/* ---- Band 1: alleen de klok. Die is de hartslag van het scherm:
+           staat hij stil, dan hangt het apparaat. Een titel voegt daar
+           niets aan toe — je weet welk scherm er hangt. ---- */}
       <div
         style={{
           display: "flex",
           flexShrink: 0,
-          alignItems: "baseline",
           justifyContent: "space-between",
+          fontSize: S,
+          color: MUTED,
         }}
       >
-        <div style={{ display: "flex", fontSize: L, fontWeight: 700 }}>
-          Koffie
-        </div>
-        <div style={{ display: "flex", fontSize: S, color: MUTED }}>
-          {safe(updated)}
-        </div>
+        <div style={{ display: "flex" }}>{safe(datePart)}</div>
+        <div style={{ display: "flex" }}>{safe(timePart)}</div>
       </div>
 
       <Spacer />
-      <Divider />
 
-      {/* ---- Band 2: herhaal dit ---- */}
-      <div style={{ display: "flex", flexShrink: 0, flexDirection: "column" }}>
+      {/* ---- Band 2: herhaal dit ----
+           Het enige omkaderde blok, want het is het enige dat vooruit kijkt.
+           De rand bloedt naar buiten (marge -24, padding 21) zodat de tekst
+           binnenin op dezelfde x=48 blijft staan als de rest van het scherm. */}
+      <div
+        style={{
+          display: "flex",
+          flexShrink: 0,
+          flexDirection: "column",
+          marginLeft: -24,
+          marginRight: -24,
+          padding: 21,
+          border: `3px solid ${RULE}`,
+        }}
+      >
         <LabelRow
           left={bestLabel}
           right={
@@ -308,34 +317,46 @@ function Dashboard({ beans, shots, bags }: Data) {
       </div>
 
       <Spacer />
-      <Divider />
 
-      {/* ---- Band 3: nu in de maler ---- */}
+      {/* ---- Band 3: de boon in de maler ----
+           Geen kopregel meer: de boonnaam zegt zelf al wat dit is. Het tijdstip
+           van de laatste shot schuift mee naar die regel, en de brander staat
+           eronder op dezelfde kantlijn i.p.v. te zweven achter de naam. */}
       <div style={{ display: "flex", flexShrink: 0, flexDirection: "column" }}>
-        <LabelRow
-          left="Nu in de maler"
-          rightText={whenLabel(last, now)}
-        />
-
         <div
-          style={{ display: "flex", marginTop: GAP_M, alignItems: "baseline" }}
+          style={{
+            display: "flex",
+            alignItems: "baseline",
+            justifyContent: "space-between",
+          }}
         >
           <div style={{ display: "flex", fontSize: L, fontWeight: 700 }}>
             {currentBean ? clip(currentBean.name, 24) : "Onbekende boon"}
           </div>
-          {currentBean?.roaster ? (
-            <div
-              style={{
-                display: "flex",
-                marginLeft: GAP_M,
-                fontSize: M,
-                color: MUTED,
-              }}
-            >
-              {clip(currentBean.roaster, 18)}
-            </div>
-          ) : null}
+          <div
+            style={{
+              display: "flex",
+              fontSize: XS,
+              letterSpacing: 3,
+              color: MUTED,
+            }}
+          >
+            {safe(whenLabel(last, now)).toUpperCase()}
+          </div>
         </div>
+
+        {currentBean?.roaster ? (
+          <div
+            style={{
+              display: "flex",
+              marginTop: GAP_S,
+              fontSize: M,
+              color: MUTED,
+            }}
+          >
+            {clip(currentBean.roaster, 30)}
+          </div>
+        ) : null}
 
         <div
           style={{ display: "flex", marginTop: GAP_S, fontSize: S, color: MUTED }}
@@ -718,31 +739,38 @@ function BagBar({ stats }: { stats: BagStats }) {
       : `nog ~${stats.projectedDaysLeft} ${
           stats.projectedDaysLeft === 1 ? "dag" : "dagen"
         }`;
+  // De grammen stonden dubbelop: de balk laat de verhouding al zien. Wat je
+  // écht wilt weten is wanneer je moet bijkopen, dus dat blijft als enige
+  // tekst staan — naast een balk die groot genoeg is om van afstand te lezen.
   return (
     <div
-      style={{ display: "flex", flexDirection: "column", marginTop: GAP_L }}
+      style={{
+        display: "flex",
+        marginTop: GAP_L,
+        alignItems: "center",
+      }}
     >
-      <div
-        style={{ display: "flex", justifyContent: "space-between", fontSize: S }}
-      >
-        <div style={{ display: "flex" }}>
-          {`${nl(stats.remainingGrams, 0)} g van ${nl(stats.bag.grams, 0)} g over`}
-        </div>
-        <div style={{ display: "flex", color: MUTED }}>
-          {`${nl(stats.gramsPerDay, 1)} g/dag • ${left}`}
-        </div>
-      </div>
-      {/* Met een rand van 3px houdt 22px maar 16px vulling over; dat leest
-          slecht op anderhalve meter. Vandaar 28. */}
       <div
         style={{
           display: "flex",
-          marginTop: GAP_S,
-          height: 28,
+          flexGrow: 1,
+          height: 40,
           border: `3px solid ${RULE}`,
         }}
       >
         <div style={{ display: "flex", width: `${pct}%`, backgroundColor: INK }} />
+      </div>
+      <div
+        style={{
+          display: "flex",
+          flexShrink: 0,
+          whiteSpace: "nowrap",
+          marginLeft: GAP_L,
+          fontSize: S,
+          color: MUTED,
+        }}
+      >
+        {safe(left)}
       </div>
     </div>
   );
