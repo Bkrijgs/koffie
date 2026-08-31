@@ -21,7 +21,30 @@ const INK = "#000000";
 const PAPER = "#ffffff";
 const MUTED = "#5a5a5a";
 const RULE = "#000000";
-const FILL = "#e2e2e2";
+
+/** De twee tussentinten van het kalenderraster. Meer dan vier niveaus houd je
+ *  op zestien grijswaarden niet uit elkaar, dus dit zijn ze allemaal:
+ *  wit, CELL_LOW, CELL_MID, INK. */
+const CELL_LOW = "#d0d0d0";
+const CELL_MID = "#8a8a8a";
+
+/** Vijf tekstgroottes, meer niet. Als een nieuw element hier niet in past, is
+ *  het element verkeerd — niet de schaal. */
+const XL = 76;
+const L = 48;
+const M = 30;
+const S = 24;
+const XS = 20;
+
+/** Verticale ruimte alleen in veelvouden van acht. */
+const GAP_S = 8;
+const GAP_M = 16;
+const GAP_L = 24;
+const GAP_XL = 32;
+
+/** Kalenderraster: 10 x 3 = precies de 30 dagen van het venster. */
+const GRID_COLS = 10;
+const CELL_HEIGHT = 56;
 
 const TZ = "Europe/Amsterdam";
 /** Alles op dit scherm gaat over dit venster: de tegels, de activiteitsstrip
@@ -29,14 +52,6 @@ const TZ = "Europe/Amsterdam";
  *  juist de grootste cijfers op het scherm — die horen iets te zeggen over
  *  hoe je er nú voor staat. */
 const WINDOW_DAYS = 30;
-const STRIP_HEIGHT = 82;
-/** Staafjes met een shot worden nooit lager dan dit, anders past het aantal
- *  er niet leesbaar in. */
-const BAR_MIN_HEIGHT = 34;
-/** Rijen onder "Laatst gezet". Twee, niet meer: het sweet-spot blok eronder
- *  moet erbij passen én het "Beste"-kader moet heel op het scherm blijven —
- *  bij drie rijen liep de onderrand eraf. */
-const RECENT_ROWS = 2;
 
 /** Tekens die het meegeleverde latin-lettertype van next/og wél kent:
  *  latin-1, plus een paar leestekens uit General Punctuation. Al het andere
@@ -143,8 +158,6 @@ function Dashboard({ beans, shots, bags }: Data) {
   const now = Date.now();
   const beanById = new Map(beans.map((b) => [b.id, b]));
 
-  // Begint ná shots[0]: die staat al groot in het kader "Laatst gezet".
-  const recent = shots.slice(1, 1 + RECENT_ROWS);
   const last = shots[0];
   const currentBean = beanById.get(last.beanId);
   const currentBag = currentBean ? openBagFor(currentBean.id, bags) : undefined;
@@ -152,282 +165,443 @@ function Dashboard({ beans, shots, bags }: Data) {
 
   // De sweet spot van de boon die nú in de maler zit. beanSweetSpot leert de
   // tijd- en ratio-range uit de shots van 4* en hoger van díe boon, en valt
-  // terug op de algemene vuistregel zolang er te weinig van zijn — dus dit
-  // blok is nooit leeg.
+  // terug op de algemene vuistregel zolang er te weinig van zijn.
   const spot = beanSweetSpot(
     effectiveShots(shots.filter((s) => s.beanId === last.beanId)),
   );
 
-  // Activiteit: shots per dag over het venster, oudste links.
+  // Activiteit: shots per dag over het venster, oudste eerst.
   const perDay = new Map<string, number>();
   for (const s of shots) {
     const key = dateKey(s.createdAt);
     perDay.set(key, (perDay.get(key) ?? 0) + 1);
   }
-  const strip = Array.from({ length: WINDOW_DAYS }, (_, i) => {
-    const key = dateKey(new Date(now - (WINDOW_DAYS - 1 - i) * 86400000));
-    return { key, count: perDay.get(key) ?? 0 };
+  const days = Array.from({ length: WINDOW_DAYS }, (_, i) => {
+    const date = new Date(now - (WINDOW_DAYS - 1 - i) * 86400000);
+    const key = dateKey(date);
+    return { key, date, count: perDay.get(key) ?? 0 };
   });
-  const peak = Math.max(1, ...strip.map((d) => d.count));
-  const last7 = strip.slice(-7).reduce((sum, d) => sum + d.count, 0);
+  const last7 = days.slice(-7).reduce((sum, d) => sum + d.count, 0);
 
-  // De tegels rekenen over exact dezelfde dagen als de strip: filteren op de
-  // dagsleutels die de strip al heeft opgebouwd, i.p.v. op een losse
-  // tijdstempel-drempel. Anders lopen tegels en staafjes een dag uit de pas
+  // De cijfers rekenen over exact dezelfde dagen als het raster: filteren op de
+  // dagsleutels die hierboven al zijn opgebouwd, i.p.v. op een losse
+  // tijdstempel-drempel. Anders lopen cijfers en cellen een dag uit de pas
   // rond middernacht en bij zomertijd.
-  const windowKeys = new Set(strip.map((d) => d.key));
+  const windowKeys = new Set(days.map((d) => d.key));
   const windowShots = shots.filter((s) => windowKeys.has(dateKey(s.createdAt)));
   const windowEffective = effectiveShots(windowShots);
   const avgRating = average(windowEffective.map((s) => s.rating));
   const beansUsed = new Set(windowShots.map((s) => s.beanId)).size;
 
-  const dialInCount = windowShots.filter((s) => s.dialIn && !s.draft).length;
-  const draftCount = windowShots.filter((s) => s.draft).length;
-  const excluded = [
-    dialInCount > 0 ? `${dialInCount} dial-in` : null,
-    draftCount > 0 ? `${draftCount} concept` : null,
-  ].filter(Boolean);
-
-  const best = [...windowEffective].sort((a, b) => {
-    if (b.rating !== a.rating) return b.rating - a.rating;
-    return +new Date(b.createdAt) - +new Date(a.createdAt);
-  })[0];
-
-  // Wel shots, maar geen enkele in het venster: dan is "0" misleidend en een
-  // foutmelding overdreven. Streepje, met wanneer je voor het laatst zette.
+  // Wel shots, maar geen enkele in het venster: dan is "0" misleidend.
   const idle = windowShots.length === 0;
-  const idleSub = `laatst ${safe(whenLabel(last, now))}`;
 
-  const updated = new Date(now).toLocaleString("nl-NL", {
-    timeZone: TZ,
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  // "Herhaal dit" moet over de boon gaan die in de maler zit. De beste shot van
+  // een opgemaakte zak is een loze instructie, dus die is pas de terugval.
+  const byBest = (a: ShotLog, b: ShotLog) =>
+    b.rating !== a.rating
+      ? b.rating - a.rating
+      : +new Date(b.createdAt) - +new Date(a.createdAt);
+  const ownShots = windowEffective.filter((s) => s.beanId === last.beanId);
+  const bestOwn = [...ownShots].sort(byBest)[0];
+  const bestAny = [...windowEffective].sort(byBest)[0];
+  const best = bestOwn ?? bestAny;
+
+  const bestLabel = bestOwn
+    ? "Herhaal dit"
+    : bestAny
+      ? `Beste · ${WINDOW_DAYS} dagen`
+      : "Nog geen beoordeelde shot";
+
+  const bestContext = bestOwn
+    ? `beste van ${ownShots.length} ${ownShots.length === 1 ? "shot" : "shots"} met deze boon • 1:${nl(bestOwn.brewRatio, 1)} • ${agoLabel(bestOwn.createdAt, now)}`
+    : bestAny
+      ? `${beanLabel(beanById.get(bestAny.beanId))} • 1:${nl(bestAny.brewRatio, 1)} • ${agoLabel(bestAny.createdAt, now)}`
+      : "Geef een shot een rating; dial-ins tellen niet mee.";
+
+  const sweetLine =
+    `sweet spot ${nl(spot.timeLow)} tot ${nl(spot.timeHigh)} s` +
+    ` • 1:${nl(spot.ratioLow, 1)} tot 1:${nl(spot.ratioHigh, 1)}` +
+    (spot.learned ? "" : " (vuistregel)");
+
+  // Staat het beste recept al groot in band 2, dan is het herhalen ervan in
+  // band 3 zinloos.
+  const bestIsLast = Boolean(best) && best.id === last.id;
+
+  const stamp = new Date(now);
+  const updated =
+    stamp.toLocaleDateString("nl-NL", {
+      timeZone: TZ,
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+    }) +
+    " • " +
+    stamp.toLocaleTimeString("nl-NL", {
+      timeZone: TZ,
+      hour: "2-digit",
+      minute: "2-digit",
+    });
 
   return (
     <Frame>
-      <Header subtitle={`Bijgewerkt ${updated}`} />
-
+      {/* ---- Band 1: kop ---- */}
       <div
         style={{
           display: "flex",
           flexShrink: 0,
-          marginTop: 22,
-          borderTop: `3px solid ${RULE}`,
-          borderBottom: `3px solid ${RULE}`,
+          alignItems: "baseline",
+          justifyContent: "space-between",
         }}
       >
-        <Stat
-          label={`Shots · ${WINDOW_DAYS} dagen`}
-          value={idle ? "—" : String(windowShots.length)}
-          sub={
-            idle
-              ? idleSub
-              : excluded.length > 0
-                ? excluded.join(" • ")
-                : "alle beoordeeld"
-          }
-        />
-        <Stat
-          label="Bonen"
-          value={idle ? "—" : String(beansUsed)}
-          sub={
-            idle
-              ? `${beans.length} in de kast`
-              : `${last7} ${last7 === 1 ? "shot" : "shots"} deze week`
-          }
-          divider
-        />
-        <Stat
-          label="Gem. rating"
-          value={windowEffective.length > 0 ? nl(avgRating, 1) : "—"}
-          sub={
-            windowEffective.length > 0
-              ? `over ${windowEffective.length} ${windowEffective.length === 1 ? "shot" : "shots"}`
-              : idle
-                ? idleSub
-                : "nog niets beoordeeld"
-          }
-          divider
-        />
+        <div style={{ display: "flex", fontSize: L, fontWeight: 700 }}>
+          Koffie
+        </div>
+        <div style={{ display: "flex", fontSize: S, color: MUTED }}>
+          {safe(updated)}
+        </div>
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          flexShrink: 0,
-          flexDirection: "column",
-          marginTop: 18,
-          padding: 16,
-          border: `3px solid ${RULE}`,
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            fontSize: 20,
-            letterSpacing: 3,
-            color: MUTED,
-          }}
-        >
-          <div style={{ display: "flex" }}>LAATST GEZET</div>
-          <div style={{ display: "flex" }}>{safe(whenLabel(last, now))}</div>
+      <Spacer />
+      <Divider />
+
+      {/* ---- Band 2: herhaal dit ---- */}
+      <div style={{ display: "flex", flexShrink: 0, flexDirection: "column" }}>
+        <LabelRow
+          left={bestLabel}
+          right={
+            best && !best.draft && best.rating > 0 ? (
+              <Rating value={best.rating} />
+            ) : undefined
+          }
+        />
+
+        <div style={{ display: "flex", marginTop: GAP_L }}>
+          <BigNumber
+            value={best ? grind(best.grindSize) : "—"}
+            label="Maling"
+          />
+          <BigNumber
+            value={best ? nl(best.doseGrams, 1) : "—"}
+            label="Gram in"
+          />
+          <BigNumber
+            value={best ? nl(best.yieldGrams, 1) : "—"}
+            label="Gram uit"
+          />
+          <BigNumber
+            value={best ? String(best.extractionTimeSeconds) : "—"}
+            label="Seconden"
+          />
         </div>
 
-        <div style={{ display: "flex", marginTop: 8, alignItems: "baseline" }}>
-          <div style={{ display: "flex", fontSize: 42, fontWeight: 700 }}>
+        <div
+          style={{ display: "flex", marginTop: GAP_L, fontSize: S, color: MUTED }}
+        >
+          {clip(bestContext, 74)}
+        </div>
+        <div
+          style={{ display: "flex", marginTop: GAP_S, fontSize: S, color: MUTED }}
+        >
+          {safe(sweetLine)}
+        </div>
+      </div>
+
+      <Spacer />
+      <Divider />
+
+      {/* ---- Band 3: nu in de maler ---- */}
+      <div style={{ display: "flex", flexShrink: 0, flexDirection: "column" }}>
+        <LabelRow
+          left="Nu in de maler"
+          rightText={whenLabel(last, now)}
+        />
+
+        <div
+          style={{ display: "flex", marginTop: GAP_M, alignItems: "baseline" }}
+        >
+          <div style={{ display: "flex", fontSize: L, fontWeight: 700 }}>
             {currentBean ? clip(currentBean.name, 24) : "Onbekende boon"}
           </div>
           {currentBean?.roaster ? (
-            <div style={{ display: "flex", marginLeft: 14, fontSize: 25, color: MUTED }}>
+            <div
+              style={{
+                display: "flex",
+                marginLeft: GAP_M,
+                fontSize: M,
+                color: MUTED,
+              }}
+            >
               {clip(currentBean.roaster, 18)}
             </div>
           ) : null}
         </div>
 
         <div
-          style={{
-            display: "flex",
-            marginTop: 8,
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
+          style={{ display: "flex", marginTop: GAP_S, fontSize: S, color: MUTED }}
         >
-          <div style={{ display: "flex", fontSize: 25 }}>{recipeLine(last)}</div>
-          {last.draft || last.rating === 0 ? (
-            <div style={{ display: "flex", fontSize: 22, color: MUTED }}>
-              nog geen rating
-            </div>
-          ) : (
-            <Rating value={last.rating} />
-          )}
-        </div>
-
-        <div style={{ display: "flex", marginTop: 6, fontSize: 24, color: MUTED }}>
           {clip(beanMeta(currentBean, now), 62)}
         </div>
+
+        {bestIsLast ? (
+          <div
+            style={{
+              display: "flex",
+              marginTop: GAP_M,
+              fontSize: S,
+              color: MUTED,
+            }}
+          >
+            Je laatste shot is meteen je beste met deze boon.
+          </div>
+        ) : (
+          <div
+            style={{
+              display: "flex",
+              marginTop: GAP_M,
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <div style={{ display: "flex", fontSize: M }}>
+              {recipeLine(last)}
+            </div>
+            {last.draft || last.rating === 0 ? (
+              <div style={{ display: "flex", fontSize: S, color: MUTED }}>
+                nog geen rating
+              </div>
+            ) : (
+              <Rating value={last.rating} />
+            )}
+          </div>
+        )}
 
         {stats ? (
           <BagBar stats={stats} />
         ) : (
-          <div style={{ display: "flex", marginTop: 12, fontSize: 24, color: MUTED }}>
+          <div
+            style={{
+              display: "flex",
+              marginTop: GAP_L,
+              fontSize: S,
+              color: MUTED,
+            }}
+          >
             Geen open zak geregistreerd.
           </div>
         )}
       </div>
 
-      <Section title={`Activiteit — ${WINDOW_DAYS} dagen`} />
-      <div style={{ display: "flex", flexShrink: 0, alignItems: "flex-end", height: STRIP_HEIGHT }}>
-        {strip.map((d, i) => (
-          <div
-            key={d.key}
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "flex-end",
-              flexGrow: 1,
-              flexBasis: 0,
-              height: "100%",
-              marginRight: i === strip.length - 1 ? 0 : 6,
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "center",
-                paddingTop: 5,
-                height:
-                  d.count === 0
-                    ? 4
-                    : // ondergrens zodat het cijfer in de staaf past
-                      Math.max(
-                        BAR_MIN_HEIGHT,
-                        Math.round((d.count / peak) * STRIP_HEIGHT),
-                      ),
-                backgroundColor: d.count === 0 ? FILL : INK,
-              }}
-            >
-              {d.count > 0 ? (
-                <div
-                  style={{
-                    display: "flex",
-                    fontSize: 18,
-                    fontWeight: 700,
-                    color: PAPER,
-                  }}
-                >
-                  {d.count}
-                </div>
-              ) : null}
-            </div>
-          </div>
-        ))}
+      <Spacer />
+      <Divider />
+
+      {/* ---- Band 4: 30 dagen ---- */}
+      <div style={{ display: "flex", flexShrink: 0, flexDirection: "column" }}>
+        <LabelRow
+          left={`${WINDOW_DAYS} dagen`}
+          rightText={`${last7} ${last7 === 1 ? "shot" : "shots"} deze week`}
+        />
+
+        <Calendar days={days} />
+
+        <div
+          style={{
+            display: "flex",
+            marginTop: GAP_M,
+            fontSize: XS,
+            letterSpacing: 3,
+            color: MUTED,
+          }}
+        >
+          {safe(
+            `${days[0].date.toLocaleDateString("nl-NL", {
+              timeZone: TZ,
+              day: "numeric",
+              month: "short",
+            })} linksboven tot vandaag rechtsonder`,
+          ).toUpperCase()}
+        </div>
+
+        <div style={{ display: "flex", marginTop: GAP_XL }}>
+          <MidNumber
+            value={idle ? "—" : String(windowShots.length)}
+            label="Shots"
+          />
+          <MidNumber value={idle ? "—" : String(beansUsed)} label="Bonen" />
+          <MidNumber
+            value={windowEffective.length > 0 ? nl(avgRating, 1) : "—"}
+            label="Gem. rating"
+          />
+        </div>
       </div>
 
-      {recent.length > 0 && (
-        <div style={{ display: "flex", flexShrink: 0, flexDirection: "column" }}>
-          <Section title="Daarvoor" />
-          {recent.map((s) => (
-            <ShotRow
-              key={s.id}
-              shot={s}
-              bean={beanById.get(s.beanId)}
-              now={now}
-            />
-          ))}
-        </div>
-      )}
+      <Spacer />
+    </Frame>
+  );
+}
 
-      <SweetSpot spot={spot} bean={currentBean} last={last} />
+/** Volle-breedte scheidingslijn. Het enige wat blokken van elkaar scheidt. */
+function Divider() {
+  return (
+    <div
+      style={{ display: "flex", flexShrink: 0, height: 3, backgroundColor: RULE }}
+    />
+  );
+}
 
-      <div style={{ display: "flex", flexGrow: 1 }} />
+/** Vangt de overgebleven hoogte op. Vier stuks, zodat de speling gelijk over
+ *  de bandovergangen valt in plaats van als één gat onderaan. */
+function Spacer() {
+  return <div style={{ display: "flex", flexGrow: 1, minHeight: GAP_XL }} />;
+}
 
+/** Kaps-labelrij boven een band: links de naam, rechts een waarde of sterren. */
+function LabelRow({
+  left,
+  right,
+  rightText,
+}: {
+  left: string;
+  right?: React.ReactNode;
+  rightText?: string;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        minHeight: STAR_SIZE,
+      }}
+    >
       <div
         style={{
           display: "flex",
-          flexShrink: 0,
-          flexDirection: "column",
-          marginTop: 10,
-          padding: 15,
-          border: `3px solid ${RULE}`,
+          fontSize: XS,
+          letterSpacing: 3,
+          color: MUTED,
         }}
       >
-        {best ? (
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            <div style={{ display: "flex", fontSize: 20, letterSpacing: 3, color: MUTED }}>
-              {`BESTE · ${WINDOW_DAYS} DAGEN — ${nl(best.rating, 1)} VAN 5`}
-            </div>
-            <div style={{ display: "flex", marginTop: 10, fontSize: 30, fontWeight: 700 }}>
-              {recipeLine(best)}
-            </div>
-            <div style={{ display: "flex", marginTop: 6, fontSize: 24, color: MUTED }}>
-              {clip(
-                best.nextAdjustment
-                  ? `${beanLabel(beanById.get(best.beanId))} • ${best.nextAdjustment}`
-                  : beanLabel(beanById.get(best.beanId)),
-                72,
-              )}
-            </div>
-          </div>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            <div style={{ display: "flex", fontSize: 20, letterSpacing: 3, color: MUTED }}>
-              {`BESTE · ${WINDOW_DAYS} DAGEN`}
-            </div>
-            <div style={{ display: "flex", marginTop: 10, fontSize: 30, fontWeight: 700 }}>
-              Nog geen beoordeelde shot
-            </div>
-            <div style={{ display: "flex", marginTop: 6, fontSize: 24, color: MUTED }}>
-              Geef een shot een rating; dial-ins tellen niet mee.
-            </div>
-          </div>
-        )}
+        {safe(left).toUpperCase()}
       </div>
-    </Frame>
+      {right ?? (
+        <div
+          style={{
+            display: "flex",
+            fontSize: XS,
+            letterSpacing: 3,
+            color: MUTED,
+          }}
+        >
+          {rightText ? safe(rightText).toUpperCase() : ""}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BigNumber({ value, label }: { value: string; label: string }) {
+  return <NumberColumn value={value} label={label} size={XL} />;
+}
+
+function MidNumber({ value, label }: { value: string; label: string }) {
+  return <NumberColumn value={value} label={label} size={L} />;
+}
+
+function NumberColumn({
+  value,
+  label,
+  size,
+}: {
+  value: string;
+  label: string;
+  size: number;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        flexGrow: 1,
+        flexBasis: 0,
+      }}
+    >
+      <div style={{ display: "flex", fontSize: size, fontWeight: 700 }}>
+        {value}
+      </div>
+      <div
+        style={{
+          display: "flex",
+          marginTop: GAP_S,
+          fontSize: XS,
+          letterSpacing: 3,
+          color: MUTED,
+        }}
+      >
+        {safe(label).toUpperCase()}
+      </div>
+    </div>
+  );
+}
+
+/** Dertig dagen als raster van 10 x 3, oudste linksboven. Vier vulniveaus,
+ *  want meer grijstinten houd je op dit scherm niet uit elkaar. */
+function Calendar({
+  days,
+}: {
+  days: { key: string; count: number }[];
+}) {
+  const rows = Array.from({ length: Math.ceil(days.length / GRID_COLS) }, (_, r) =>
+    days.slice(r * GRID_COLS, r * GRID_COLS + GRID_COLS),
+  );
+
+  return (
+    <div
+      style={{ display: "flex", flexDirection: "column", marginTop: GAP_L }}
+    >
+      {rows.map((row, r) => (
+        <div
+          key={r}
+          style={{
+            display: "flex",
+            marginBottom: r === rows.length - 1 ? 0 : GAP_S,
+          }}
+        >
+          {row.map((d, i) => {
+            const fill =
+              d.count === 0
+                ? PAPER
+                : d.count === 1
+                  ? CELL_LOW
+                  : d.count === 2
+                    ? CELL_MID
+                    : INK;
+            return (
+              <div
+                key={d.key}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexGrow: 1,
+                  flexBasis: 0,
+                  height: CELL_HEIGHT,
+                  marginRight: i === row.length - 1 ? 0 : GAP_S,
+                  backgroundColor: fill,
+                  border: d.count === 0 ? `3px solid ${INK}` : "none",
+                  color: d.count >= 3 ? PAPER : INK,
+                  fontSize: M,
+                  fontWeight: 700,
+                }}
+              >
+                {d.count > 0 ? String(d.count) : ""}
+              </div>
+            );
+          })}
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -456,96 +630,22 @@ function beanMeta(bean: Bean | undefined, now: number): string {
   return parts.length > 0 ? parts.join(" • ") : "Geen boondetails ingevuld";
 }
 
-/**
- * Waar moet je heen met déze boon, en waar zat je laatste shot. Het enige blok
- * op dit scherm dat vooruit kijkt in plaats van terug — en je staat ernaar te
- * kijken op het moment dat je gaat malen.
- */
-function SweetSpot({
-  spot,
-  bean,
-  last,
-}: {
-  spot: SweetSpotRange;
-  bean?: Bean;
-  last: ShotLog;
-}) {
-  const t = last.extractionTimeSeconds;
-  const oordeel =
-    t < spot.timeLow
-      ? "te snel"
-      : t > spot.timeHigh
-        ? "te langzaam"
-        : "in balans";
-
-  return (
-    <div
-      style={{
-        display: "flex",
-        flexShrink: 0,
-        flexDirection: "column",
-        marginTop: 14,
-        border: `3px solid ${RULE}`,
-      }}
-    >
-      {/* Omgekeerde titelbalk in plaats van een volledig donker blok: even
-          opvallend, maar veel minder inkt. Grote zwarte vlakken verversen
-          traag op e-ink en houden een nabeeld vast. */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          backgroundColor: INK,
-          color: PAPER,
-          paddingLeft: 15,
-          paddingRight: 15,
-          paddingTop: 8,
-          paddingBottom: 8,
-          fontSize: 20,
-          letterSpacing: 3,
-        }}
-      >
-        <div style={{ display: "flex" }}>SWEET SPOT</div>
-        <div style={{ display: "flex" }}>
-          {bean ? clip(bean.name, 26).toUpperCase() : ""}
-        </div>
-      </div>
-
-      <div style={{ display: "flex", flexDirection: "column", padding: 15 }}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "baseline",
-            justifyContent: "space-between",
-          }}
-        >
-          <div style={{ display: "flex", fontSize: 30, fontWeight: 700 }}>
-            {`${nl(spot.timeLow)}-${nl(spot.timeHigh)} s • 1:${nl(spot.ratioLow, 1)}-${nl(spot.ratioHigh, 1)}`}
-          </div>
-          <div style={{ display: "flex", fontSize: 24, color: MUTED }}>
-            {`laatste: ${t} s — ${oordeel}`}
-          </div>
-        </div>
-        <div
-          style={{ display: "flex", marginTop: 6, fontSize: 22, color: MUTED }}
-        >
-          {spot.learned
-            ? `Geleerd uit je shots van 4 sterren en hoger met deze boon.`
-            : `Algemene vuistregel — vanaf drie shots van 4 sterren leert hij deze boon zelf.`}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function recipeLine(s: ShotLog): string {
   return [
     `maling ${grind(s.grindSize)}`,
-    `${nl(s.doseGrams, 1)} g in`,
-    `${nl(s.yieldGrams, 1)} g uit`,
+    `${nl(s.doseGrams, 1)} in`,
+    `${nl(s.yieldGrams, 1)} uit`,
     `1:${nl(s.brewRatio, 1)}`,
     `${s.extractionTimeSeconds} s`,
   ].join(" • ");
+}
+
+/** "vandaag" / "gisteren" / "6 dagen geleden", zonder klok. */
+function agoLabel(iso: string, now: number): string {
+  const days = daysSince(iso, now);
+  if (days <= 0) return "vandaag";
+  if (days === 1) return "gisteren";
+  return `${days} dagen geleden`;
 }
 
 function beanLabel(bean?: Bean): string {
@@ -553,69 +653,11 @@ function beanLabel(bean?: Bean): string {
   return bean.roaster ? `${bean.name} — ${bean.roaster}` : bean.name;
 }
 
-function ShotRow({
-  shot,
-  bean,
-  now,
-}: {
-  shot: ShotLog;
-  bean?: Bean;
-  now: number;
-}) {
-  const days = daysSince(shot.createdAt, now);
-  const when = days <= 0 ? "vandaag" : days === 1 ? "gisteren" : `${days} d geleden`;
-  const badge = [shot.dialIn ? "dial-in" : null, shot.draft ? "concept" : null]
-    .filter(Boolean)
-    .join(" • ");
-  const detail = [
-    when,
-    `${nl(shot.doseGrams, 1)}/${nl(shot.yieldGrams, 1)} g`,
-    `1:${nl(shot.brewRatio, 1)}`,
-    `${shot.extractionTimeSeconds} s`,
-    `maling ${grind(shot.grindSize)}`,
-  ].join(" • ");
-
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        flexShrink: 0,
-        paddingTop: 10,
-        paddingBottom: 10,
-        borderBottom: `1px solid ${FILL}`,
-      }}
-    >
-      <div style={{ display: "flex", flexDirection: "column", width: 760 }}>
-        <div style={{ display: "flex", alignItems: "baseline", fontSize: 28, fontWeight: 700 }}>
-          {clip(beanLabel(bean), 42)}
-          {badge ? (
-            <div style={{ display: "flex", marginLeft: 12, fontSize: 20, fontWeight: 400, color: MUTED }}>
-              {badge}
-            </div>
-          ) : null}
-        </div>
-        <div style={{ display: "flex", marginTop: 4, fontSize: 23, color: MUTED }}>
-          {detail}
-        </div>
-      </div>
-      {shot.draft || shot.rating === 0 ? (
-        <div style={{ display: "flex", fontSize: 24, color: MUTED }}>
-          nog geen rating
-        </div>
-      ) : (
-        <Rating value={shot.rating} />
-      )}
-    </div>
-  );
-}
-
 /** Vijfpuntige ster als pad; het lettertype van next/og heeft geen sterglyph,
  *  dus tekenen we hem zelf. */
 const STAR_PATH =
   "M12 1.6l3.2 6.5 7.2 1-5.2 5.1 1.2 7.2L12 18l-6.4 3.4 1.2-7.2L1.6 9.1l7.2-1z";
-const STAR_SIZE = 28;
+const STAR_SIZE = 32;
 
 /** Eén ster, fill 0 = leeg, 0.5 = half, 1 = vol. De gevulde ster staat in een
  *  smaller vakje met overflow hidden, zodat een halve ster echt half is. */
@@ -677,8 +719,12 @@ function BagBar({ stats }: { stats: BagStats }) {
           stats.projectedDaysLeft === 1 ? "dag" : "dagen"
         }`;
   return (
-    <div style={{ display: "flex", flexDirection: "column", marginTop: 12 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 24 }}>
+    <div
+      style={{ display: "flex", flexDirection: "column", marginTop: GAP_L }}
+    >
+      <div
+        style={{ display: "flex", justifyContent: "space-between", fontSize: S }}
+      >
         <div style={{ display: "flex" }}>
           {`${nl(stats.remainingGrams, 0)} g van ${nl(stats.bag.grams, 0)} g over`}
         </div>
@@ -686,86 +732,17 @@ function BagBar({ stats }: { stats: BagStats }) {
           {`${nl(stats.gramsPerDay, 1)} g/dag • ${left}`}
         </div>
       </div>
-      <div style={{ display: "flex", marginTop: 8, height: 22, border: `3px solid ${RULE}` }}>
+      {/* Met een rand van 3px houdt 22px maar 16px vulling over; dat leest
+          slecht op anderhalve meter. Vandaar 28. */}
+      <div
+        style={{
+          display: "flex",
+          marginTop: GAP_S,
+          height: 28,
+          border: `3px solid ${RULE}`,
+        }}
+      >
         <div style={{ display: "flex", width: `${pct}%`, backgroundColor: INK }} />
-      </div>
-    </div>
-  );
-}
-
-function Section({ title }: { title: string }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        flexShrink: 0,
-        marginTop: 14,
-        marginBottom: 8,
-        paddingBottom: 8,
-        borderBottom: `3px solid ${RULE}`,
-        fontSize: 22,
-        letterSpacing: 4,
-      }}
-    >
-      {safe(title).toUpperCase()}
-    </div>
-  );
-}
-
-function Stat({
-  label,
-  value,
-  sub,
-  divider,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  divider?: boolean;
-}) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        flexGrow: 1,
-        flexBasis: 0,
-        paddingTop: 10,
-        paddingBottom: 10,
-        borderLeft: divider ? `3px solid ${RULE}` : "none",
-      }}
-    >
-      <div style={{ display: "flex", fontSize: 20, letterSpacing: 3, color: MUTED }}>
-        {safe(label).toUpperCase()}
-      </div>
-      <div style={{ display: "flex", marginTop: 6, fontSize: 76, fontWeight: 700 }}>
-        {value}
-      </div>
-      {sub ? (
-        <div style={{ display: "flex", marginTop: 2, fontSize: 20, color: MUTED }}>
-          {sub}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function Header({ subtitle }: { subtitle: string }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "flex-end",
-        justifyContent: "space-between",
-      }}
-    >
-      <div style={{ display: "flex", fontSize: 56, fontWeight: 700, letterSpacing: -1 }}>
-        Koffie
-      </div>
-      <div style={{ display: "flex", fontSize: 24, color: MUTED }}>
-        {safe(subtitle)}
       </div>
     </div>
   );
@@ -803,7 +780,24 @@ function Message({ title, body }: { title: string; body: string }) {
   });
   return (
     <Frame>
-      <Header subtitle={stamp} />
+      {/* Eigen kop: het dashboard tekent die inline in band 1, en dit scherm
+          moet er hetzelfde uitzien als voorheen. */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-end",
+          justifyContent: "space-between",
+        }}
+      >
+        <div
+          style={{ display: "flex", fontSize: 56, fontWeight: 700, letterSpacing: -1 }}
+        >
+          Koffie
+        </div>
+        <div style={{ display: "flex", fontSize: 24, color: MUTED }}>
+          {safe(stamp)}
+        </div>
+      </div>
       <div
         style={{
           display: "flex",
