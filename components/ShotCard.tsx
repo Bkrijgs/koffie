@@ -11,8 +11,14 @@ type Props = {
 
 export function ShotCard({ shot, bean, showBean = true }: Props) {
   const dimmed = shot.dialIn ? "opacity-70" : "";
+  const awaitingRating = shot.draft && !shot.rating;
+  const badgeCount = (shot.draft ? 1 : 0) + (shot.dialIn ? 1 : 0);
   return (
-    <article className="group relative cursor-pointer rounded-xl2 border border-line bg-card p-5 shadow-soft transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lift hover:border-barista-100">
+    <article
+      className={`group relative cursor-pointer rounded-xl2 border bg-card p-5 shadow-soft transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lift hover:border-barista-100 ${
+        shot.draft ? "border-gold-300/70" : "border-line"
+      }`}
+    >
       {/* Stretched link overlay: covers the entire card so clicks anywhere
           open the shot for editing. The bean name uses `position: relative`
           to sit above this overlay and keep its own destination. */}
@@ -24,15 +30,33 @@ export function ShotCard({ shot, bean, showBean = true }: Props) {
         <span className="sr-only">Openen</span>
       </Link>
 
-      {shot.dialIn && (
-        <span className="absolute right-4 top-4 inline-flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.2em] text-ink-300">
-          <span className="h-1.5 w-1.5 rounded-full bg-ink-300" aria-hidden />
-          Dial-in
+      {badgeCount > 0 && (
+        <span className="absolute right-4 top-4 flex items-center gap-3 text-[10px] font-medium uppercase tracking-[0.2em]">
+          {shot.draft && (
+            <span className="inline-flex items-center gap-1.5 text-gold-500">
+              <span
+                className="h-1.5 w-1.5 rounded-full bg-gold-400"
+                aria-hidden
+              />
+              Concept
+            </span>
+          )}
+          {shot.dialIn && (
+            <span className="inline-flex items-center gap-1.5 text-ink-300">
+              <span
+                className="h-1.5 w-1.5 rounded-full bg-ink-300"
+                aria-hidden
+              />
+              Dial-in
+            </span>
+          )}
         </span>
       )}
 
       <header
-        className={`flex items-start justify-between gap-3 ${shot.dialIn ? "pr-20" : ""}`}
+        className={`flex items-start justify-between gap-3 ${
+          badgeCount > 1 ? "pr-44" : badgeCount === 1 ? "pr-24" : ""
+        }`}
       >
         <div className="min-w-0">
           {showBean && bean && (
@@ -47,7 +71,9 @@ export function ShotCard({ shot, bean, showBean = true }: Props) {
             {formatDate(shot.createdAt)}
           </p>
         </div>
-        {!shot.dialIn && (
+        {/* Zonder rating tonen we geen sterren: nul sterren leest als een
+            slechte shot, terwijl de rating simpelweg nog moet komen. */}
+        {!shot.dialIn && !awaitingRating && (
           <StarRating value={shot.rating} readOnly size="sm" />
         )}
       </header>

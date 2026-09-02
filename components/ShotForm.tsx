@@ -94,8 +94,22 @@ export function ShotForm({ initialBeanId, shot }: Props) {
   );
   const [dialIn, setDialIn] = useState<boolean>(shot?.dialIn ?? false);
   const [tags, setTags] = useState<string[]>(shot?.tags ?? []);
-  const [submitting, setSubmitting] = useState(false);
+  const [submitting, setSubmitting] = useState<"shot" | "draft" | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Alleen bonen die op voorraad staan in het keuzemenu. De al-gekozen boon
+  // blijft zichtbaar (bv. bij het bewerken van een oude shot van een boon die
+  // inmiddels op is), zodat de selectie niet stilletjes wegvalt.
+  const availableBeans = useMemo(
+    () => beans.filter((b) => b.inStock || b.id === beanId),
+    [beans, beanId],
+  );
+
+  // Een concept is een gelogde shot waarvan de rating nog moet komen. Je kunt
+  // 'm alleen als concept bewaren bij een nieuwe shot of bij een shot die al
+  // een concept ís — een afgeronde shot terugzetten naar concept heeft geen nut.
+  const isDraft = shot?.draft ?? false;
+  const canSaveAsDraft = !isEdit || isDraft;
 
   function toggleTag(tag: string) {
     setTags((prev) =>
@@ -144,7 +158,7 @@ export function ShotForm({ initialBeanId, shot }: Props) {
     const latest = [...shots].sort(
       (a, b) => +new Date(b.createdAt) - +new Date(a.createdAt),
     )[0];
-    if (latest && beans.some((b) => b.id === latest.beanId)) {
+    if (latest && beans.some((b) => b.id === latest.beanId && b.inStock)) {
       setBeanId(latest.beanId);
     }
   }, [isEdit, beanId, ready, shots, beans]);
@@ -209,8 +223,7 @@ export function ShotForm({ initialBeanId, shot }: Props) {
     }));
   }, [dose]);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function save(asDraft: boolean) {
     setError(null);
 
     const grind = parseFloat(grindSize || placeholders.grindSize);
@@ -220,9 +233,10 @@ export function ShotForm({ initialBeanId, shot }: Props) {
     if (!isFinite(dose) || dose <= 0) return setError("Dose vereist");
     if (!isFinite(yld) || yld <= 0) return setError("Yield vereist");
     if (!isFinite(time) || time <= 0) return setError("Tijd vereist");
-    if (!dialIn && !rating) return setError("Rating vereist");
+    // Bij een concept mag de rating ontbreken — dat is juist het punt.
+    if (!asDraft && !dialIn && !rating) return setError("Rating vereist");
 
-    setSubmitting(true);
+    setSubmitting(asDraft ? "draft" : "shot");
     try {
       const payload = {
         beanId,
@@ -232,6 +246,7 @@ export function ShotForm({ initialBeanId, shot }: Props) {
         extractionTimeSeconds: time,
         rating,
         dialIn,
+        draft: asDraft,
         notes: notes.trim() || undefined,
         nextAdjustment: nextAdjustment.trim() || undefined,
         tags: tags.length > 0 ? tags : undefined,
@@ -243,8 +258,13 @@ export function ShotForm({ initialBeanId, shot }: Props) {
       }
       router.push(`/beans/${beanId}`);
     } finally {
-      setSubmitting(false);
+      setSubmitting(null);
     }
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    void save(false);
   }
 
   if (!ready) {
@@ -285,6 +305,22 @@ export function ShotForm({ initialBeanId, shot }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
+      {isDraft && (
+        <div className="anim-fade-up flex gap-2.5 rounded-lg border border-gold-300/70 bg-gold-300/15 px-4 py-3 text-sm">
+          <span
+            className="mt-1.5 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-gold-400"
+            aria-hidden
+          />
+          <span className="min-w-0">
+            <span className="font-medium text-ink-800">Concept</span>
+            <span className="block text-xs text-ink-500">
+              Deze shot telt nog niet mee in gemiddeldes en top-shots. Vul de
+              rating in en klik op Opslaan om ’m af te ronden.
+            </span>
+          </span>
+        </div>
+      )}
+
       <Field label="Boon" htmlFor="shot-bean" required>
         <div className="flex gap-2">
           <select
@@ -294,7 +330,7 @@ export function ShotForm({ initialBeanId, shot }: Props) {
             onChange={(e) => setBeanId(e.target.value)}
           >
             <option value="">Kies een boon…</option>
-            {beans.map((b) => (
+            {availableBeans.map((b) => (
               <option key={b.id} value={b.id}>
                 {b.name}
                 {b.roaster ? ` — ${b.roaster}` : ""}
@@ -521,7 +557,15 @@ export function ShotForm({ initialBeanId, shot }: Props) {
         />
       </Field>
 
-      <Field label="Rating" required={!dialIn}>
+      <Field
+        label="Rating"
+        required={!dialIn}
+        hint={
+          canSaveAsDraft && !rating && !dialIn
+            ? "Nog niet geproefd? Sla 'm op als concept en vul de rating later aan."
+            : undefined
+        }
+      >
         <StarRating value={rating} onChange={(v) => setRating(v)} size="lg" />
       </Field>
 
@@ -589,20 +633,55 @@ export function ShotForm({ initialBeanId, shot }: Props) {
 
       {error && <p className="text-sm text-red-700">{error}</p>}
 
-      <button
-        type="submit"
-        disabled={submitting}
-        className="flex w-full items-center justify-center gap-2 rounded-lg bg-ink-800 px-4 py-3 text-sm font-medium text-paper transition hover:bg-ink-700 disabled:opacity-50"
-      >
-        {submitting ? (
-          <>
-            <Barista mood="pour" size={22} />
-            <span>Aan het zetten…</span>
-          </>
-        ) : (
-          <span>{isEdit ? "Bijwerken" : "Opslaan"}</span>
+      {canSaveAsDraft && (
+        <p className="text-xs text-ink-300">
+          Een concept bewaart alles behalve de rating — hij telt pas mee zodra
+          je die invult.
+        </p>
+      )}
+
+      {/* Op mobiel plakken de knoppen rechtsonder in beeld (dicht bij de
+          rechterduim) terwijl je door het lange formulier scrolt; op
+          desktop de vertrouwde knoppen over de volle breedte. */}
+      {/* pointer-events-none op de container: alleen de knoppen zelf vangen
+          tikken, zodat velden náást de zwevende knoppen bereikbaar blijven. */}
+      <div className="pointer-events-none sticky bottom-4 z-30 flex justify-end gap-2 sm:static sm:bottom-auto">
+        {canSaveAsDraft && (
+          <button
+            type="button"
+            onClick={() => void save(true)}
+            disabled={submitting !== null}
+            className="pointer-events-auto flex shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-line bg-card px-5 py-3.5 text-sm font-medium text-ink-600 shadow-lift transition hover:bg-ink-50/40 disabled:opacity-50 sm:rounded-lg sm:px-4 sm:py-3 sm:shadow-none"
+          >
+            {/* Op mobiel zweeft deze knop over het formulier; kort label
+                houdt het veld eronder bereikbaar. */}
+            {submitting === "draft" ? (
+              "Bewaren…"
+            ) : (
+              <>
+                <span className="sm:hidden">Concept</span>
+                <span className="hidden sm:inline">
+                  {isDraft ? "Concept bijwerken" : "Concept opslaan"}
+                </span>
+              </>
+            )}
+          </button>
         )}
-      </button>
+        <button
+          type="submit"
+          disabled={submitting !== null}
+          className="pointer-events-auto flex items-center justify-center gap-2 rounded-full bg-ink-800 px-7 py-3.5 text-sm font-medium text-paper shadow-lift transition hover:bg-ink-700 disabled:opacity-50 sm:flex-1 sm:rounded-lg sm:px-4 sm:py-3 sm:shadow-none"
+        >
+          {submitting === "shot" ? (
+            <>
+              <Barista mood="pour" size={22} />
+              <span>Aan het zetten…</span>
+            </>
+          ) : (
+            <span>{isEdit && !isDraft ? "Bijwerken" : "Opslaan"}</span>
+          )}
+        </button>
+      </div>
     </form>
   );
 }

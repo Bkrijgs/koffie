@@ -38,6 +38,17 @@ export function BootSplash() {
   );
   const [{ hi, sub }] = useState(greeting);
 
+  // Splash maar één keer per sessie: markeer de sessie bij de eerste mount.
+  // Het inline head-script in layout.tsx zet vóór paint `boot-seen` op <html>
+  // zodra deze vlag bestaat, en CSS verbergt de splash dan volledig.
+  useEffect(() => {
+    try {
+      sessionStorage.setItem("koffie:boot", "1");
+    } catch {
+      // Privénavigatie zonder sessionStorage: splash gewoon elke keer tonen.
+    }
+  }, []);
+
   useEffect(() => {
     const t = window.setTimeout(() => setPhase("content"), CONTENT_REVEAL_MS);
     return () => window.clearTimeout(t);
@@ -77,7 +88,7 @@ export function BootSplash() {
 
   return (
     <div
-      className="fixed inset-0 z-50 overflow-hidden bg-paper transition-opacity ease-out"
+      className="boot-splash fixed inset-0 z-50 overflow-hidden bg-paper transition-opacity ease-out"
       style={{
         opacity: phase === "leaving" ? 0 : 1,
         pointerEvents: phase === "leaving" ? "none" : "auto",

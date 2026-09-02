@@ -1,5 +1,14 @@
 import type { Bean, ShotLog } from "./types";
-import { average, effectiveShots } from "./utils";
+import {
+  average,
+  costPerShot,
+  costPerStar,
+  effectiveShots,
+  formatEuro,
+  isSameMonth,
+  pricePerKg,
+  shotsCost,
+} from "./utils";
 import type { BaristaMood } from "@/components/Barista";
 
 export type TipKind = "tweak" | "info" | "praise" | "warn";
@@ -63,7 +72,7 @@ function median(nums: number[]): number {
     : sorted[mid];
 }
 
-type SweetSpot = {
+export type SweetSpot = {
   timeLow: number;
   timeHigh: number;
   ratioLow: number;
@@ -79,7 +88,7 @@ type SweetSpot = {
  * hoog-beoordeelde shots (≥4★). Bij te weinig data valt het terug op de
  * algemene espresso-vuistregels, zodat advies altijd iets oplevert.
  */
-function beanSweetSpot(effective: ShotLog[]): SweetSpot {
+export function beanSweetSpot(effective: ShotLog[]): SweetSpot {
   const good = effective.filter((s) => s.rating >= 4);
   if (good.length < 3) {
     return {
@@ -533,6 +542,60 @@ export function globalTips(beans: Bean[], shots: ShotLog[]): Tip[] {
     });
   }
 
+  // Prijs-bewuste inzichten. Beste waar-voor-je-geld: alleen tonen bij
+  // meerdere geprijsde bonen met genoeg data én een duidelijk verschil.
+  const valueRanked = beans
+    .map((b) => {
+      const perKg = pricePerKg(b);
+      const bs = effective.filter((s) => s.beanId === b.id);
+      if (perKg === undefined || bs.length < 3) return null;
+      const starCost = costPerStar(
+        average(bs.map((s) => costPerShot(s.doseGrams, perKg))),
+        average(bs.map((s) => s.rating)),
+      );
+      return starCost === undefined ? null : { bean: b, starCost };
+    })
+    .filter((x): x is { bean: Bean; starCost: number } => x !== null)
+    .sort((a, b) => a.starCost - b.starCost);
+  if (valueRanked.length >= 2) {
+    const best = valueRanked[0];
+    const worst = valueRanked[valueRanked.length - 1];
+    if (worst.starCost >= best.starCost * 1.5) {
+      tips.push({
+        id: "best-value",
+        kind: "info",
+        text: `${best.bean.name} is je beste waar-voor-je-geld: ${formatEuro(best.starCost)} per ster, tegenover ${formatEuro(worst.starCost)} bij ${worst.bean.name}.`,
+      });
+    }
+  }
+
+  const month = shotsCost(
+    shots.filter((s) => isSameMonth(s.createdAt, new Date())),
+    beans,
+  );
+  if (month.counted >= 5 && month.cost > 0) {
+    tips.push({
+      id: "month-cost",
+      kind: "info",
+      text: `Deze maand ${formatEuro(month.cost)} aan koffie gezet, verdeeld over ${month.counted} shots.`,
+    });
+  }
+
+  // Nudge: bonen mét shots maar zonder prijsinfo doen niet mee in de
+  // kostenvergelijking. Alleen zeuren als er al minstens één geprijsde
+  // boon is (anders kent de gebruiker de feature waarschijnlijk nog niet).
+  const hasPricedBean = beans.some((b) => pricePerKg(b) !== undefined);
+  const unpriced = beans.filter(
+    (b) => pricePerKg(b) === undefined && beansWithShots.has(b.id),
+  );
+  if (hasPricedBean && unpriced.length > 0) {
+    tips.push({
+      id: "missing-price",
+      kind: "info",
+      text: `Vul prijs en zakgewicht in bij ${unpriced[0].name} om kosten en waar-voor-je-geld mee te vergelijken.`,
+    });
+  }
+
   if (tips.length === 0) {
     const beanWithMostShots = topBean(beans, effective);
     if (beanWithMostShots) {
@@ -618,7 +681,8 @@ export function tipsForShot(
   const effectiveBeanShots = effectiveShots(beanShots);
   if (bean && effectiveBeanShots.length >= 3) {
     const others = effectiveBeanShots.filter((s) => s.id !== shot.id);
-    if (others.length > 0 && !shot.dialIn) {
+    // Zonder eigen rating (concept) valt er niets te vergelijken.
+    if (others.length > 0 && !shot.dialIn && shot.rating > 0) {
       const avg = average(others.map((s) => s.rating));
       if (shot.rating - avg >= 1) {
         tips.push({

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useKoffie } from "@/lib/useKoffie";
 import type { Bean } from "@/lib/types";
+import { parseDecimal } from "@/lib/utils";
 import { Field, inputClass } from "./Field";
 
 type Props = {
@@ -23,7 +24,15 @@ export function BeanForm({ bean, onCreated, onUpdated, onCancel }: Props) {
   const [origin, setOrigin] = useState(bean?.origin ?? "");
   const [blend, setBlend] = useState(bean?.blend ?? "");
   const [roastDate, setRoastDate] = useState(bean?.roastDate ?? "");
+  const [price, setPrice] = useState(
+    bean?.priceEuros != null ? String(bean.priceEuros).replace(".", ",") : "",
+  );
+  const [bagWeight, setBagWeight] = useState(
+    bean?.bagWeightGrams != null ? String(bean.bagWeightGrams) : "",
+  );
   const [notes, setNotes] = useState(bean?.notes ?? "");
+  const [gift, setGift] = useState(bean?.gift ?? false);
+  const [inStock, setInStock] = useState(bean?.inStock ?? true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,6 +40,16 @@ export function BeanForm({ bean, onCreated, onUpdated, onCancel }: Props) {
     e.preventDefault();
     if (!name.trim()) {
       setError("Naam vereist");
+      return;
+    }
+    const priceEuros = parseDecimal(price);
+    if (price.trim() && priceEuros === undefined) {
+      setError("Ongeldige prijs");
+      return;
+    }
+    const bagWeightGrams = parseDecimal(bagWeight);
+    if (bagWeight.trim() && bagWeightGrams === undefined) {
+      setError("Ongeldig zakgewicht");
       return;
     }
     setSubmitting(true);
@@ -42,7 +61,11 @@ export function BeanForm({ bean, onCreated, onUpdated, onCancel }: Props) {
         origin: origin.trim() || undefined,
         blend: blend.trim() || undefined,
         roastDate: roastDate || undefined,
+        priceEuros,
+        bagWeightGrams,
+        gift,
         notes: notes.trim() || undefined,
+        inStock,
       };
       if (bean) {
         await updateBean(bean.id, payload);
@@ -119,6 +142,53 @@ export function BeanForm({ bean, onCreated, onUpdated, onCancel }: Props) {
         </Field>
       </div>
 
+      <div className="grid gap-5 sm:grid-cols-2">
+        <Field
+          label={gift ? "Winkelprijs, schatting (€)" : "Prijs (€ per zak)"}
+          htmlFor="bean-price"
+        >
+          <input
+            id="bean-price"
+            type="text"
+            inputMode="decimal"
+            className={`${inputClass} numeric`}
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            placeholder="9,50"
+          />
+        </Field>
+        <Field label="Zakgewicht (g)" htmlFor="bean-bag-weight">
+          <input
+            id="bean-bag-weight"
+            type="number"
+            inputMode="numeric"
+            step="1"
+            min="0"
+            className={`${inputClass} numeric`}
+            value={bagWeight}
+            onChange={(e) => setBagWeight(e.target.value)}
+            placeholder="250"
+          />
+        </Field>
+      </div>
+
+      <label className="flex items-start gap-3 rounded-lg border border-line bg-paper px-4 py-3 text-sm">
+        <input
+          id="bean-gift"
+          type="checkbox"
+          checked={gift}
+          onChange={(e) => setGift(e.target.checked)}
+          className="mt-0.5 h-4 w-4 cursor-pointer accent-ink-800"
+        />
+        <span className="min-w-0 flex-1">
+          <span className="font-medium text-ink-800">Cadeau gekregen</span>
+          <span className="block text-xs text-ink-400">
+            Telt niet mee in je uitgaven. Vul de geschatte winkelprijs in om
+            de boon wél te kunnen vergelijken op waarde.
+          </span>
+        </span>
+      </label>
+
       <Field label="Opmerkingen" htmlFor="bean-notes">
         <textarea
           id="bean-notes"
@@ -128,6 +198,23 @@ export function BeanForm({ bean, onCreated, onUpdated, onCancel }: Props) {
           placeholder="Smaakprofiel"
         />
       </Field>
+
+      <label className="flex items-start gap-3 rounded-lg border border-line bg-paper px-4 py-3 text-sm">
+        <input
+          id="bean-in-stock"
+          type="checkbox"
+          checked={inStock}
+          onChange={(e) => setInStock(e.target.checked)}
+          className="mt-0.5 h-4 w-4 cursor-pointer accent-ink-800"
+        />
+        <span className="min-w-0 flex-1">
+          <span className="font-medium text-ink-800">Op voorraad</span>
+          <span className="block text-xs text-ink-400">
+            Vink uit als de zak op is — de boon verdwijnt dan uit het
+            keuzemenu bij het loggen van een shot.
+          </span>
+        </span>
+      </label>
 
       {error && <p className="text-sm text-red-700">{error}</p>}
 

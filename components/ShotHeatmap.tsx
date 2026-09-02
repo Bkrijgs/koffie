@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { ShotLog } from "@/lib/types";
-import { effectiveShots, formatDateOnly } from "@/lib/utils";
+import { formatDateOnly } from "@/lib/utils";
 
 type Props = {
   shots: ShotLog[];
@@ -11,7 +11,9 @@ type Props = {
 };
 
 const MIN_WEEKS = 4;
-const MAX_WEEKS = 40;
+// Maximaal ~5 maanden terug: verder terug is het grid vooral leeg en
+// wordt de rij op brede schermen onnodig breed.
+const MAX_WEEKS = 20;
 const CELL_PX = 16;
 const GAP_PX = 4;
 const COL_PX = CELL_PX + GAP_PX;
@@ -63,7 +65,10 @@ export function ShotHeatmap({ shots, selectedDateKey, onSelectDay }: Props) {
     return () => obs.disconnect();
   }, []);
 
-  const effective = effectiveShots(shots);
+  // Activiteit gaat over shots die je écht gezet hebt, niet over ratings:
+  // een concept telt hier dus gewoon mee (alleen de rating volgt nog).
+  // Dial-in pogingen blijven er net als elders uit.
+  const effective = shots.filter((s) => !s.dialIn);
   if (effective.length === 0) return null;
 
   const today = startOfDay(new Date());
