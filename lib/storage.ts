@@ -4,6 +4,9 @@ import type {
   BagInput,
   Bean,
   BeanInput,
+  Expense,
+  ExpenseCategory,
+  ExpenseInput,
   Setup,
   ShotInput,
   ShotLog,
@@ -33,6 +36,11 @@ export interface KoffieStorage {
   addBag(input: BagInput): Promise<Bag>;
   updateBag(id: string, input: BagInput): Promise<Bag>;
 
+  listExpenses(): Promise<Expense[]>;
+  addExpense(input: ExpenseInput): Promise<Expense>;
+  updateExpense(id: string, input: ExpenseInput): Promise<Expense>;
+  deleteExpense(id: string): Promise<void>;
+
   getSetup(): Promise<Setup>;
   saveSetup(setup: Setup): Promise<Setup>;
 }
@@ -40,6 +48,7 @@ export interface KoffieStorage {
 const BEANS_KEY = "koffie:beans:v1";
 const SHOTS_KEY = "koffie:shots:v1";
 const BAGS_KEY = "koffie:bags:v1";
+const EXPENSES_KEY = "koffie:expenses:v1";
 const SETUP_KEY = "koffie:setup:v1";
 
 /** Oudere shots hadden grindSize als string en kenden nog geen concept-vlag.
@@ -184,6 +193,40 @@ export const localStorageBackend: KoffieStorage = {
     write(BAGS_KEY, all);
     return updated;
   },
+  async listExpenses() {
+    return read<Expense>(EXPENSES_KEY).sort((a, b) =>
+      a.purchasedAt === b.purchasedAt
+        ? +new Date(b.createdAt) - +new Date(a.createdAt)
+        : b.purchasedAt.localeCompare(a.purchasedAt),
+    );
+  },
+  async addExpense(input) {
+    const expense: Expense = {
+      id: uid(),
+      createdAt: new Date().toISOString(),
+      ...input,
+    };
+    const all = read<Expense>(EXPENSES_KEY);
+    all.push(expense);
+    write(EXPENSES_KEY, all);
+    return expense;
+  },
+  async updateExpense(id, input) {
+    const all = read<Expense>(EXPENSES_KEY);
+    const idx = all.findIndex((e) => e.id === id);
+    if (idx === -1) throw new Error("Uitgave niet gevonden");
+    const updated: Expense = { ...all[idx], ...input };
+    all[idx] = updated;
+    write(EXPENSES_KEY, all);
+    return updated;
+  },
+  async deleteExpense(id) {
+    const all = read<Expense>(EXPENSES_KEY);
+    write(
+      EXPENSES_KEY,
+      all.filter((e) => e.id !== id),
+    );
+  },
   async getSetup() {
     if (typeof window === "undefined") return DEFAULT_SETUP;
     try {
@@ -274,6 +317,39 @@ function bagFromRow(row: BagRow): Bag {
     grams: Number(row.grams),
     openedAt: row.opened_at,
     finishedAt: row.finished_at ?? undefined,
+    notes: row.notes ?? undefined,
+    createdAt: row.created_at,
+  };
+}
+
+type ExpenseRow = {
+  id: string;
+  description: string;
+  /** numeric komt via PostgREST als string binnen. */
+  amount_euros: number | string;
+  category: string;
+  purchased_at: string;
+  notes: string | null;
+  created_at: string;
+};
+
+const EXPENSE_CATEGORIES = ["onderhoud", "apparatuur", "overig"] as const;
+
+/** Onbekende categorie (bv. uit een handmatige rij) valt terug op onderhoud,
+ *  zodat de UI nooit op een lege badge stuit. */
+function toCategory(value: string): ExpenseCategory {
+  return (EXPENSE_CATEGORIES as readonly string[]).includes(value)
+    ? (value as ExpenseCategory)
+    : "onderhoud";
+}
+
+function expenseFromRow(row: ExpenseRow): Expense {
+  return {
+    id: row.id,
+    description: row.description,
+    amountEuros: Number(row.amount_euros),
+    category: toCategory(row.category),
+    purchasedAt: row.purchased_at,
     notes: row.notes ?? undefined,
     createdAt: row.created_at,
   };
@@ -466,6 +542,50 @@ export const supabaseBackend: KoffieStorage = {
       .single();
     if (error) throw error;
     return bagFromRow(data as BagRow);
+  },
+  async listExpenses() {
+    const { data, error } = await getSupabase()
+      .from("expenses")
+      .select("*")
+      .order("purchased_at", { ascending: false })
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return (data as ExpenseRow[]).map(expenseFromRow);
+  },
+  async addExpense(input) {
+    const { data, error } = await getSupabase()
+      .from("expenses")
+      .insert({
+        description: input.description,
+        amount_euros: input.amountEuros,
+        category: input.category,
+        purchased_at: input.purchasedAt,
+        notes: input.notes ?? null,
+      })
+      .select("*")
+      .single();
+    if (error) throw error;
+    return expenseFromRow(data as ExpenseRow);
+  },
+  async updateExpense(id, input) {
+    const { data, error } = await getSupabase()
+      .from("expenses")
+      .update({
+        description: input.description,
+        amount_euros: input.amountEuros,
+        category: input.category,
+        purchased_at: input.purchasedAt,
+        notes: input.notes ?? null,
+      })
+      .eq("id", id)
+      .select("*")
+      .single();
+    if (error) throw error;
+    return expenseFromRow(data as ExpenseRow);
+  },
+  async deleteExpense(id) {
+    const { error } = await getSupabase().from("expenses").delete().eq("id", id);
+    if (error) throw error;
   },
   async getSetup() {
     const { data, error } = await getSupabase()

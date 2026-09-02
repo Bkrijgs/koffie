@@ -8,6 +8,8 @@ import type {
   BagInput,
   Bean,
   BeanInput,
+  Expense,
+  ExpenseInput,
   Setup,
   ShotInput,
   ShotLog,
@@ -17,6 +19,7 @@ type State = {
   beans: Bean[];
   shots: ShotLog[];
   bags: Bag[];
+  expenses: Expense[];
   setup: Setup;
   ready: boolean;
   error: string | null;
@@ -27,6 +30,7 @@ const state: State = {
   beans: [],
   shots: [],
   bags: [],
+  expenses: [],
   setup: DEFAULT_SETUP,
   ready: false,
   error: null,
@@ -66,7 +70,7 @@ async function init() {
   // e-reader) de app niet eeuwig op "Laden…" laat hangen. Fouten worden
   // verzameld en zichtbaar getoond.
   const errors: string[] = [];
-  const [beans, shots, bags, setup] = await Promise.all([
+  const [beans, shots, bags, expenses, setup] = await Promise.all([
     withTimeout(storage.listBeans(), "bonen").catch((e) => {
       errors.push("bonen: " + errMsg(e));
       return [] as Bean[];
@@ -79,6 +83,10 @@ async function init() {
       errors.push("zakken: " + errMsg(e));
       return [] as Bag[];
     }),
+    withTimeout(storage.listExpenses(), "uitgaven").catch((e) => {
+      errors.push("uitgaven: " + errMsg(e));
+      return [] as Expense[];
+    }),
     withTimeout(storage.getSetup(), "setup").catch((e) => {
       errors.push("setup: " + errMsg(e));
       return DEFAULT_SETUP;
@@ -87,6 +95,7 @@ async function init() {
   state.beans = beans;
   state.shots = shots;
   state.bags = bags;
+  state.expenses = expenses;
   state.setup = setup;
   state.error = errors.length > 0 ? errors.join(" | ") : null;
   state.ready = true;
@@ -157,6 +166,29 @@ export function useKoffie() {
     return bag;
   }, []);
 
+  const addExpense = useCallback(async (input: ExpenseInput) => {
+    const expense = await storage.addExpense(input);
+    state.expenses = [expense, ...state.expenses];
+    notify();
+    return expense;
+  }, []);
+
+  const updateExpense = useCallback(
+    async (id: string, input: ExpenseInput) => {
+      const expense = await storage.updateExpense(id, input);
+      state.expenses = state.expenses.map((e) => (e.id === id ? expense : e));
+      notify();
+      return expense;
+    },
+    [],
+  );
+
+  const deleteExpense = useCallback(async (id: string) => {
+    await storage.deleteExpense(id);
+    state.expenses = state.expenses.filter((e) => e.id !== id);
+    notify();
+  }, []);
+
   const updateSetup = useCallback(async (input: Setup) => {
     const setup = await storage.saveSetup(input);
     state.setup = setup;
@@ -170,6 +202,7 @@ export function useKoffie() {
     beans: state.beans,
     shots: state.shots,
     bags: state.bags,
+    expenses: state.expenses,
     setup: state.setup,
     addBean,
     updateBean,
@@ -178,6 +211,9 @@ export function useKoffie() {
     deleteShot,
     addBag,
     updateBag,
+    addExpense,
+    updateExpense,
+    deleteExpense,
     updateSetup,
   };
 }

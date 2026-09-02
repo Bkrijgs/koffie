@@ -82,6 +82,27 @@ export type Bag = {
   createdAt: string;
 };
 
+export type ExpenseCategory = "onderhoud" | "apparatuur" | "overig";
+
+/** Uitgave die niet in een zak bonen zit: filters, schoonmaakmiddel, ontkalker
+ *  en de spullen die je voor de opstelling koopt. Bonen komen hier nooit in —
+ *  die kosten worden afgeleid van priceEuros/bagWeightGrams op de boon zelf,
+ *  dus een bonen-uitgave zou dubbel tellen.
+ *  `onderhoud` en `overig` zijn lopende kosten en tellen mee in de maand- en
+ *  totaalcijfers; `apparatuur` is een eenmalige investering en blijft daar
+ *  buiten, zodat een molen van een paar honderd euro je maandbeeld niet sloopt. */
+export type Expense = {
+  id: string;
+  description: string;
+  amountEuros: number;
+  category: ExpenseCategory;
+  /** "YYYY-MM-DD" */
+  purchasedAt: string;
+  notes?: string;
+  createdAt: string;
+};
+
 export type BeanInput = Omit<Bean, "id" | "createdAt">;
 export type ShotInput = Omit<ShotLog, "id" | "createdAt" | "brewRatio">;
 export type BagInput = Omit<Bag, "id" | "createdAt">;
+export type ExpenseInput = Omit<Expense, "id" | "createdAt">;

@@ -44,8 +44,10 @@ Open <http://localhost:3000>.
 
 Draaide je het schema eerder al? Voer dan ook de latere migraties in
 `supabase/migrations/` op volgorde uit (ze zijn idempotent). Voor
-concept-shots is `0009_draft_shots.sql` nodig: die voegt de `draft`-kolom toe
-en staat `rating = 0` toe voor concept- en dial-in shots.
+concept-shots is `0013_draft_shots.sql` nodig: die voegt de `draft`-kolom toe
+en staat `rating = 0` toe voor concept- en dial-in shots. Voor
+onderhoudskosten op `/kosten` is `0014_expenses.sql` nodig: die maakt de
+`expenses`-tabel en zet en passant de ontbrekende delete-policy op `shots`.
 
 ## Data persistence
 
