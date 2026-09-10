@@ -8,6 +8,11 @@ import type { Bag, Bean, ShotLog } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// De database staat in eu-west-1 (Ierland). Zonder deze regel draait deze
+// functie in Vercel's standaardregio iad1 (Washington) en gaat elke refresh
+// van het scherm drie keer de oceaan over. Dat kostte structureel ~4%
+// time-outs op de Supabase-gateway.
+export const preferredRegion = "dub1";
 // De Supabase-client draait via fetch; zonder dit zet Next die responses in
 // de data-cache en blijft het scherm op de eerste render hangen.
 export const fetchCache = "force-no-store";
@@ -100,11 +105,35 @@ type Data = {
   bags: Bag[];
 };
 
+/** Eén hapering van de gateway (een 504 op één van de drie queries) mag niet
+ *  het hele scherm wissen. Daarom eerst één herkansing per query. */
+async function withRetry<T>(
+  label: string,
+  run: () => Promise<T>,
+): Promise<T> {
+  try {
+    return await run();
+  } catch (first) {
+    console.error(`[kobo] ${label} faalde, één herkansing:`, first);
+    return run();
+  }
+}
+
+/** Alleen de shots zijn onmisbaar. Vallen de bonen of de zakken weg, dan
+ *  rendert het dashboard door: je mist de boonnaam of de voorraadbalk, maar
+ *  alle shot-cijfers kloppen gewoon. Beter een scherm met een gat erin dan
+ *  helemaal geen scherm. */
 async function loadData(): Promise<Data> {
   const [beans, shots, bags] = await Promise.all([
-    supabaseBackend.listBeans(),
-    supabaseBackend.listShots(),
-    supabaseBackend.listBags(),
+    withRetry("beans", () => supabaseBackend.listBeans()).catch((e) => {
+      console.error("[kobo] bonen niet opgehaald, ga door zonder:", e);
+      return [] as Bean[];
+    }),
+    withRetry("shots", () => supabaseBackend.listShots()),
+    withRetry("bags", () => supabaseBackend.listBags()).catch((e) => {
+      console.error("[kobo] zakken niet opgehaald, ga door zonder:", e);
+      return [] as Bag[];
+    }),
   ]);
   return { beans, shots, bags };
 }
@@ -122,7 +151,11 @@ export async function GET() {
   let data: Data;
   try {
     data = await loadData();
-  } catch {
+  } catch (e) {
+    // Alleen de shots kunnen hier nog stuklopen; bonen en zakken worden
+    // hierboven al opgevangen. Loggen, anders is er in de Vercel-logs geen
+    // enkel spoor van wat er misging.
+    console.error("[kobo] shots niet opgehaald, geen scherm te maken:", e);
     return png(
       <Message
         title="Geen data"
@@ -160,7 +193,9 @@ function Dashboard({ beans, shots, bags }: Data) {
 
   const last = shots[0];
   const currentBean = beanById.get(last.beanId);
-  const currentBag = currentBean ? openBagFor(currentBean.id, bags) : undefined;
+  // Op de boon-id van de shot zoeken, niet op het boon-object: vallen de
+  // bonen weg maar de zakken niet, dan blijft de voorraadbalk gewoon staan.
+  const currentBag = openBagFor(last.beanId, bags);
   const stats = currentBag ? bagStats(currentBag, shots) : null;
 
   // De sweet spot van de boon die nú in de maler zit. beanSweetSpot leert de
