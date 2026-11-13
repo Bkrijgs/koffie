@@ -335,3 +335,380 @@ html[data-skin="win98"] .anim-fade-up,
 html[data-skin="win98"] .anim-fade-in {
   animation: none;
 }
+
+/* =====================================================================
+ * Ronde 2: pixelfont, vensterknoppen, taakbalk en "voelbare" bediening.
+ * ===================================================================== */
+
+/* Pixelfont uit 98.css (MIT, Jordan Scales). */
+@font-face {
+  font-family: "Pixelated MS Sans Serif";
+  src: url("/fonts/ms_sans_serif.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Pixelated MS Sans Serif";
+  src: url("/fonts/ms_sans_serif_bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Alleen zichtbaar met de skin aan. */
+.w98-only {
+  display: none !important;
+}
+
+html[data-skin="win98"] .w98-only {
+  display: flex !important;
+}
+
+/* Klassiek stippelpatroon op het bureaublad. */
+html[data-skin="win98"] body {
+  background-color: #008080;
+  background-image: radial-gradient(rgba(0, 0, 0, 0.18) 1px, transparent 1px);
+  background-size: 4px 4px;
+  padding-bottom: 40px;
+  cursor: default;
+}
+
+/* Pixelfont is ontworpen voor 11px; houd tekst op hele veelvouden scherp. */
+html[data-skin="win98"] .text-sm,
+html[data-skin="win98"] .text-xs,
+html[data-skin="win98"] .text-base {
+  font-size: 11px;
+  line-height: 16px;
+}
+
+html[data-skin="win98"] main h1 {
+  font-size: 22px;
+}
+
+html[data-skin="win98"] main h2,
+html[data-skin="win98"] body > header::before {
+  font-size: 11px;
+}
+
+html[data-skin="win98"] main h3,
+html[data-skin="win98"] a.font-display {
+  font-size: 11px;
+  line-height: 16px;
+}
+
+html[data-skin="win98"] .numeric.font-display {
+  color: var(--w-navy);
+}
+
+html[data-skin="win98"] .bg-line.border .numeric.font-display {
+  font-size: 26px;
+}
+
+html[data-skin="win98"] body > header > div > a.font-display {
+  font-size: 22px;
+  line-height: 24px;
+}
+
+/* ---------- Vensterknoppen ( _ [] X ) in de titelbalk ---------- */
+
+html[data-skin="win98"] body > header {
+  position: relative;
+}
+
+html[data-skin="win98"] body > header::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 50px;
+  height: 14px;
+  pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='14' shape-rendering='crispEdges'%3E%3Cg id='b'%3E%3Crect width='16' height='14' fill='%230a0a0a'/%3E%3Crect width='15' height='13' fill='%23fff'/%3E%3Crect x='1' y='1' width='14' height='12' fill='%23808080'/%3E%3Crect x='1' y='1' width='13' height='11' fill='%23c0c0c0'/%3E%3C/g%3E%3Cuse href='%23b' x='16'/%3E%3Cuse href='%23b' x='34'/%3E%3Crect x='4' y='9' width='6' height='2'/%3E%3Cpath d='M19 3h9v8h-9zM20 5v5h7V5z' fill-rule='evenodd'/%3E%3Cpath d='M38 3h2l2 2 2-2h2l-3 3.5 3 3.5h-2l-2-2-2 2h-2l3-3.5z'/%3E%3C/svg%3E")
+    no-repeat;
+}
+
+/* ---------- Voelbare knoppen ---------- */
+
+html[data-skin="win98"] button,
+html[data-skin="win98"] a,
+html[data-skin="win98"] label,
+html[data-skin="win98"] select,
+html[data-skin="win98"] .cursor-pointer {
+  cursor: default !important;
+}
+
+html[data-skin="win98"] button[class*="px-"],
+html[data-skin="win98"] a[class*="px-"][class*="rounded-lg"],
+html[data-skin="win98"] a[class*="px-"][class*="bg-ink-800"] {
+  font-size: 11px;
+  line-height: 14px;
+  padding: 6px 14px;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+/* Ingedrukt: bevel klapt om én de inhoud zakt een pixel. */
+html[data-skin="win98"] button[class*="px-"]:active,
+html[data-skin="win98"] a[class*="px-"][class*="rounded-lg"]:active,
+html[data-skin="win98"] a[class*="px-"][class*="bg-ink-800"]:active {
+  box-shadow: var(--w-pressed) !important;
+  transform: translate(1px, 1px) !important;
+}
+
+/* Primaire knop = "default button": dikke zwarte rand eromheen. */
+html[data-skin="win98"] button[class*="hover:bg-ink-700"],
+html[data-skin="win98"] a[class*="hover:bg-ink-700"] {
+  box-shadow: var(--w-raised), 0 0 0 1px #000;
+  font-weight: 700;
+}
+
+html[data-skin="win98"] button[class*="hover:bg-ink-700"]:active,
+html[data-skin="win98"] a[class*="hover:bg-ink-700"]:active {
+  box-shadow: var(--w-pressed), 0 0 0 1px #000 !important;
+}
+
+/* Klikbare kaarten geven ook mee. */
+html[data-skin="win98"] article.bg-card.border:active {
+  box-shadow: var(--w-pressed);
+}
+
+html[data-skin="win98"] article.bg-card.border:active > * {
+  transform: translate(1px, 1px);
+}
+
+html[data-skin="win98"] article.bg-card.border:hover a.font-display,
+html[data-skin="win98"] article.bg-card.border:focus-within {
+  outline: 1px dotted #000;
+  outline-offset: -5px;
+}
+
+html[data-skin="win98"] article.bg-card.border:hover a.font-display {
+  outline: 0;
+  background: var(--w-navy);
+  color: #fff;
+}
+
+/* ---------- Checkbox, select, range ---------- */
+
+html[data-skin="win98"] input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 13px;
+  height: 13px;
+  flex: none;
+  background: #fff;
+  box-shadow: var(--w-sunken);
+}
+
+html[data-skin="win98"] input[type="checkbox"]:active {
+  background: var(--w-face);
+}
+
+html[data-skin="win98"] input[type="checkbox"]:checked {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='13' height='13' shape-rendering='crispEdges'%3E%3Cpath d='M3 5v3l2 2 5-5V2L5 7z'/%3E%3C/svg%3E");
+}
+
+html[data-skin="win98"] label:has(> input[type="checkbox"]):focus-within > span {
+  outline: 1px dotted #000;
+}
+
+html[data-skin="win98"] select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 24px !important;
+  background: #fff
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='17' shape-rendering='crispEdges'%3E%3Crect width='16' height='17' fill='%230a0a0a'/%3E%3Crect width='15' height='16' fill='%23dfdfdf'/%3E%3Crect x='1' y='1' width='14' height='15' fill='%23808080'/%3E%3Crect x='1' y='1' width='13' height='14' fill='%23fff'/%3E%3Crect x='2' y='2' width='12' height='13' fill='%23c0c0c0'/%3E%3Cpath d='M4 6h7L7.5 10z'/%3E%3C/svg%3E")
+    no-repeat right 2px center !important;
+}
+
+/* ---------- Scrollbalken ---------- */
+
+html[data-skin="win98"] ::-webkit-scrollbar {
+  width: 16px;
+  height: 16px;
+}
+
+html[data-skin="win98"] ::-webkit-scrollbar-track {
+  background: repeating-conic-gradient(#c0c0c0 0% 25%, #fff 0% 50%) 0 0 / 2px 2px;
+}
+
+html[data-skin="win98"] ::-webkit-scrollbar-thumb,
+html[data-skin="win98"] ::-webkit-scrollbar-button {
+  background: var(--w-face);
+  box-shadow: var(--w-raised);
+}
+
+html[data-skin="win98"] ::-webkit-scrollbar-button {
+  height: 16px;
+  width: 16px;
+}
+
+/* ---------- Heatmap: verzonken vakjes ---------- */
+
+html[data-skin="win98"] .h-4.w-4.bg-line,
+html[data-skin="win98"] .h-3.w-3.bg-line {
+  background: #fff;
+  box-shadow: inset 1px 1px var(--w-shadow), inset -1px -1px var(--w-hi);
+}
+
+html[data-skin="win98"] [class*="hover:scale-150"]:hover {
+  transform: none;
+  outline: 1px dotted #000;
+  outline-offset: 1px;
+}
+
+/* ---------- Dunne laadbalkjes worden blokjesbalken ---------- */
+
+html[data-skin="win98"] .h-px:has(> .anim-bar-fill),
+html[data-skin="win98"] .h-px:has(> .anim-bar-pulse) {
+  height: 12px;
+  padding: 2px;
+  background: #fff;
+  box-shadow: var(--w-sunken);
+}
+
+html[data-skin="win98"] .anim-bar-fill,
+html[data-skin="win98"] .anim-bar-pulse {
+  background: repeating-linear-gradient(
+    90deg,
+    var(--w-navy) 0 6px,
+    transparent 6px 8px
+  ) !important;
+  animation-timing-function: steps(12, end);
+}
+
+/* ---------- Taakbalk ---------- */
+
+html[data-skin="win98"] .w98-taskbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  height: 30px;
+  padding: 4px 2px 2px;
+  gap: 4px;
+  align-items: stretch;
+  background: var(--w-face);
+  box-shadow: inset 0 1px var(--w-light), inset 0 2px var(--w-hi);
+  font-size: 11px;
+  line-height: 14px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+html[data-skin="win98"] .w98-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px;
+  background: var(--w-face);
+  color: #000;
+  box-shadow: var(--w-raised);
+  font-family: var(--w-font);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+html[data-skin="win98"] .w98-btn:active,
+html[data-skin="win98"] .w98-btn[aria-pressed="true"],
+html[data-skin="win98"] .w98-btn[aria-expanded="true"] {
+  box-shadow: var(--w-pressed);
+  padding: 1px 5px 0 7px;
+}
+
+html[data-skin="win98"] .w98-start {
+  font-weight: 700;
+}
+
+html[data-skin="win98"] .w98-task {
+  flex: 0 1 160px;
+  min-width: 0;
+  font-weight: 700;
+  background: repeating-conic-gradient(#c0c0c0 0% 25%, #fff 0% 50%) 0 0 / 2px 2px;
+  box-shadow: var(--w-pressed);
+  overflow: hidden;
+}
+
+html[data-skin="win98"] .w98-task span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+html[data-skin="win98"] .w98-tray {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding: 0 8px;
+  box-shadow: inset 1px 1px var(--w-shadow), inset -1px -1px var(--w-hi);
+}
+
+html[data-skin="win98"] .w98-tray button {
+  display: flex;
+  padding: 0;
+}
+
+html[data-skin="win98"] .w98-logo {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  background: conic-gradient(#ff3b30 0 25%, #34c759 0 50%, #ffd60a 0 75%, #0a84ff 0);
+  box-shadow: 0 0 0 1px #000;
+  transform: skewY(-6deg);
+}
+
+html[data-skin="win98"] .w98-menu {
+  position: fixed;
+  left: 2px;
+  bottom: 28px;
+  z-index: 41;
+  flex-direction: row;
+  background: var(--w-face);
+  box-shadow: var(--w-raised);
+  padding: 3px;
+  font-size: 11px;
+}
+
+html[data-skin="win98"] .w98-menu-side {
+  width: 22px;
+  background: linear-gradient(0deg, #000080, #1084d0);
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  padding: 6px 2px;
+  text-align: left;
+}
+
+html[data-skin="win98"] .w98-menu ul {
+  min-width: 160px;
+}
+
+html[data-skin="win98"] .w98-menu li > * {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  text-align: left;
+  color: #000;
+  font-family: var(--w-font);
+  text-decoration: none !important;
+}
+
+html[data-skin="win98"] .w98-menu li > *:hover,
+html[data-skin="win98"] .w98-menu li > *:focus-visible {
+  background: var(--w-navy);
+  color: #fff !important;
+  outline: 0;
+}
+
+html[data-skin="win98"] .w98-menu li.w98-sep {
+  margin-top: 3px;
+  padding-top: 3px;
+  border-top: 1px solid var(--w-shadow);
+  box-shadow: inset 0 1px var(--w-hi);
+}

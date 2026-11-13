@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { isSupabaseConfigured } from "@/lib/supabase";
+import { SkinChrome } from "@/components/SkinChrome";
 import "./globals.css";
 import "./skin-win98.css";
 
@@ -70,6 +71,7 @@ export default function RootLayout({
         <footer className="mx-auto max-w-3xl px-5 py-10 text-center text-[11px] uppercase tracking-[0.18em] text-ink-300">
           {isSupabaseConfigured ? "Opgeslagen in Supabase" : "Lokaal opgeslagen"}
         </footer>
+        <SkinChrome />
       </body>
     </html>
   );
