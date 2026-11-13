@@ -274,7 +274,9 @@ html[data-skin="win98"] textarea {
   border: 0 !important;
   box-shadow: var(--w-sunken) !important;
   font-family: var(--w-font);
-  font-size: 13px;
+  /* 16px: kleiner laat iOS Safari inzoomen zodra het veld focus krijgt. */
+  font-size: 16px !important;
+  line-height: 20px;
   padding: 5px 6px;
   outline: none;
   transition: none;
