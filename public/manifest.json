@@ -1,0 +1,17 @@
+{
+  "name": "Koffie",
+  "short_name": "Koffie",
+  "description": "Espresso dial-in log voor de Sage Barista Express.",
+  "start_url": "/?eink=1",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#f4f6fb",
+  "icons": [
+    {
+      "src": "/Barista.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
