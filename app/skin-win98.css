@@ -1,0 +1,337 @@
+/*
+ * Tijdelijke "Windows 98"-skin.
+ *
+ * Alles hier is gescoped onder html[data-skin="win98"], dus zonder dat
+ * attribuut verandert er niets aan de normale app. Weghalen = dit bestand,
+ * components/SkinToggle.tsx en het script + de import in app/layout.tsx
+ * verwijderen.
+ *
+ * Bevels en kleuren zijn overgenomen van 98.css (https://jdan.github.io/98.css/).
+ */
+
+html[data-skin="win98"] {
+  --w-face: #c0c0c0;
+  --w-hi: #ffffff;
+  --w-light: #dfdfdf;
+  --w-shadow: #808080;
+  --w-dark: #0a0a0a;
+  --w-navy: #000080;
+  --w-title: linear-gradient(90deg, #000080, #1084d0);
+  --w-raised: inset -1px -1px var(--w-dark), inset 1px 1px var(--w-hi),
+    inset -2px -2px var(--w-shadow), inset 2px 2px var(--w-light);
+  --w-pressed: inset -1px -1px var(--w-hi), inset 1px 1px var(--w-dark),
+    inset -2px -2px var(--w-light), inset 2px 2px var(--w-shadow);
+  --w-sunken: inset -1px -1px var(--w-hi), inset 1px 1px var(--w-shadow),
+    inset -2px -2px var(--w-light), inset 2px 2px var(--w-dark);
+  --w-font: "Pixelated MS Sans Serif", "MS Sans Serif", Tahoma, Verdana,
+    Arial, sans-serif;
+}
+
+/* ---------- Basis ---------- */
+
+html[data-skin="win98"],
+html[data-skin="win98"] body {
+  background: #008080;
+  color: #000;
+  font-family: var(--w-font);
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: unset;
+  font-smooth: never;
+}
+
+html[data-skin="win98"] *,
+html[data-skin="win98"] *::before,
+html[data-skin="win98"] *::after {
+  border-radius: 0 !important;
+  letter-spacing: 0 !important;
+  backdrop-filter: none !important;
+}
+
+html[data-skin="win98"] .font-display,
+html[data-skin="win98"] .font-sans {
+  font-family: var(--w-font);
+}
+
+html[data-skin="win98"] .font-display {
+  font-weight: 700;
+}
+
+html[data-skin="win98"] .font-mono,
+html[data-skin="win98"] .numeric {
+  font-family: "Courier New", Courier, monospace;
+}
+
+/* ---------- Tekstkleuren ---------- */
+
+html[data-skin="win98"] [class*="text-ink-7"],
+html[data-skin="win98"] [class*="text-ink-8"],
+html[data-skin="win98"] [class*="text-ink-6"],
+html[data-skin="win98"] [class*="text-ink-5"] {
+  color: #000;
+}
+
+html[data-skin="win98"] [class*="text-ink-4"],
+html[data-skin="win98"] [class*="text-ink-3"],
+html[data-skin="win98"] [class*="text-ink-2"] {
+  color: #404040;
+}
+
+html[data-skin="win98"] [class*="text-barista-"] {
+  color: var(--w-navy);
+}
+
+html[data-skin="win98"] a:not([class*="px-"]):hover {
+  color: var(--w-navy);
+  text-decoration: underline;
+}
+
+html[data-skin="win98"] ::selection {
+  background: var(--w-navy);
+  color: #fff;
+}
+
+/* ---------- Vlakken ---------- */
+
+html[data-skin="win98"] .bg-paper,
+html[data-skin="win98"] [class*="bg-paper/"] {
+  background-color: var(--w-face);
+}
+
+html[data-skin="win98"] [class*="border-line"] {
+  border-color: var(--w-shadow);
+}
+
+html[data-skin="win98"] [class*="bg-barista-4"],
+html[data-skin="win98"] [class*="bg-barista-5"] {
+  background-color: var(--w-navy);
+}
+
+html[data-skin="win98"] [class*="bg-barista-3"] {
+  background-color: #6a6ac0;
+}
+
+/* Kaarten: verhoogd grijs paneel i.p.v. witte kaart met zachte schaduw. */
+html[data-skin="win98"] .bg-card.border {
+  background-color: var(--w-face);
+  border-color: transparent;
+  border-width: 2px;
+  box-shadow: var(--w-raised);
+  transform: none !important;
+}
+
+/* Paneel-in-paneel (tegels, checkbox-rijen): verzonken wit veld. */
+html[data-skin="win98"] .bg-card.border .bg-card.border:not(input):not(select):not(textarea),
+html[data-skin="win98"] .bg-card.border .bg-paper.border {
+  background-color: #fff;
+  box-shadow: var(--w-sunken);
+}
+
+/* Stat-raster bovenaan het dashboard. */
+html[data-skin="win98"] .bg-line.border {
+  background-color: var(--w-shadow);
+  border: 2px solid transparent;
+  box-shadow: var(--w-sunken);
+  padding: 2px;
+}
+
+html[data-skin="win98"] .bg-line.border > .bg-card {
+  background-color: #fff;
+}
+
+html[data-skin="win98"] .divider {
+  height: 2px;
+  background: none;
+  border-top: 1px solid var(--w-shadow);
+  border-bottom: 1px solid var(--w-hi);
+}
+
+/* ---------- Vensterkader ---------- */
+
+html[data-skin="win98"] body > header {
+  position: static;
+  background: var(--w-face);
+  border: 0;
+  box-shadow: var(--w-raised);
+  max-width: 48rem;
+  margin: 12px auto 0;
+}
+
+html[data-skin="win98"] body > header::before {
+  content: "Koffie Dial-in Manager  -  [Sage Barista Express]";
+  display: block;
+  margin: 3px 3px 0;
+  padding: 3px 6px;
+  background: var(--w-title);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+html[data-skin="win98"] body > header > div {
+  padding: 4px 6px 6px;
+}
+
+html[data-skin="win98"] body > main {
+  background: var(--w-face);
+  box-shadow: var(--w-raised);
+  margin-top: 0;
+  padding: 16px 14px 28px;
+}
+
+html[data-skin="win98"] body > footer {
+  background: var(--w-face);
+  box-shadow: var(--w-raised);
+  padding: 5px 8px;
+  margin-bottom: 12px;
+  text-align: left;
+  text-transform: none;
+  font-size: 11px;
+  color: #000;
+}
+
+html[data-skin="win98"] body > footer::before {
+  content: "Gereed  |  ";
+}
+
+/* Sectiekoppen als titelbalk. */
+html[data-skin="win98"] main h2 {
+  flex: 1;
+  display: block;
+  background: var(--w-title);
+  color: #fff !important;
+  font-size: 12px;
+  line-height: 16px;
+  padding: 3px 6px;
+}
+
+html[data-skin="win98"] main header:has(> h2) {
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+html[data-skin="win98"] main h1 {
+  font-size: 20px;
+  line-height: 1.2;
+  color: #000;
+}
+
+/* ---------- Knoppen ---------- */
+
+html[data-skin="win98"] button[class*="px-"],
+html[data-skin="win98"] a[class*="px-"][class*="rounded-lg"],
+html[data-skin="win98"] a[class*="px-"][class*="bg-ink-800"] {
+  background: var(--w-face) !important;
+  color: #000 !important;
+  border: 0;
+  box-shadow: var(--w-raised);
+  font-size: 12px;
+  font-weight: 400;
+  text-decoration: none;
+  text-transform: none;
+  transform: none !important;
+  transition: none;
+  min-height: 23px;
+}
+
+html[data-skin="win98"] button[class*="px-"]:active,
+html[data-skin="win98"] a[class*="px-"][class*="rounded-lg"]:active,
+html[data-skin="win98"] a[class*="px-"][class*="bg-ink-800"]:active {
+  box-shadow: var(--w-pressed);
+}
+
+html[data-skin="win98"] button[class*="px-"]:focus-visible,
+html[data-skin="win98"] a[class*="px-"][class*="rounded-lg"]:focus-visible {
+  outline: 1px dotted #000;
+  outline-offset: -4px;
+}
+
+html[data-skin="win98"] button[class*="px-"]:disabled {
+  color: var(--w-shadow) !important;
+  text-shadow: 1px 1px 0 var(--w-hi);
+  opacity: 1;
+}
+
+/* Actieve keuze in een knoppengroep blijft ingedrukt staan. */
+html[data-skin="win98"] button[class*="px-"][class*="bg-ink-800"]:not([class*="hover:bg-ink-700"]),
+html[data-skin="win98"] button[class*="px-"][aria-pressed="true"] {
+  box-shadow: var(--w-pressed);
+  background: #dfdfdf !important;
+  font-weight: 700;
+}
+
+/* ---------- Formulieren ---------- */
+
+html[data-skin="win98"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+html[data-skin="win98"] select,
+html[data-skin="win98"] textarea {
+  background: #fff !important;
+  color: #000;
+  border: 0 !important;
+  box-shadow: var(--w-sunken) !important;
+  font-family: var(--w-font);
+  font-size: 13px;
+  padding: 5px 6px;
+  outline: none;
+  transition: none;
+}
+
+html[data-skin="win98"] input::placeholder,
+html[data-skin="win98"] textarea::placeholder {
+  color: var(--w-shadow);
+}
+
+html[data-skin="win98"] input[type="checkbox"],
+html[data-skin="win98"] input[type="radio"],
+html[data-skin="win98"] input[type="range"] {
+  accent-color: var(--w-navy);
+}
+
+html[data-skin="win98"] label > span:first-child {
+  text-transform: none;
+  font-size: 12px;
+  color: #000;
+}
+
+/* ---------- Voortgangsbalken: verzonken goot met blokjes ---------- */
+
+html[data-skin="win98"] [role="progressbar"] {
+  height: 18px;
+  padding: 3px;
+  background: #fff;
+  box-shadow: var(--w-sunken);
+}
+
+html[data-skin="win98"] [role="progressbar"] > * {
+  background: repeating-linear-gradient(
+    90deg,
+    var(--w-navy) 0 10px,
+    transparent 10px 12px
+  ) !important;
+  transition: none;
+}
+
+/* ---------- Diversen ---------- */
+
+html[data-skin="win98"] [class*="text-[10px]"],
+html[data-skin="win98"] [class*="text-[11px]"] {
+  font-size: 11px;
+}
+
+html[data-skin="win98"] .shadow-lift,
+html[data-skin="win98"] [class*="hover:shadow-lift"]:hover {
+  --tw-shadow: 0 0 #0000;
+}
+
+html[data-skin="win98"] svg {
+  shape-rendering: crispEdges;
+}
+
+html[data-skin="win98"] .anim-fade-up,
+html[data-skin="win98"] .anim-fade-in {
+  animation: none;
+}

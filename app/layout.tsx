@@ -2,6 +2,10 @@ import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import "./globals.css";
+import "./skin-win98.css";
+
+// Zet de tijdelijke skin vóór de eerste paint, zodat er geen flits is.
+const skinScript = `try{var s=localStorage.getItem("koffie:skin");if(s)document.documentElement.dataset.skin=s}catch(e){}`;
 
 export const metadata: Metadata = {
   title: "Koffie",
@@ -20,7 +24,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="nl">
+    <html lang="nl" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: skinScript }} />
+      </head>
       <body className="min-h-screen bg-paper font-sans text-ink-700 antialiased">
         <header className="sticky top-0 z-10 border-b border-line/70 bg-paper/85 backdrop-blur">
           <div className="mx-auto flex max-w-3xl items-center justify-between px-5 py-4">
