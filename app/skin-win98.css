@@ -712,3 +712,12 @@ html[data-skin="win98"] .w98-menu li.w98-sep {
   border-top: 1px solid var(--w-shadow);
   box-shadow: inset 0 1px var(--w-hi);
 }
+
+/* ---------- Barista-avatar verbergen in deze skin ---------- */
+
+html[data-skin="win98"] img[src="/Barista.svg"],
+html[data-skin="win98"] video[src$=".mp4"],
+html[data-skin="win98"] .shrink-0:has(> video[src$=".mp4"]),
+html[data-skin="win98"] .shrink-0:has(> img[src="/Barista.svg"]) {
+  display: none;
+}
