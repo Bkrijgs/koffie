@@ -5,7 +5,21 @@ export type Bean = {
   origin?: string;
   blend?: string;
   roastDate?: string;
+  /** Prijs voor één zak, in euro's. Bij een cadeau (gift) is dit de
+   *  geschatte winkelprijs, zodat waardevergelijkingen blijven werken. */
+  priceEuros?: number;
+  /** Gewicht van die zak in gram; samen met priceEuros geeft dit €/kg. */
+  bagWeightGrams?: number;
+  /** Cadeau gekregen: telt niet mee in je uitgaven (kostendashboard),
+   *  maar wél in waarde-statistieken via de geschatte winkelprijs. */
+  gift?: boolean;
+  /** AI-schatting: mg cafeïne per gram gemalen koffie die bij espresso-
+   *  extractie in het kopje belandt. Per shot: dose × deze waarde. */
+  caffeineMgPerGram?: number;
   notes?: string;
+  /** Of er nog voorraad van deze boon is. Staat-ie uit, dan verdwijnt de boon
+   *  uit het keuze-menu van het shot-logformulier. Default true. */
+  inStock: boolean;
   createdAt: string;
 };
 
@@ -32,9 +46,12 @@ export type ShotLog = {
   extractionTimeSeconds: number;
   notes?: string;
   nextAdjustment?: string;
-  /** 0 alleen toegestaan voor dial-in shots zonder rating. */
+  /** 0 alleen toegestaan voor concept- en dial-in shots zonder rating. */
   rating: Rating | 0;
   dialIn: boolean;
+  /** Concept: shot is gelogd, de rating volgt nog. Telt tot die tijd niet
+   *  mee in gemiddeldes, top-shots, trends of de coach. */
+  draft: boolean;
   tags?: string[];
 };
 
@@ -65,6 +82,27 @@ export type Bag = {
   createdAt: string;
 };
 
+export type ExpenseCategory = "onderhoud" | "apparatuur" | "overig";
+
+/** Uitgave die niet in een zak bonen zit: filters, schoonmaakmiddel, ontkalker
+ *  en de spullen die je voor de opstelling koopt. Bonen komen hier nooit in —
+ *  die kosten worden afgeleid van priceEuros/bagWeightGrams op de boon zelf,
+ *  dus een bonen-uitgave zou dubbel tellen.
+ *  `onderhoud` en `overig` zijn lopende kosten en tellen mee in de maand- en
+ *  totaalcijfers; `apparatuur` is een eenmalige investering en blijft daar
+ *  buiten, zodat een molen van een paar honderd euro je maandbeeld niet sloopt. */
+export type Expense = {
+  id: string;
+  description: string;
+  amountEuros: number;
+  category: ExpenseCategory;
+  /** "YYYY-MM-DD" */
+  purchasedAt: string;
+  notes?: string;
+  createdAt: string;
+};
+
 export type BeanInput = Omit<Bean, "id" | "createdAt">;
 export type ShotInput = Omit<ShotLog, "id" | "createdAt" | "brewRatio">;
 export type BagInput = Omit<Bag, "id" | "createdAt">;
+export type ExpenseInput = Omit<Expense, "id" | "createdAt">;

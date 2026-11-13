@@ -721,3 +721,36 @@ html[data-skin="win98"] .shrink-0:has(> video[src$=".mp4"]),
 html[data-skin="win98"] .shrink-0:has(> img[src="/Barista.svg"]) {
   display: none;
 }
+
+/* ---------- Kompas-knop en -venster ---------- */
+
+html[data-skin="win98"] .kompas-knop {
+  bottom: 40px !important;
+  left: 8px;
+  background: var(--w-face) !important;
+  color: #000 !important;
+  box-shadow: var(--w-raised);
+  transition: none;
+}
+
+html[data-skin="win98"] .kompas-knop:active {
+  box-shadow: var(--w-pressed);
+  transform: translate(1px, 1px) !important;
+}
+
+html[data-skin="win98"] [role="dialog"] {
+  background: var(--w-face);
+  box-shadow: var(--w-raised);
+  padding: 3px;
+  animation: none;
+}
+
+html[data-skin="win98"] [role="dialog"] > header {
+  background: var(--w-title);
+  border: 0;
+  padding: 3px 6px;
+}
+
+html[data-skin="win98"] [role="dialog"] > header *:not(button):not(button *) {
+  color: #fff !important;
+}

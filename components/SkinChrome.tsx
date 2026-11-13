@@ -104,12 +104,22 @@ export function SkinChrome() {
             </li>
             <li>
               <Link href="/" onClick={close} role="menuitem">
+                Dashboard
+              </Link>
+            </li>
+            <li>
+              <Link href="/shots" onClick={close} role="menuitem">
                 Shots
               </Link>
             </li>
             <li>
               <Link href="/beans" onClick={close} role="menuitem">
                 Bonen
+              </Link>
+            </li>
+            <li>
+              <Link href="/kosten" onClick={close} role="menuitem">
+                Kosten
               </Link>
             </li>
             <li>
