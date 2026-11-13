@@ -756,3 +756,33 @@ html[data-skin="win98"] [role="dialog"] > header {
 html[data-skin="win98"] [role="dialog"] > header *:not(button):not(button *) {
   color: #fff !important;
 }
+
+/* ---------- Kleine labels (Maalgraad, Yield, …) vet en zwart ---------- */
+
+html[data-skin="win98"] [class*="text-[10px]"]:not(.text-paper):not(.font-mono),
+html[data-skin="win98"] [class*="text-[11px]"]:not(.text-paper):not(.font-mono),
+html[data-skin="win98"] [class*="text-[9px]"]:not(.text-paper):not(.font-mono),
+html[data-skin="win98"] label > span:first-child,
+html[data-skin="win98"] dt {
+  font-weight: 700;
+  color: #000;
+}
+
+/* De waarden eronder ook: Courier is op 11px anders erg dun. */
+html[data-skin="win98"] dd {
+  font-weight: 700;
+}
+
+/* Kopregel met label links en hint rechts: op smalle schermen onder elkaar
+   in plaats van in elkaar geschoven. De hint zelf blijft dun en klein. */
+html[data-skin="win98"] .flex.items-baseline.justify-between:has(> span.numeric) {
+  flex-wrap: wrap;
+  column-gap: 12px;
+}
+
+html[data-skin="win98"] .flex.items-baseline.justify-between > span.numeric {
+  font-family: var(--w-font);
+  font-weight: 400;
+  color: #404040;
+  text-transform: none;
+}
