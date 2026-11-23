@@ -1,4 +1,5 @@
 import { SetupForm } from "@/components/SetupForm";
+import { SkinToggle } from "@/components/SkinToggle";
 
 export default function InstellingenPage() {
   return (
@@ -11,6 +12,10 @@ export default function InstellingenPage() {
       </header>
       <div className="rounded-xl2 border border-line bg-card p-6 shadow-soft">
         <SetupForm />
+      </div>
+      <div className="rounded-xl2 border border-line bg-card p-6 shadow-soft">
+        <p className="mb-3 text-sm text-ink-400">Uiterlijk</p>
+        <SkinToggle />
       </div>
     </div>
   );

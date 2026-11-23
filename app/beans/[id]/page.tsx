@@ -10,7 +10,20 @@ import { EmptyState } from "@/components/EmptyState";
 import { BaristaTips } from "@/components/BaristaTips";
 import { CoachCard } from "@/components/CoachCard";
 import { RatingCurve } from "@/components/RatingCurve";
-import { average, effectiveShots, formatDateOnly, mode } from "@/lib/utils";
+import { SweetSpotChart } from "@/components/SweetSpotChart";
+import { GiftBadge, PriceTierBadge } from "@/components/PriceTierBadge";
+import { CaffeineMeta } from "@/components/CaffeineMeta";
+import {
+  average,
+  costPerShot,
+  costPerStar,
+  effectiveShots,
+  formatDateOnly,
+  formatEuro,
+  mode,
+  priceTier,
+  pricePerKg,
+} from "@/lib/utils";
 import { tipsForBean } from "@/lib/tips";
 import type { ShotLog } from "@/lib/types";
 
@@ -31,9 +44,11 @@ export default function BeanDetailPage() {
   const sorted = useMemo(() => {
     const arr = [...beanShots];
     if (sortBy === "rating") {
+      // Shots zonder meetellende rating (dial-in, concept) zakken naar onder.
+      const pending = (s: ShotLog) => (s.dialIn || s.draft ? 1 : 0);
       arr.sort(
         (a, b) =>
-          (a.dialIn ? 1 : 0) - (b.dialIn ? 1 : 0) ||
+          pending(a) - pending(b) ||
           b.rating - a.rating ||
           +new Date(b.createdAt) - +new Date(a.createdAt),
       );
@@ -58,8 +73,25 @@ export default function BeanDetailPage() {
   }
 
   const effective = effectiveShots(beanShots);
-  const dialInCount = beanShots.length - effective.length;
+  const draftCount = beanShots.filter((s) => s.draft).length;
+  const dialInCount = beanShots.filter((s) => s.dialIn && !s.draft).length;
+  const pendingLabel =
+    [
+      dialInCount > 0 ? `${dialInCount} dial-in` : null,
+      draftCount > 0 ? `${draftCount} concept` : null,
+    ]
+      .filter(Boolean)
+      .join(" · ") || undefined;
   const avg = average(effective.map((s) => s.rating));
+  const perKg = pricePerKg(bean);
+  const avgCostPerShot =
+    perKg !== undefined && effective.length > 0
+      ? average(effective.map((s) => costPerShot(s.doseGrams, perKg)))
+      : undefined;
+  const starCost =
+    avgCostPerShot !== undefined
+      ? costPerStar(avgCostPerShot, avg)
+      : undefined;
   const bestShots = [...effective].sort((a, b) => b.rating - a.rating);
   const top = bestShots[0];
   const bestGrind = mode(bestShots.slice(0, 3).map((s) => s.grindSize));
@@ -108,7 +140,7 @@ export default function BeanDetailPage() {
           <Meta
             label="Shots"
             value={String(beanShots.length)}
-            sub={dialInCount > 0 ? `${dialInCount} dial-in` : undefined}
+            sub={pendingLabel}
             numeric
           />
           <Meta
@@ -116,6 +148,39 @@ export default function BeanDetailPage() {
             value={effective.length > 0 ? avg.toFixed(1) : "—"}
             numeric
           />
+          {(perKg !== undefined || bean.gift) && (
+            <Meta
+              label="Prijs"
+              value={
+                <span className="inline-flex flex-wrap items-center gap-1.5">
+                  {perKg !== undefined && (
+                    <>
+                      {formatEuro(perKg)}/kg
+                      <PriceTierBadge tier={priceTier(perKg)} />
+                    </>
+                  )}
+                  {bean.gift && <GiftBadge />}
+                </span>
+              }
+              numeric
+            />
+          )}
+          {avgCostPerShot !== undefined && (
+            <Meta
+              label="Kosten/shot"
+              value={formatEuro(avgCostPerShot)}
+              numeric
+            />
+          )}
+          {starCost !== undefined && (
+            <Meta
+              label="Kosten per ster"
+              value={formatEuro(starCost)}
+              sub="lager = beter"
+              numeric
+            />
+          )}
+          <CaffeineMeta bean={bean} shots={beanShots} />
         </dl>
 
         {bean.notes && (
@@ -126,6 +191,18 @@ export default function BeanDetailPage() {
       </header>
 
       <BaristaTips tips={tips} />
+
+      {beanShots.length > 0 && (
+        <section className="rounded-xl2 border border-line bg-card p-5 shadow-soft">
+          <h2 className="font-display text-base tracking-tightish text-ink-800">
+            Dial-in
+          </h2>
+          <p className="mb-5 mt-1 text-sm text-ink-400">
+            Waar zaten je shots ten opzichte van de sweet spot van deze boon?
+          </p>
+          <SweetSpotChart shots={beanShots} />
+        </section>
+      )}
 
       {beanShots.length >= 2 && (
         <CoachCard bean={bean} setup={setup} shots={beanShots} />
@@ -205,7 +282,7 @@ function Meta({
   numeric = false,
 }: {
   label: string;
-  value?: string;
+  value?: React.ReactNode;
   sub?: string;
   numeric?: boolean;
 }) {

@@ -4,6 +4,9 @@ import type {
   BagInput,
   Bean,
   BeanInput,
+  Expense,
+  ExpenseCategory,
+  ExpenseInput,
   Setup,
   ShotInput,
   ShotLog,
@@ -26,11 +29,17 @@ export interface KoffieStorage {
   listShots(): Promise<ShotLog[]>;
   addShot(input: ShotInput): Promise<ShotLog>;
   updateShot(id: string, input: ShotInput): Promise<ShotLog>;
+  deleteShot(id: string): Promise<void>;
   shotsForBean(beanId: string): Promise<ShotLog[]>;
 
   listBags(): Promise<Bag[]>;
   addBag(input: BagInput): Promise<Bag>;
   updateBag(id: string, input: BagInput): Promise<Bag>;
+
+  listExpenses(): Promise<Expense[]>;
+  addExpense(input: ExpenseInput): Promise<Expense>;
+  updateExpense(id: string, input: ExpenseInput): Promise<Expense>;
+  deleteExpense(id: string): Promise<void>;
 
   getSetup(): Promise<Setup>;
   saveSetup(setup: Setup): Promise<Setup>;
@@ -39,14 +48,25 @@ export interface KoffieStorage {
 const BEANS_KEY = "koffie:beans:v1";
 const SHOTS_KEY = "koffie:shots:v1";
 const BAGS_KEY = "koffie:bags:v1";
+const EXPENSES_KEY = "koffie:expenses:v1";
 const SETUP_KEY = "koffie:setup:v1";
 
-/** Oudere shots hadden grindSize als string. Bij het lezen normaliseren we
- *  naar een getal zodat de rest van de app er consistent mee kan rekenen. */
+/** Oudere shots hadden grindSize als string en kenden nog geen concept-vlag.
+ *  Bij het lezen normaliseren we beide zodat de rest van de app er consistent
+ *  mee kan rekenen. */
 function normalizeShot(s: ShotLog): ShotLog {
-  if (typeof s.grindSize === "number") return s;
+  const draft = s.draft ?? false;
+  if (typeof s.grindSize === "number") {
+    return s.draft === undefined ? { ...s, draft } : s;
+  }
   const parsed = parseFloat(String(s.grindSize));
-  return { ...s, grindSize: Number.isFinite(parsed) ? parsed : 5 };
+  return { ...s, draft, grindSize: Number.isFinite(parsed) ? parsed : 5 };
+}
+
+/** Bonen die zijn opgeslagen vóór de voorraad-feature hebben geen inStock-veld.
+ *  Behandel die als "op voorraad" zodat ze gewoon beschikbaar blijven. */
+function normalizeBean(b: Bean): Bean {
+  return typeof b.inStock === "boolean" ? b : { ...b, inStock: true };
 }
 
 function read<T>(key: string): T[] {
@@ -68,15 +88,16 @@ function write<T>(key: string, value: T[]): void {
 
 export const localStorageBackend: KoffieStorage = {
   async listBeans() {
-    return read<Bean>(BEANS_KEY).sort(
-      (a, b) => +new Date(b.createdAt) - +new Date(a.createdAt),
-    );
+    return read<Bean>(BEANS_KEY)
+      .map(normalizeBean)
+      .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
   },
   async addBean(input) {
     const bean: Bean = {
       id: uid(),
       createdAt: new Date().toISOString(),
       ...input,
+      inStock: input.inStock ?? true,
     };
     const all = read<Bean>(BEANS_KEY);
     all.push(bean);
@@ -93,7 +114,8 @@ export const localStorageBackend: KoffieStorage = {
     return updated;
   },
   async getBean(id) {
-    return read<Bean>(BEANS_KEY).find((b) => b.id === id);
+    const bean = read<Bean>(BEANS_KEY).find((b) => b.id === id);
+    return bean ? normalizeBean(bean) : undefined;
   },
   async listShots() {
     return read<ShotLog>(SHOTS_KEY)
@@ -108,6 +130,7 @@ export const localStorageBackend: KoffieStorage = {
       brewRatio: calcBrewRatio(input.yieldGrams, input.doseGrams),
       ...input,
       dialIn: input.dialIn ?? false,
+      draft: input.draft ?? false,
       tags: tags.length > 0 ? tags : undefined,
     };
     const all = read<ShotLog>(SHOTS_KEY);
@@ -125,11 +148,19 @@ export const localStorageBackend: KoffieStorage = {
       ...input,
       brewRatio: calcBrewRatio(input.yieldGrams, input.doseGrams),
       dialIn: input.dialIn ?? false,
+      draft: input.draft ?? false,
       tags: tags.length > 0 ? tags : undefined,
     };
     all[idx] = updated;
     write(SHOTS_KEY, all);
     return updated;
+  },
+  async deleteShot(id) {
+    const all = read<ShotLog>(SHOTS_KEY);
+    write(
+      SHOTS_KEY,
+      all.filter((s) => s.id !== id),
+    );
   },
   async shotsForBean(beanId) {
     return read<ShotLog>(SHOTS_KEY)
@@ -162,6 +193,40 @@ export const localStorageBackend: KoffieStorage = {
     write(BAGS_KEY, all);
     return updated;
   },
+  async listExpenses() {
+    return read<Expense>(EXPENSES_KEY).sort((a, b) =>
+      a.purchasedAt === b.purchasedAt
+        ? +new Date(b.createdAt) - +new Date(a.createdAt)
+        : b.purchasedAt.localeCompare(a.purchasedAt),
+    );
+  },
+  async addExpense(input) {
+    const expense: Expense = {
+      id: uid(),
+      createdAt: new Date().toISOString(),
+      ...input,
+    };
+    const all = read<Expense>(EXPENSES_KEY);
+    all.push(expense);
+    write(EXPENSES_KEY, all);
+    return expense;
+  },
+  async updateExpense(id, input) {
+    const all = read<Expense>(EXPENSES_KEY);
+    const idx = all.findIndex((e) => e.id === id);
+    if (idx === -1) throw new Error("Uitgave niet gevonden");
+    const updated: Expense = { ...all[idx], ...input };
+    all[idx] = updated;
+    write(EXPENSES_KEY, all);
+    return updated;
+  },
+  async deleteExpense(id) {
+    const all = read<Expense>(EXPENSES_KEY);
+    write(
+      EXPENSES_KEY,
+      all.filter((e) => e.id !== id),
+    );
+  },
   async getSetup() {
     if (typeof window === "undefined") return DEFAULT_SETUP;
     try {
@@ -187,7 +252,12 @@ type BeanRow = {
   origin: string | null;
   blend: string | null;
   roast_date: string | null;
+  price_euros: number | string | null;
+  bag_weight_grams: number | string | null;
+  gift: boolean | null;
+  caffeine_mg_per_gram: number | string | null;
   notes: string | null;
+  in_stock: boolean | null;
   created_at: string;
 };
 
@@ -203,6 +273,7 @@ type ShotRow = {
   next_adjustment: string | null;
   rating: number;
   dial_in: boolean | null;
+  draft: boolean | null;
   tags: string[] | null;
   created_at: string;
 };
@@ -215,7 +286,16 @@ function beanFromRow(row: BeanRow): Bean {
     origin: row.origin ?? undefined,
     blend: row.blend ?? undefined,
     roastDate: row.roast_date ?? undefined,
+    priceEuros: row.price_euros != null ? Number(row.price_euros) : undefined,
+    bagWeightGrams:
+      row.bag_weight_grams != null ? Number(row.bag_weight_grams) : undefined,
+    gift: row.gift ?? undefined,
+    caffeineMgPerGram:
+      row.caffeine_mg_per_gram != null
+        ? Number(row.caffeine_mg_per_gram)
+        : undefined,
     notes: row.notes ?? undefined,
+    inStock: row.in_stock ?? true,
     createdAt: row.created_at,
   };
 }
@@ -242,6 +322,39 @@ function bagFromRow(row: BagRow): Bag {
   };
 }
 
+type ExpenseRow = {
+  id: string;
+  description: string;
+  /** numeric komt via PostgREST als string binnen. */
+  amount_euros: number | string;
+  category: string;
+  purchased_at: string;
+  notes: string | null;
+  created_at: string;
+};
+
+const EXPENSE_CATEGORIES = ["onderhoud", "apparatuur", "overig"] as const;
+
+/** Onbekende categorie (bv. uit een handmatige rij) valt terug op onderhoud,
+ *  zodat de UI nooit op een lege badge stuit. */
+function toCategory(value: string): ExpenseCategory {
+  return (EXPENSE_CATEGORIES as readonly string[]).includes(value)
+    ? (value as ExpenseCategory)
+    : "onderhoud";
+}
+
+function expenseFromRow(row: ExpenseRow): Expense {
+  return {
+    id: row.id,
+    description: row.description,
+    amountEuros: Number(row.amount_euros),
+    category: toCategory(row.category),
+    purchasedAt: row.purchased_at,
+    notes: row.notes ?? undefined,
+    createdAt: row.created_at,
+  };
+}
+
 function shotFromRow(row: ShotRow): ShotLog {
   const tags = sanitizeTags(row.tags);
   return {
@@ -256,6 +369,7 @@ function shotFromRow(row: ShotRow): ShotLog {
     nextAdjustment: row.next_adjustment ?? undefined,
     rating: Number(row.rating) as ShotLog["rating"],
     dialIn: row.dial_in ?? false,
+    draft: row.draft ?? false,
     tags: tags.length > 0 ? tags : undefined,
     createdAt: row.created_at,
   };
@@ -279,7 +393,12 @@ export const supabaseBackend: KoffieStorage = {
         origin: input.origin ?? null,
         blend: input.blend ?? null,
         roast_date: input.roastDate ?? null,
+        price_euros: input.priceEuros ?? null,
+        bag_weight_grams: input.bagWeightGrams ?? null,
+        gift: input.gift ?? null,
+        caffeine_mg_per_gram: input.caffeineMgPerGram ?? null,
         notes: input.notes ?? null,
+        in_stock: input.inStock ?? true,
       })
       .select("*")
       .single();
@@ -295,7 +414,12 @@ export const supabaseBackend: KoffieStorage = {
         origin: input.origin ?? null,
         blend: input.blend ?? null,
         roast_date: input.roastDate ?? null,
+        price_euros: input.priceEuros ?? null,
+        bag_weight_grams: input.bagWeightGrams ?? null,
+        gift: input.gift ?? null,
+        caffeine_mg_per_gram: input.caffeineMgPerGram ?? null,
         notes: input.notes ?? null,
+        in_stock: input.inStock ?? true,
       })
       .eq("id", id)
       .select("*")
@@ -335,6 +459,7 @@ export const supabaseBackend: KoffieStorage = {
         next_adjustment: input.nextAdjustment ?? null,
         rating: input.rating,
         dial_in: input.dialIn ?? false,
+        draft: input.draft ?? false,
         tags: sanitizeTags(input.tags),
       })
       .select("*")
@@ -357,6 +482,7 @@ export const supabaseBackend: KoffieStorage = {
         next_adjustment: input.nextAdjustment ?? null,
         rating: input.rating,
         dial_in: input.dialIn ?? false,
+        draft: input.draft ?? false,
         tags: sanitizeTags(input.tags),
       })
       .eq("id", id)
@@ -364,6 +490,10 @@ export const supabaseBackend: KoffieStorage = {
       .single();
     if (error) throw error;
     return shotFromRow(data as ShotRow);
+  },
+  async deleteShot(id) {
+    const { error } = await getSupabase().from("shots").delete().eq("id", id);
+    if (error) throw error;
   },
   async shotsForBean(beanId) {
     const { data, error } = await getSupabase()
@@ -412,6 +542,50 @@ export const supabaseBackend: KoffieStorage = {
       .single();
     if (error) throw error;
     return bagFromRow(data as BagRow);
+  },
+  async listExpenses() {
+    const { data, error } = await getSupabase()
+      .from("expenses")
+      .select("*")
+      .order("purchased_at", { ascending: false })
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return (data as ExpenseRow[]).map(expenseFromRow);
+  },
+  async addExpense(input) {
+    const { data, error } = await getSupabase()
+      .from("expenses")
+      .insert({
+        description: input.description,
+        amount_euros: input.amountEuros,
+        category: input.category,
+        purchased_at: input.purchasedAt,
+        notes: input.notes ?? null,
+      })
+      .select("*")
+      .single();
+    if (error) throw error;
+    return expenseFromRow(data as ExpenseRow);
+  },
+  async updateExpense(id, input) {
+    const { data, error } = await getSupabase()
+      .from("expenses")
+      .update({
+        description: input.description,
+        amount_euros: input.amountEuros,
+        category: input.category,
+        purchased_at: input.purchasedAt,
+        notes: input.notes ?? null,
+      })
+      .eq("id", id)
+      .select("*")
+      .single();
+    if (error) throw error;
+    return expenseFromRow(data as ExpenseRow);
+  },
+  async deleteExpense(id) {
+    const { error } = await getSupabase().from("expenses").delete().eq("id", id);
+    if (error) throw error;
   },
   async getSetup() {
     const { data, error } = await getSupabase()
