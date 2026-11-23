@@ -2,83 +2,130 @@ import type { Setup, ShotLog } from "./types";
 import { effectiveShots } from "./utils";
 
 /**
- * Zetstijlen: verschillende manieren om espresso te trekken. Elke stijl is
- * een combinatie van brew ratio en doorlooptijd; de maalgraad volgt daaruit.
- * De cijfers zijn gangbare richtwaarden, geen wetten: pas ze hier aan als
- * je een ander recept wilt aanhouden.
+ * Zetstijlen uit Lance Hedricks "6 easy espresso recipes". Per stijl geeft
+ * hij een ratio-range, een tijd-range en de stand van zijn eigen maler:
+ *
+ *   Normale    1:2-1:2.5   25-30 s   stand 1
+ *   Ristretto  1:1-1:1.5   20-25 s   stand 1
+ *   Lungo      1:3-1:4     30-40 s   stand 1
+ *   Allonge    1:5-1:6     30-40 s   stand 1.3
+ *   Turbo      1:3         12-17 s   stand 1.5
+ *   Sprover    1:8-1:12    30-40 s   stand 2.5
+ *
+ * Ristretto en lungo gebruiken dus dezelfde maalgraad als de normale: je
+ * stopt alleen eerder of later. Pas vanaf de allonge gaat de maler grover.
  */
 export type ShotStyle = {
   id: string;
   label: string;
+  ratioLow: number;
+  ratioHigh: number;
+  /** Ratio die we invullen als je de stijl aantikt. */
   ratio: number;
   timeLow: number;
   timeHigh: number;
+  /** Hoeveel grover dan de normale, in standen van Lance's maler. */
+  lanceOffset: number;
   /** Richting t.o.v. een normale, voor als er nog geen data is. */
   grindHint: string;
   description: string;
-  /** Kanttekening bij de machine (druk e.d.). */
-  caveat?: string;
 };
 
 export const SHOT_STYLES: ShotStyle[] = [
   {
     id: "ristretto",
     label: "Ristretto",
-    ratio: 1.5,
-    timeLow: 25,
-    timeHigh: 30,
-    grindHint: "fijner",
+    ratioLow: 1,
+    ratioHigh: 1.5,
+    ratio: 1.25,
+    timeLow: 20,
+    timeHigh: 25,
+    lanceOffset: 0,
+    grindHint: "zelfde als normale",
     description:
-      "Kort en geconcentreerd: veel body en zoetheid, weinig zuur. Zelfde tijd als een normale, dus fijner malen in plaats van eerder stoppen.",
+      "Zelfde maalgraad als je normale, maar eerder stoppen. Kort en geconcentreerd, met veel meer body.",
   },
   {
     id: "normale",
     label: "Normale",
+    ratioLow: 2,
+    ratioHigh: 2.5,
     ratio: 2,
     timeLow: 25,
     timeHigh: 30,
+    lanceOffset: 0,
     grindHint: "basis",
     description:
-      "De klassieke espresso. Balans tussen body, zoet en zuur, en het ijkpunt voor alle andere stijlen.",
+      "De standaard espresso en het ijkpunt: alle andere stijlen zijn fijner of grover ten opzichte van deze stand.",
   },
   {
     id: "lungo",
     label: "Lungo",
-    ratio: 3,
-    timeLow: 25,
-    timeHigh: 30,
-    grindHint: "grover",
+    ratioLow: 3,
+    ratioHigh: 4,
+    ratio: 3.5,
+    timeLow: 30,
+    timeHigh: 40,
+    lanceOffset: 0,
+    grindHint: "zelfde als normale",
     description:
-      "Lange shot met meer helderheid en minder body. Grover malen zodat hij in dezelfde tijd doorloopt; gewoon langer laten lopen wordt bitter.",
-  },
-  {
-    id: "turbo",
-    label: "Turbo",
-    ratio: 3,
-    timeLow: 12,
-    timeHigh: 18,
-    grindHint: "veel grover",
-    description:
-      "Grof gemalen, snel en op lagere druk. Helder, zoet en opvallend gelijkmatig, met dunnere body en minder crema.",
-    caveat:
-      "Bedoeld voor circa 6 bar. Zonder instelbare druk benader je het door grover te malen, zodat de drukmeter laag in het espresso-bereik blijft.",
+      "Zelfde maalgraad als je normale, maar langer laten doorlopen. Lichter in body en minder geconcentreerd.",
   },
   {
     id: "allonge",
     label: "Allongé",
-    ratio: 5,
+    ratioLow: 5,
+    ratioHigh: 6,
+    ratio: 5.5,
     timeLow: 30,
     timeHigh: 40,
+    lanceOffset: 0.3,
+    grindHint: "iets grover",
+    description:
+      "Iets grover en veel langer. Zit qua sterkte tussen filterkoffie en espresso: helder en goed drinkbaar, zonder de intensiteit van espresso.",
+  },
+  {
+    id: "turbo",
+    label: "Turbo",
+    ratioLow: 3,
+    ratioHigh: 3,
+    ratio: 3,
+    timeLow: 12,
+    timeHigh: 17,
+    lanceOffset: 0.5,
+    grindHint: "grover",
+    description:
+      "Grover en heel snel. Je hebt er geen speciale machine of drukinstelling voor nodig: bij zo'n snelle doorloop bouwt de druk vanzelf niet volledig op.",
+  },
+  {
+    id: "sprover",
+    label: "Sprover",
+    ratioLow: 8,
+    ratioHigh: 12,
+    ratio: 10,
+    timeLow: 30,
+    timeHigh: 40,
+    lanceOffset: 1.5,
     grindHint: "veel grover",
     description:
-      "Heel lange shot die richting filterkoffie gaat: licht, theeachtig en helder. Werkt het best met lichte brandingen.",
+      "Filterkoffie uit je espressomachine: een grote kop, veel grover gemalen dan espresso maar nog steeds fijn voor filter.",
   },
 ];
+
+/**
+ * Omrekening van Lance's maler naar die van jou. Uit zijn turbo- en
+ * allonge-recept volgt dat een hele stand op zijn maler de doorstroming
+ * ongeveer een factor e^2 versnelt. Gedeeld door de gevoeligheid van jouw
+ * maler geeft dat het aantal standen dat jij moet verdraaien.
+ */
+const LANCE_LOG_FLOW_PER_UNIT = 2;
 
 export type StyleEstimate = {
   style: ShotStyle;
   targetYield: number;
   targetTime: number;
+  yieldLow: number;
+  yieldHigh: number;
   /** Geschatte maalgraad, of null als er geen referentie-shot is. */
   grind: number | null;
   /** Verschil met de referentie-shot (positief = grover). */
@@ -165,11 +212,20 @@ function roundToStep(value: number, step: number): number {
   return Math.round((Math.round(value / s) * s) * 100) / 100;
 }
 
+function clamp(value: number, low: number, high: number): number {
+  return Math.min(high, Math.max(low, value));
+}
+
 /**
- * Schat per zetstijl de maalgraad voor deze boon. Model: de doorstroming
- * (gram per seconde) hangt exponentieel af van de maalgraad. Vanaf de
- * referentie-shot rekenen we uit hoeveel stappen fijner of grover nodig zijn
- * om de doel-yield in de doel-tijd te halen.
+ * Schat per zetstijl de maalgraad voor deze boon.
+ *
+ * 1. Bepaal de normale-stand van de boon. Valt de referentie-shot al binnen
+ *    het normale-recept, dan is dat gewoon de stand van die shot. Anders
+ *    corrigeren we: de doorstroming (gram per seconde) hangt exponentieel af
+ *    van de maalgraad, dus we rekenen uit hoeveel fijner of grover nodig is
+ *    om binnen het recept te komen.
+ * 2. Tel daar per stijl Lance's verschil met zijn normale bij op, omgerekend
+ *    naar de standen van jouw maler.
  */
 export function estimateStyles(
   beanShots: ShotLog[],
@@ -178,29 +234,45 @@ export function estimateStyles(
 ): StyleEstimates {
   const ref = referenceShot(beanShots);
   const reference =
-    ref && ref.extractionTimeSeconds > 0 && ref.yieldGrams > 0 ? ref : null;
+    ref && ref.extractionTimeSeconds > 0 && ref.yieldGrams > 0 && ref.doseGrams > 0
+      ? ref
+      : null;
   const fallback = defaultSensitivity(setup);
   const learnedK = reference
     ? learnedSensitivity(beanShots, reference, fallback)
     : null;
   const k = learnedK ?? fallback;
 
+  const normale = SHOT_STYLES.find((s) => s.id === "normale")!;
+  let normaleGrind: number | null = null;
+  if (reference) {
+    const refRatio = reference.yieldGrams / reference.doseGrams;
+    const nearestRatio = clamp(refRatio, normale.ratioLow, normale.ratioHigh);
+    const nearestTime = clamp(
+      reference.extractionTimeSeconds,
+      normale.timeLow,
+      normale.timeHigh,
+    );
+    const targetFlow = (reference.doseGrams * nearestRatio) / nearestTime;
+    normaleGrind =
+      reference.grindSize + Math.log(targetFlow / flowOf(reference)) / k;
+  }
+
   const rows = SHOT_STYLES.map((style): StyleEstimate => {
     const targetYield = Math.round(doseGrams * style.ratio * 10) / 10;
     const targetTime = Math.round((style.timeLow + style.timeHigh) / 2);
-    if (!reference) {
-      return {
-        style,
-        targetYield,
-        targetTime,
-        grind: null,
-        delta: null,
-        outOfRange: null,
-      };
+    const base = {
+      style,
+      targetYield,
+      targetTime,
+      yieldLow: Math.round(doseGrams * style.ratioLow),
+      yieldHigh: Math.round(doseGrams * style.ratioHigh),
+    };
+    if (!reference || normaleGrind === null) {
+      return { ...base, grind: null, delta: null, outOfRange: null };
     }
-    const targetFlow = targetYield / targetTime;
     const raw =
-      reference.grindSize + Math.log(targetFlow / flowOf(reference)) / k;
+      normaleGrind + (style.lanceOffset * LANCE_LOG_FLOW_PER_UNIT) / k;
     const outOfRange =
       raw < setup.grindMin - setup.grindStep / 2
         ? "fine"
@@ -208,13 +280,11 @@ export function estimateStyles(
           ? "coarse"
           : null;
     const grind = roundToStep(
-      Math.min(setup.grindMax, Math.max(setup.grindMin, raw)),
+      clamp(raw, setup.grindMin, setup.grindMax),
       setup.grindStep,
     );
     return {
-      style,
-      targetYield,
-      targetTime,
+      ...base,
       grind,
       delta: Math.round((grind - reference.grindSize) * 100) / 100,
       outOfRange,

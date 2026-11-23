@@ -14,6 +14,12 @@ function fmt(n: number): string {
   return Number.isInteger(n) ? String(n) : n.toFixed(1);
 }
 
+function range(low: number, high: number, prefix = ""): string {
+  return low === high
+    ? `${prefix}${fmt(low)}`
+    : `${prefix}${fmt(low)}–${fmt(high)}`;
+}
+
 function deltaLabel(delta: number): string {
   if (delta === 0) return "zelfde stand";
   const abs = fmt(Math.abs(delta));
@@ -68,8 +74,9 @@ export function ShotStyles({ estimates, activeId, onPick }: Props) {
                   {style.label}
                 </span>
                 <span className="numeric block text-[11px] text-ink-300">
-                  1:{fmt(style.ratio)} · {fmt(row.targetYield)} g ·{" "}
-                  {style.timeLow}–{style.timeHigh} s
+                  {range(style.ratioLow, style.ratioHigh, "1:")} ·{" "}
+                  {range(row.yieldLow, row.yieldHigh)} g · {style.timeLow}–
+                  {style.timeHigh} s
                 </span>
               </span>
               <span className="shrink-0 text-right">
@@ -106,14 +113,11 @@ export function ShotStyles({ estimates, activeId, onPick }: Props) {
       {shown && (
         <div className="anim-fade-up mt-2 rounded-lg border border-barista-100 bg-card px-3.5 py-2.5 text-[12px] leading-snug text-ink-600">
           <p>{shown.style.description}</p>
-          {shown.style.caveat && (
-            <p className="mt-1.5 text-ink-400">{shown.style.caveat}</p>
-          )}
           {shown.outOfRange && (
             <p className="mt-1.5 text-clay-500">
               {shown.outOfRange === "fine"
                 ? "Je maler kan hier waarschijnlijk niet fijn genoeg voor. Zet hem op de fijnste stand en verhoog eventueel de dose een beetje."
-                : "Je maler kan hier waarschijnlijk niet grof genoeg voor. Zet hem op de grofste stand en reken op een langere doorlooptijd."}
+                : "Je maler kan hier waarschijnlijk niet grof genoeg voor. Zet hem op de grofste stand en reken erop dat hij langer doorloopt dan het recept."}
             </p>
           )}
         </div>

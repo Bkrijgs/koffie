@@ -42,7 +42,7 @@ const RATIO_PRESETS = [
     label: "Lang",
     ratio: 2.5,
     description:
-      "Iets langer doorgetrokken. Meer helderheid en aroma, lichter in body. Werkt goed bij lichter gebrande bonen.",
+      "De bovenkant van een normale. Meer helderheid en aroma, lichter in body. Werkt goed bij lichter gebrande bonen.",
   },
   {
     label: "Lungo",
@@ -217,12 +217,13 @@ export function ShotForm({ initialBeanId, shot }: Props) {
     if (!styleEstimates || !yieldGrams || !extractionTimeSeconds) return null;
     const match = styleEstimates.rows.find(
       (r) =>
-        Math.abs(r.targetYield - yld) < 0.05 &&
+        ratio >= r.style.ratioLow - 0.01 &&
+        ratio <= r.style.ratioHigh + 0.01 &&
         time >= r.style.timeLow &&
         time <= r.style.timeHigh,
     );
     return match?.style.id ?? null;
-  }, [styleEstimates, yieldGrams, extractionTimeSeconds, yld, time]);
+  }, [styleEstimates, yieldGrams, extractionTimeSeconds, ratio, time]);
 
   function applyStyle(row: StyleEstimate) {
     setYieldGrams(fmtGrams(row.targetYield));
