@@ -3,13 +3,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useKoffie } from "@/lib/useKoffie";
-import { calcBrewRatio, effectiveShots } from "@/lib/utils";
+import { calcBrewRatio } from "@/lib/utils";
 import type { Rating, ShotLog } from "@/lib/types";
 import { Field, inputClass } from "./Field";
 import { StarRating } from "./StarRating";
 import { BeanForm } from "./BeanForm";
 import { Barista } from "./Barista";
 import { TASTE_TAGS } from "@/lib/tags";
+import { ShotStyles } from "./ShotStyles";
+import { estimateStyles, referenceShot, type StyleEstimate } from "@/lib/styles";
 
 type Props = {
   initialBeanId?: string;
@@ -31,16 +33,16 @@ const RATIO_PRESETS = [
       "Kort getrokken, geconcentreerd. Veel body en zoetheid, weinig zuur — intens en siroopachtig.",
   },
   {
-    label: "Espresso",
+    label: "Normale",
     ratio: 2,
     description:
       "De klassieke verhouding. Balans tussen body, zoet en zuur — het standaard-recept.",
   },
   {
-    label: "Normale",
+    label: "Lang",
     ratio: 2.5,
     description:
-      "Iets langer doorgetrokken. Meer helderheid en aroma, lichter in body. Werkt goed bij lichter gebrande bonen.",
+      "De bovenkant van een normale. Meer helderheid en aroma, lichter in body. Werkt goed bij lichter gebrande bonen.",
   },
   {
     label: "Lungo",
@@ -169,18 +171,8 @@ export function ShotForm({ initialBeanId, shot }: Props) {
   // baseline.
   const placeholders = useMemo(() => {
     if (!beanId) return HARD_DEFAULTS;
-    const beanShots = shots.filter((s) => s.beanId === beanId);
-    if (beanShots.length === 0) return HARD_DEFAULTS;
-    const rated = effectiveShots(beanShots);
-    const source = rated.length > 0
-      ? [...rated].sort(
-          (a, b) =>
-            b.rating - a.rating ||
-            +new Date(b.createdAt) - +new Date(a.createdAt),
-        )[0]
-      : [...beanShots].sort(
-          (a, b) => +new Date(b.createdAt) - +new Date(a.createdAt),
-        )[0];
+    const source = referenceShot(shots.filter((s) => s.beanId === beanId));
+    if (!source) return HARD_DEFAULTS;
     return {
       grindSize: String(source.grindSize),
       doseGrams: String(source.doseGrams),
@@ -222,6 +214,36 @@ export function ShotForm({ initialBeanId, shot }: Props) {
       yield: dose * p.ratio,
     }));
   }, [dose]);
+
+  // Zetstijlen: per stijl de doel-yield, doel-tijd en geschatte maalgraad
+  // voor deze boon, gerekend vanaf de huidige (of placeholder-)dose.
+  const styleEstimates = useMemo(() => {
+    if (!beanId || !isFinite(dose) || dose <= 0) return null;
+    return estimateStyles(
+      shots.filter((s) => s.beanId === beanId),
+      setup,
+      dose,
+    );
+  }, [beanId, shots, setup, dose]);
+
+  // Een stijl is "actief" als yield en tijd in het formulier ermee kloppen.
+  const activeStyleId = useMemo(() => {
+    if (!styleEstimates || !yieldGrams || !extractionTimeSeconds) return null;
+    const match = styleEstimates.rows.find(
+      (r) =>
+        ratio >= r.style.ratioLow - 0.01 &&
+        ratio <= r.style.ratioHigh + 0.01 &&
+        time >= r.style.timeLow &&
+        time <= r.style.timeHigh,
+    );
+    return match?.style.id ?? null;
+  }, [styleEstimates, yieldGrams, extractionTimeSeconds, ratio, time]);
+
+  function applyStyle(row: StyleEstimate) {
+    setYieldGrams(fmtGrams(row.targetYield));
+    setExtractionTime(String(row.targetTime));
+    if (row.grind !== null) setGrindSize(String(row.grind));
+  }
 
   async function save(asDraft: boolean) {
     setError(null);
@@ -358,6 +380,14 @@ export function ShotForm({ initialBeanId, shot }: Props) {
             <span className="text-ink-700">{lastAdjustment}</span>
           </span>
         </div>
+      )}
+
+      {!isEdit && styleEstimates && (
+        <ShotStyles
+          estimates={styleEstimates}
+          activeId={activeStyleId}
+          onPick={applyStyle}
+        />
       )}
 
       <Field
