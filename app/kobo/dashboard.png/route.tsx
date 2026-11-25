@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { ImageResponse } from "next/og";
 import { supabaseBackend } from "@/lib/storage";
 import { isSupabaseConfigured } from "@/lib/supabase";
@@ -60,6 +62,41 @@ const COMPASS = 460;
 const COMPASS_PAD = 30;
 /** Hoeveel eerdere shots het spoor op het kompas laat zien. */
 const COMPASS_TRAIL = 6;
+
+/** Lettertypes. Noto Sans voor tekst (normaal en vet) en Fraunces als
+ *  sierletter voor de grote cijfers en koppen. De bestanden staan in
+ *  app/kobo/fonts; next.config.js zorgt dat ze met de functie meekomen. */
+const SANS = "Noto Sans";
+const DISPLAY = "Fraunces";
+const FONT_DIR = path.join(process.cwd(), "app/kobo/fonts");
+
+type FontList = NonNullable<
+  NonNullable<ConstructorParameters<typeof ImageResponse>[1]>["fonts"]
+>;
+
+let fontsPromise: Promise<FontList | undefined> | null = null;
+
+/** Laadt de lettertypes één keer per serverinstantie. Lukt dat niet, dan
+ *  rendert het scherm met het standaardlettertype i.p.v. te falen. */
+function loadFonts(): Promise<FontList | undefined> {
+  fontsPromise ??= Promise.all([
+    readFile(path.join(FONT_DIR, "noto-sans-latin-400-normal.woff")),
+    readFile(path.join(FONT_DIR, "noto-sans-latin-700-normal.woff")),
+    readFile(path.join(FONT_DIR, "fraunces-latin-600-normal.woff")),
+  ])
+    .then(
+      ([regular, bold, display]): FontList => [
+        { name: SANS, data: regular, weight: 400, style: "normal" },
+        { name: SANS, data: bold, weight: 700, style: "normal" },
+        { name: DISPLAY, data: display, weight: 600, style: "normal" },
+      ],
+    )
+    .catch(() => undefined);
+  return fontsPromise;
+}
+
+/** Afronding van kaders en het kompasveld. */
+const RADIUS = 28;
 
 const TZ = "Europe/Amsterdam";
 /** Alles op dit scherm gaat over dit venster: de tegels, de activiteitsstrip
@@ -166,10 +203,11 @@ export async function GET(request: Request) {
   return png(<Dashboard {...data} showStats={showStats} />);
 }
 
-function png(element: JSX.Element): ImageResponse {
+async function png(element: JSX.Element): Promise<ImageResponse> {
   return new ImageResponse(element, {
     width: WIDTH,
     height: HEIGHT,
+    fonts: await loadFonts(),
     headers: {
       // Het scherm haalt dit bij elke refresh opnieuw op; niets cachen.
       "cache-control": "no-store, max-age=0, must-revalidate",
@@ -320,6 +358,9 @@ function Dashboard({
           marginRight: -24,
           padding: 21,
           border: `3px solid ${RULE}`,
+          borderRadius: RADIUS,
+          // De zwarte balk onderin volgt de ronding van het kader.
+          overflow: "hidden",
         }}
       >
         <LabelRow
@@ -391,6 +432,7 @@ function Dashboard({
             marginRight: -24,
             padding: 21,
             border: `3px solid ${RULE}`,
+            borderRadius: RADIUS,
           }}
         >
           <div
@@ -407,11 +449,10 @@ function Dashboard({
               style={{
                 display: "flex",
                 fontSize: XS,
-                letterSpacing: 3,
                 color: MUTED,
               }}
             >
-              {safe(whenLabel(last, now)).toUpperCase()}
+              {safe(whenLabel(last, now))}
             </div>
           </div>
 
@@ -505,7 +546,6 @@ function Dashboard({
                 display: "flex",
                 marginTop: GAP_M,
                 fontSize: XS,
-                letterSpacing: 3,
                 color: MUTED,
               }}
             >
@@ -518,7 +558,7 @@ function Dashboard({
                   (windowEffective.length > 0
                     ? ` • gem. ${nl(avgRating, 1)}`
                     : ""),
-              ).toUpperCase()}
+              )}
             </div>
           </div>
 
@@ -528,7 +568,7 @@ function Dashboard({
               flexDirection: "column",
               flexGrow: 1,
               flexBasis: 0,
-              marginLeft: GAP_XL,
+              marginLeft: 56,
             }}
           >
             <LabelRow
@@ -549,15 +589,17 @@ function Dashboard({
                     display: "flex",
                     flexDirection: "column",
                     marginTop: i === 0 ? GAP_L : GAP_M,
+                    paddingTop: i === 0 ? 0 : GAP_M,
+                    borderTop: i === 0 ? "none" : `2px solid ${CELL_LOW}`,
                   }}
                 >
-                  <div style={{ display: "flex", fontSize: S }}>
+                  <div style={{ display: "flex", fontSize: S, fontWeight: 700 }}>
                     {recipeLine(shot, false)}
                   </div>
                   <div
                     style={{
                       display: "flex",
-                      marginTop: 4,
+                      marginTop: GAP_S,
                       fontSize: XS,
                       color: MUTED,
                     }}
@@ -598,7 +640,6 @@ function Dashboard({
               display: "flex",
               marginTop: GAP_M,
               fontSize: XS,
-              letterSpacing: 3,
               color: MUTED,
             }}
           >
@@ -608,7 +649,7 @@ function Dashboard({
                 day: "numeric",
                 month: "short",
               })} linksboven tot vandaag rechtsonder`,
-            ).toUpperCase()}
+            )}
           </div>
 
           <div style={{ display: "flex", marginTop: GAP_XL }}>
@@ -657,11 +698,10 @@ function Dashboard({
                 style={{
                   display: "flex",
                   fontSize: XS,
-                  letterSpacing: 3,
                   color: MUTED,
                 }}
               >
-                VOLGENDE SHOT
+                Volgende shot
               </div>
               {advice && compassPoint ? (
                 <div style={{ display: "flex", flexDirection: "column" }}>
@@ -669,8 +709,9 @@ function Dashboard({
                     style={{
                       display: "flex",
                       marginTop: GAP_M,
+                      fontFamily: DISPLAY,
                       fontSize: L,
-                      fontWeight: 700,
+                      fontWeight: 600,
                       lineHeight: 1.1,
                     }}
                   >
@@ -699,13 +740,12 @@ function Dashboard({
                       display: "flex",
                       marginTop: GAP_L,
                       fontSize: XS,
-                      letterSpacing: 3,
                       color: MUTED,
                     }}
                   >
                     {safe(
                       `laatste: ${describeTaste(compassPoint)} • ${agoLabel(compassShot.createdAt, now)}`,
-                    ).toUpperCase()}
+                    )}
                   </div>
                 </div>
               ) : (
@@ -714,8 +754,9 @@ function Dashboard({
                     style={{
                       display: "flex",
                       marginTop: GAP_M,
+                      fontFamily: DISPLAY,
                       fontSize: L,
-                      fontWeight: 700,
+                      fontWeight: 600,
                       lineHeight: 1.1,
                     }}
                   >
@@ -779,6 +820,7 @@ function CompassPlot({ trail }: { trail: TastePoint[] }) {
         width: COMPASS,
         height: COMPASS,
         border: `3px solid ${RULE}`,
+        borderRadius: RADIUS,
       }}
     >
       <svg
@@ -902,23 +944,21 @@ function LabelRow({
       <div
         style={{
           display: "flex",
-          fontSize: XS,
-          letterSpacing: 3,
+          fontSize: S,
           color: MUTED,
         }}
       >
-        {safe(left).toUpperCase()}
+        {safe(left)}
       </div>
       {right ?? (
         <div
           style={{
             display: "flex",
-            fontSize: XS,
-            letterSpacing: 3,
+            fontSize: S,
             color: MUTED,
           }}
         >
-          {rightText ? safe(rightText).toUpperCase() : ""}
+          {rightText ? safe(rightText) : ""}
         </div>
       )}
     </div>
@@ -936,7 +976,14 @@ function BigNumber({ value, label }: { value: string; label: string }) {
         flexBasis: 0,
       }}
     >
-      <div style={{ display: "flex", fontSize: XL, fontWeight: 700 }}>
+      <div
+        style={{
+          display: "flex",
+          fontFamily: DISPLAY,
+          fontSize: XL,
+          fontWeight: 600,
+        }}
+      >
         {value}
       </div>
       <div
@@ -944,11 +991,10 @@ function BigNumber({ value, label }: { value: string; label: string }) {
           display: "flex",
           marginTop: GAP_S,
           fontSize: XS,
-          letterSpacing: 3,
           color: MUTED,
         }}
       >
-        {safe(label).toUpperCase()}
+        {safe(label)}
       </div>
     </div>
   );
@@ -988,10 +1034,9 @@ function TotalBlock({
           display: "flex",
           marginTop: GAP_S,
           fontSize: XS,
-          letterSpacing: 3,
         }}
       >
-        {safe(label).toUpperCase()}
+        {safe(label)}
       </div>
     </div>
   );
@@ -1032,6 +1077,41 @@ function Calendar({
                   : d.count === 2
                     ? CELL_MID
                     : INK;
+            if (compact) {
+              // Halve breedte: een dag is een stip. Geen shot is een klein
+              // puntje, daarna groeit de vulling mee met het aantal.
+              const empty = d.count === 0;
+              return (
+                <div
+                  key={d.key}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexGrow: 1,
+                    flexBasis: 0,
+                    height: CELL_HEIGHT,
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: empty ? 10 : 42,
+                      height: empty ? 10 : 42,
+                      borderRadius: 21,
+                      backgroundColor: empty ? CELL_MID : fill,
+                      color: d.count >= 2 ? PAPER : INK,
+                      fontSize: S,
+                      fontWeight: 700,
+                    }}
+                  >
+                    {empty ? "" : String(d.count)}
+                  </div>
+                </div>
+              );
+            }
             return (
               <div
                 key={d.key}
@@ -1239,7 +1319,7 @@ function Frame({ children }: { children: React.ReactNode }) {
         paddingRight: 48,
         backgroundColor: PAPER,
         color: INK,
-        fontFamily: "sans-serif",
+        fontFamily: SANS,
       }}
     >
       {children}
