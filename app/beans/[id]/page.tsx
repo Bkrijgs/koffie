@@ -26,6 +26,8 @@ import {
 } from "@/lib/utils";
 import { tipsForBean } from "@/lib/tips";
 import type { ShotLog } from "@/lib/types";
+import { CompassCard } from "@/components/CompassCard";
+import { usePrefs } from "@/lib/prefs";
 
 type SortKey = "date" | "rating" | "time";
 
@@ -34,6 +36,7 @@ export default function BeanDetailPage() {
   const id = params?.id;
   const { ready, beans, shots, setup } = useKoffie();
   const [sortBy, setSortBy] = useState<SortKey>("date");
+  const prefs = usePrefs();
 
   const bean = useMemo(() => beans.find((b) => b.id === id), [beans, id]);
   const beanShots = useMemo(
@@ -190,9 +193,11 @@ export default function BeanDetailPage() {
         )}
       </header>
 
-      <BaristaTips tips={tips} />
+      <CompassCard bean={bean} shots={beanShots} setup={setup} />
 
-      {beanShots.length > 0 && (
+      {prefs.showStats && <BaristaTips tips={tips} />}
+
+      {prefs.showStats && beanShots.length > 0 && (
         <section className="rounded-xl2 border border-line bg-card p-5 shadow-soft">
           <h2 className="font-display text-base tracking-tightish text-ink-800">
             Dial-in
@@ -204,11 +209,11 @@ export default function BeanDetailPage() {
         </section>
       )}
 
-      {beanShots.length >= 2 && (
+      {prefs.showStats && beanShots.length >= 2 && (
         <CoachCard bean={bean} setup={setup} shots={beanShots} />
       )}
 
-      {beanShots.length > 0 && (
+      {prefs.showStats && beanShots.length > 0 && (
         <section>
           <p className="mb-2 text-[10px] uppercase tracking-[0.16em] text-ink-300">
             Rating-curve

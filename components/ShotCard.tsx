@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Bean, ShotLog } from "@/lib/types";
 import { formatDate } from "@/lib/utils";
 import { StarRating } from "./StarRating";
+import { describeTaste, tasteOf } from "@/lib/compass";
 
 type Props = {
   shot: ShotLog;
@@ -13,6 +14,7 @@ export function ShotCard({ shot, bean, showBean = true }: Props) {
   const dimmed = shot.dialIn ? "opacity-70" : "";
   const awaitingRating = shot.draft && !shot.rating;
   const badgeCount = (shot.draft ? 1 : 0) + (shot.dialIn ? 1 : 0);
+  const taste = tasteOf(shot);
   return (
     <article
       className={`group relative cursor-pointer rounded-xl2 border bg-card p-5 shadow-soft transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lift hover:border-barista-100 ${
@@ -87,6 +89,19 @@ export function ShotCard({ shot, bean, showBean = true }: Props) {
         <Stat label="Ratio" value={`1:${shot.brewRatio.toFixed(2)}`} />
         <Stat label="Tijd" value={`${shot.extractionTimeSeconds}s`} />
       </dl>
+
+      {(taste || shot.waterGrams) && (
+        <p className={`numeric mt-3 text-xs text-ink-400 ${dimmed}`}>
+          {taste && (
+            <>
+              <span className="text-ink-300">Kompas.</span>{" "}
+              {describeTaste(taste)}
+            </>
+          )}
+          {taste && shot.waterGrams ? " · " : ""}
+          {shot.waterGrams ? `${formatNum(shot.waterGrams)} g water erbij` : ""}
+        </p>
+      )}
 
       {(shot.notes || shot.nextAdjustment) && (
         <div

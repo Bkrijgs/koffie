@@ -275,6 +275,9 @@ type ShotRow = {
   dial_in: boolean | null;
   draft: boolean | null;
   tags: string[] | null;
+  taste_x: number | string | null;
+  taste_y: number | string | null;
+  water_grams: number | string | null;
   created_at: string;
 };
 
@@ -355,6 +358,12 @@ function expenseFromRow(row: ExpenseRow): Expense {
   };
 }
 
+function numOrUndefined(v: number | string | null | undefined): number | undefined {
+  if (v === null || v === undefined) return undefined;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : undefined;
+}
+
 function shotFromRow(row: ShotRow): ShotLog {
   const tags = sanitizeTags(row.tags);
   return {
@@ -371,6 +380,9 @@ function shotFromRow(row: ShotRow): ShotLog {
     dialIn: row.dial_in ?? false,
     draft: row.draft ?? false,
     tags: tags.length > 0 ? tags : undefined,
+    tasteX: numOrUndefined(row.taste_x),
+    tasteY: numOrUndefined(row.taste_y),
+    waterGrams: numOrUndefined(row.water_grams),
     createdAt: row.created_at,
   };
 }
@@ -461,6 +473,9 @@ export const supabaseBackend: KoffieStorage = {
         dial_in: input.dialIn ?? false,
         draft: input.draft ?? false,
         tags: sanitizeTags(input.tags),
+        taste_x: input.tasteX ?? null,
+        taste_y: input.tasteY ?? null,
+        water_grams: input.waterGrams ?? null,
       })
       .select("*")
       .single();
@@ -484,6 +499,9 @@ export const supabaseBackend: KoffieStorage = {
         dial_in: input.dialIn ?? false,
         draft: input.draft ?? false,
         tags: sanitizeTags(input.tags),
+        taste_x: input.tasteX ?? null,
+        taste_y: input.tasteY ?? null,
+        water_grams: input.waterGrams ?? null,
       })
       .eq("id", id)
       .select("*")

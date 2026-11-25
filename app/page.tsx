@@ -8,6 +8,8 @@ import { EmptyState } from "@/components/EmptyState";
 import { BaristaTips } from "@/components/BaristaTips";
 import { ShotHeatmap } from "@/components/ShotHeatmap";
 import { BootSplash } from "@/components/BootSplash";
+import { CompassCard } from "@/components/CompassCard";
+import { usePrefs } from "@/lib/prefs";
 import {
   average,
   draftShots,
@@ -26,7 +28,9 @@ import { useCountUp } from "@/lib/useCountUp";
 const COUNT_DELAY = 2200;
 
 export default function DashboardPage() {
-  const { ready, error, beans, shots } = useKoffie();
+  const { ready, error, beans, shots, setup } = useKoffie();
+  const prefs = usePrefs();
+  const [compassBeanId, setCompassBeanId] = useState<string | null>(null);
   const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
   // Diagnose: deze effect draait alleen als de client-side React écht
   // hydrateert. Zie je hieronder "JS actief…" dan draait de app-code; blijf je
@@ -67,6 +71,17 @@ export default function DashboardPage() {
     })
     .slice(0, 3);
 
+  // Kompas: standaard de boon van je laatste shot, anders de eerste boon
+  // op voorraad. Met het menu wissel je naar een andere.
+  const stockBeans = beans.filter((b) => b.inStock);
+  const defaultCompassBean =
+    (shots[0] && beanById.get(shots[0].beanId)) ?? stockBeans[0] ?? beans[0];
+  const compassBean =
+    (compassBeanId && beanById.get(compassBeanId)) || defaultCompassBean;
+  const compassOptions = compassBean
+    ? [compassBean, ...stockBeans.filter((b) => b.id !== compassBean.id)]
+    : [];
+
   const avgRating = average(effective.map((s) => s.rating));
   const tips = globalTips(beans, shots);
   const monthCost = shotsCost(
@@ -89,7 +104,33 @@ export default function DashboardPage() {
           <p className="mt-1 break-words text-ink-300">{error}</p>
         </div>
       )}
-      {shots.length > 0 && (
+      {compassBean && (
+        <div className="space-y-3">
+          {compassOptions.length > 1 && (
+            <select
+              aria-label="Boon voor het kompas"
+              value={compassBean.id}
+              onChange={(e) => setCompassBeanId(e.target.value)}
+              className="w-full rounded-lg border border-line bg-card px-3 py-2.5 text-sm text-ink-800 focus:border-barista-400 focus:outline-none focus:ring-2 focus:ring-barista-400/25"
+            >
+              {compassOptions.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                  {b.roaster ? ` · ${b.roaster}` : ""}
+                </option>
+              ))}
+            </select>
+          )}
+          <CompassCard
+            bean={compassBean}
+            shots={shots.filter((s) => s.beanId === compassBean.id)}
+            setup={setup}
+            showBean
+          />
+        </div>
+      )}
+
+      {prefs.showStats && shots.length > 0 && (
         <section className="grid grid-cols-2 gap-px overflow-hidden rounded-xl2 border border-line bg-line sm:grid-cols-4">
           <CountStat
             label="Shots"
@@ -147,9 +188,9 @@ export default function DashboardPage() {
         </section>
       )}
 
-      <BaristaTips tips={tips} />
+      {prefs.showStats && <BaristaTips tips={tips} />}
 
-      {shots.length > 0 && (
+      {prefs.showStats && shots.length > 0 && (
         <section>
           <SectionHeader title="Activiteit" />
           <ShotHeatmap
@@ -221,7 +262,7 @@ export default function DashboardPage() {
         )}
       </section>
 
-      {top.length > 0 && (
+      {prefs.showStats && top.length > 0 && (
         <section>
           <SectionHeader title="Top shots" />
           <div className="space-y-3">

@@ -53,6 +53,13 @@ export type ShotLog = {
    *  mee in gemiddeldes, top-shots, trends of de coach. */
   draft: boolean;
   tags?: string[];
+  /** Plek op het smaakkompas, beide van -1 tot 1. tasteX: negatief = zuur
+   *  (onderextractie), positief = bitter (overextractie). tasteY: negatief =
+   *  waterig, positief = zwaar. Het midden (0, 0) is raak. */
+  tasteX?: number;
+  tasteY?: number;
+  /** Water dat na het zetten bij de shot is gedaan, in gram. */
+  waterGrams?: number;
 };
 
 /** Apparatuur-setup. Eén record per installatie; voedt de coffee-AI met
