@@ -129,7 +129,8 @@ async function loadData(): Promise<Data> {
 }
 
 export async function GET(request: Request) {
-  // ?view=stats toont in band 4 de oude 30-dagenkalender i.p.v. het kompas.
+  // ?view=stats toont het oude scherm: boon in de maler, kalender en tegels,
+  // zonder kompas.
   const showStats = new URL(request.url).searchParams.get("view") === "stats";
 
   if (!isSupabaseConfigured) {
@@ -268,12 +269,6 @@ function Dashboard({
   const compassShot = trailShots[trailShots.length - 1];
   const compassPoint = compassShot ? tasteOf(compassShot) : null;
   const advice = compassShot ? compassAdvice(compassShot, setup) : null;
-  const totalsLine = idle
-    ? `geen shots in ${WINDOW_DAYS} dagen`
-    : `${windowShots.length} ${windowShots.length === 1 ? "shot" : "shots"}` +
-      (windowEffective.length > 0 ? ` • gem. ${nl(avgRating, 1)}` : "") +
-      ` • ${WINDOW_DAYS} dagen`;
-
   const stamp = new Date(now);
   const datePart = stamp.toLocaleDateString("nl-NL", {
     timeZone: TZ,
@@ -381,106 +376,138 @@ function Dashboard({
            van de laatste shot schuift mee naar die regel, en de brander staat
            eronder op dezelfde kantlijn i.p.v. te zweven achter de naam.
            Zelfde kader als band 2, anders zweeft dit blok ertussen. */}
-      <div
-        style={{
-          display: "flex",
-          flexShrink: 0,
-          flexDirection: "column",
-          marginLeft: -24,
-          marginRight: -24,
-          padding: 21,
-          border: `3px solid ${RULE}`,
-        }}
-      >
+      {showStats ? (
         <div
           style={{
             display: "flex",
-            alignItems: "baseline",
-            justifyContent: "space-between",
+            flexShrink: 0,
+            flexDirection: "column",
+            marginLeft: -24,
+            marginRight: -24,
+            padding: 21,
+            border: `3px solid ${RULE}`,
           }}
         >
-          <div style={{ display: "flex", fontSize: L, fontWeight: 700 }}>
-            {currentBean ? clip(currentBean.name, 24) : "Onbekende boon"}
-          </div>
           <div
             style={{
               display: "flex",
+              alignItems: "baseline",
+              justifyContent: "space-between",
+            }}
+          >
+            <div style={{ display: "flex", fontSize: L, fontWeight: 700 }}>
+              {currentBean ? clip(currentBean.name, 24) : "Onbekende boon"}
+            </div>
+            <div
+              style={{
+                display: "flex",
+                fontSize: XS,
+                letterSpacing: 3,
+                color: MUTED,
+              }}
+            >
+              {safe(whenLabel(last, now)).toUpperCase()}
+            </div>
+          </div>
+
+          {currentBean?.roaster ? (
+            <div
+              style={{
+                display: "flex",
+                marginTop: GAP_S,
+                fontSize: M,
+                color: MUTED,
+              }}
+            >
+              {clip(currentBean.roaster, 30)}
+            </div>
+          ) : null}
+
+          <div
+            style={{ display: "flex", marginTop: GAP_S, fontSize: S, color: MUTED }}
+          >
+            {clip(beanMeta(currentBean, now), 62)}
+          </div>
+
+          {bestIsLast ? (
+            <div
+              style={{
+                display: "flex",
+                marginTop: GAP_M,
+                fontSize: S,
+                color: MUTED,
+              }}
+            >
+              Je laatste shot is meteen je beste met deze boon.
+            </div>
+          ) : (
+            <div
+              style={{
+                display: "flex",
+                marginTop: GAP_M,
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <div style={{ display: "flex", fontSize: M }}>
+                {recipeLine(last)}
+              </div>
+              {last.draft || last.rating === 0 ? (
+                <div style={{ display: "flex", fontSize: S, color: MUTED }}>
+                  nog geen rating
+                </div>
+              ) : (
+                <Rating value={last.rating} />
+              )}
+            </div>
+          )}
+
+          {stats ? (
+            <BagBar stats={stats} />
+          ) : (
+            <div
+              style={{
+                display: "flex",
+                marginTop: GAP_L,
+                fontSize: S,
+                color: MUTED,
+              }}
+            >
+              Geen open zak geregistreerd.
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Standaard staat hier de 30-dagenkalender; de boon zelf staat in de
+           kop van het kompas eronder. */
+        <div style={{ display: "flex", flexShrink: 0, flexDirection: "column" }}>
+          <LabelRow
+            left={`${WINDOW_DAYS} dagen`}
+            rightText={
+              `${last7} ${last7 === 1 ? "shot" : "shots"} deze week` +
+              (windowEffective.length > 0 ? ` • gem. ${nl(avgRating, 1)}` : "")
+            }
+          />
+          <Calendar days={days} />
+          <div
+            style={{
+              display: "flex",
+              marginTop: GAP_M,
               fontSize: XS,
               letterSpacing: 3,
               color: MUTED,
             }}
           >
-            {safe(whenLabel(last, now)).toUpperCase()}
+            {safe(
+              `${days[0].date.toLocaleDateString("nl-NL", {
+                timeZone: TZ,
+                day: "numeric",
+                month: "short",
+              })} linksboven tot vandaag rechtsonder`,
+            ).toUpperCase()}
           </div>
         </div>
-
-        {currentBean?.roaster ? (
-          <div
-            style={{
-              display: "flex",
-              marginTop: GAP_S,
-              fontSize: M,
-              color: MUTED,
-            }}
-          >
-            {clip(currentBean.roaster, 30)}
-          </div>
-        ) : null}
-
-        <div
-          style={{ display: "flex", marginTop: GAP_S, fontSize: S, color: MUTED }}
-        >
-          {clip(beanMeta(currentBean, now), 62)}
-        </div>
-
-        {bestIsLast ? (
-          <div
-            style={{
-              display: "flex",
-              marginTop: GAP_M,
-              fontSize: S,
-              color: MUTED,
-            }}
-          >
-            Je laatste shot is meteen je beste met deze boon.
-          </div>
-        ) : (
-          <div
-            style={{
-              display: "flex",
-              marginTop: GAP_M,
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <div style={{ display: "flex", fontSize: M }}>
-              {recipeLine(last)}
-            </div>
-            {last.draft || last.rating === 0 ? (
-              <div style={{ display: "flex", fontSize: S, color: MUTED }}>
-                nog geen rating
-              </div>
-            ) : (
-              <Rating value={last.rating} />
-            )}
-          </div>
-        )}
-
-        {stats ? (
-          <BagBar stats={stats} />
-        ) : (
-          <div
-            style={{
-              display: "flex",
-              marginTop: GAP_L,
-              fontSize: S,
-              color: MUTED,
-            }}
-          >
-            Geen open zak geregistreerd.
-          </div>
-        )}
-      </div>
+      )}
 
       <Spacer />
       <Divider />
@@ -538,7 +565,10 @@ function Dashboard({
            bij de volgende shot verandert. De 30-dagencijfers krimpen tot één
            regel in de kop. */
         <div style={{ display: "flex", flexShrink: 0, flexDirection: "column" }}>
-          <LabelRow left="Smaakkompas" rightText={totalsLine} />
+          <LabelRow
+            left="Smaakkompas"
+            rightText={currentBean ? clip(currentBean.name, 34) : undefined}
+          />
 
           <div style={{ display: "flex", marginTop: GAP_L }}>
             <CompassPlot trail={trailPoints} />
