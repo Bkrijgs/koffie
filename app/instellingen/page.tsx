@@ -1,5 +1,6 @@
 import { SetupForm } from "@/components/SetupForm";
 import { SkinToggle } from "@/components/SkinToggle";
+import { PrefsToggles } from "@/components/PrefsToggles";
 
 export default function InstellingenPage() {
   return (
@@ -12,6 +13,10 @@ export default function InstellingenPage() {
       </header>
       <div className="rounded-xl2 border border-line bg-card p-6 shadow-soft">
         <SetupForm />
+      </div>
+      <div className="rounded-xl2 border border-line bg-card p-6 shadow-soft">
+        <p className="mb-3 text-sm text-ink-400">Onderdelen tonen</p>
+        <PrefsToggles />
       </div>
       <div className="rounded-xl2 border border-line bg-card p-6 shadow-soft">
         <p className="mb-3 text-sm text-ink-400">Uiterlijk</p>
