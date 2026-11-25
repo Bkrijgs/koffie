@@ -17,6 +17,16 @@ import {
   type TastePoint,
 } from "@/lib/compass";
 import { usePrefs } from "@/lib/prefs";
+import { FieldStepper } from "./FieldStepper";
+
+/** Volgorde waarin je de getalvelden invult; voedt de "volgende"-knop. */
+const FIELD_STEPS = [
+  { id: "shot-grind", label: "Maalgraad" },
+  { id: "shot-dose", label: "Dose" },
+  { id: "shot-yield", label: "Yield" },
+  { id: "shot-time", label: "Tijd" },
+  { id: "shot-water", label: "Water" },
+];
 import { ShotStyles } from "./ShotStyles";
 import { estimateStyles, referenceShot, type StyleEstimate } from "@/lib/styles";
 
@@ -400,6 +410,7 @@ export function ShotForm({ initialBeanId, shot }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
+      <FieldStepper steps={FIELD_STEPS} />
       {isDraft && (
         <div className="anim-fade-up flex gap-2.5 rounded-lg border border-gold-300/70 bg-gold-300/15 px-4 py-3 text-sm">
           <span
@@ -496,6 +507,7 @@ export function ShotForm({ initialBeanId, shot }: Props) {
       >
         <input
           id="shot-grind"
+          enterKeyHint="next"
           type="number"
           inputMode="decimal"
           step={setup.grindStep}
@@ -512,6 +524,7 @@ export function ShotForm({ initialBeanId, shot }: Props) {
         <Field label="Dose (g)" htmlFor="shot-dose" required>
           <input
             id="shot-dose"
+            enterKeyHint="next"
             type="number"
             inputMode="decimal"
             step="0.1"
@@ -525,6 +538,7 @@ export function ShotForm({ initialBeanId, shot }: Props) {
         <Field label="Yield (g)" htmlFor="shot-yield" required>
           <input
             id="shot-yield"
+            enterKeyHint="next"
             type="number"
             inputMode="decimal"
             step="0.1"
@@ -666,6 +680,7 @@ export function ShotForm({ initialBeanId, shot }: Props) {
         <Field label="Tijd (sec.)" htmlFor="shot-time" required>
           <input
             id="shot-time"
+            enterKeyHint="next"
             type="number"
             inputMode="numeric"
             step="1"
@@ -679,6 +694,7 @@ export function ShotForm({ initialBeanId, shot }: Props) {
         <Field label="Water erbij (g)" htmlFor="shot-water">
           <input
             id="shot-water"
+            enterKeyHint="done"
             type="number"
             inputMode="decimal"
             step="1"
