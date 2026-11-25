@@ -4,7 +4,16 @@ import { isSupabaseConfigured } from "@/lib/supabase";
 import { bagStats, openBagFor, type BagStats } from "@/lib/inventory";
 import { average, effectiveShots } from "@/lib/utils";
 import { beanSweetSpot, type SweetSpot as SweetSpotRange } from "@/lib/tips";
-import type { Bag, Bean, ShotLog } from "@/lib/types";
+import {
+  compassAdvice,
+  describeTaste,
+  ON_TARGET_RADIUS,
+  tasteOf,
+  tasteTrail,
+  type TastePoint,
+} from "@/lib/compass";
+import { DEFAULT_SETUP } from "@/lib/setup";
+import type { Bag, Bean, Setup, ShotLog } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -45,6 +54,12 @@ const GAP_XL = 32;
 /** Kalenderraster: 10 x 3 = precies de 30 dagen van het venster. */
 const GRID_COLS = 10;
 const CELL_HEIGHT = 56;
+
+/** Zijde van het smaakkompas in band 4, en de marge tot de rand van het veld. */
+const COMPASS = 460;
+const COMPASS_PAD = 30;
+/** Hoeveel eerdere shots het spoor op het kompas laat zien. */
+const COMPASS_TRAIL = 6;
 
 const TZ = "Europe/Amsterdam";
 /** Alles op dit scherm gaat over dit venster: de tegels, de activiteitsstrip
@@ -98,18 +113,25 @@ type Data = {
   beans: Bean[];
   shots: ShotLog[];
   bags: Bag[];
+  setup: Setup;
 };
 
 async function loadData(): Promise<Data> {
-  const [beans, shots, bags] = await Promise.all([
+  const [beans, shots, bags, setup] = await Promise.all([
     supabaseBackend.listBeans(),
     supabaseBackend.listShots(),
     supabaseBackend.listBags(),
+    // De setup is alleen nodig voor de grenzen van de maler in het
+    // kompasadvies; lukt het ophalen niet, dan volstaat de standaard.
+    supabaseBackend.getSetup().catch(() => DEFAULT_SETUP),
   ]);
-  return { beans, shots, bags };
+  return { beans, shots, bags, setup };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  // ?view=stats toont in band 4 de oude 30-dagenkalender i.p.v. het kompas.
+  const showStats = new URL(request.url).searchParams.get("view") === "stats";
+
   if (!isSupabaseConfigured) {
     return png(
       <Message
@@ -140,7 +162,7 @@ export async function GET() {
     );
   }
 
-  return png(<Dashboard {...data} />);
+  return png(<Dashboard {...data} showStats={showStats} />);
 }
 
 function png(element: JSX.Element): ImageResponse {
@@ -154,7 +176,13 @@ function png(element: JSX.Element): ImageResponse {
   });
 }
 
-function Dashboard({ beans, shots, bags }: Data) {
+function Dashboard({
+  beans,
+  shots,
+  bags,
+  setup,
+  showStats,
+}: Data & { showStats: boolean }) {
   const now = Date.now();
   const beanById = new Map(beans.map((b) => [b.id, b]));
 
@@ -229,6 +257,22 @@ function Dashboard({ beans, shots, bags }: Data) {
   // Staat het beste recept al groot in band 2, dan is het herhalen ervan in
   // band 3 zinloos.
   const bestIsLast = Boolean(best) && best.id === last.id;
+
+  // Smaakkompas van de boon in de maler: het spoor van de laatste shots en
+  // het advies dat uit de meest recente volgt.
+  const trailShots = tasteTrail(
+    shots.filter((s) => s.beanId === last.beanId),
+    COMPASS_TRAIL,
+  );
+  const trailPoints = trailShots.map((s) => tasteOf(s)!);
+  const compassShot = trailShots[trailShots.length - 1];
+  const compassPoint = compassShot ? tasteOf(compassShot) : null;
+  const advice = compassShot ? compassAdvice(compassShot, setup) : null;
+  const totalsLine = idle
+    ? `geen shots in ${WINDOW_DAYS} dagen`
+    : `${windowShots.length} ${windowShots.length === 1 ? "shot" : "shots"}` +
+      (windowEffective.length > 0 ? ` • gem. ${nl(avgRating, 1)}` : "") +
+      ` • ${WINDOW_DAYS} dagen`;
 
   const stamp = new Date(now);
   const datePart = stamp.toLocaleDateString("nl-NL", {
@@ -441,53 +485,283 @@ function Dashboard({ beans, shots, bags }: Data) {
       <Spacer />
       <Divider />
 
-      {/* ---- Band 4: 30 dagen ---- */}
-      <div style={{ display: "flex", flexShrink: 0, flexDirection: "column" }}>
-        <LabelRow
-          left={`${WINDOW_DAYS} dagen`}
-          rightText={`${last7} ${last7 === 1 ? "shot" : "shots"} deze week`}
-        />
+      {showStats ? (
+        <div style={{ display: "flex", flexShrink: 0, flexDirection: "column" }}>
+        {/* ---- Band 4: 30 dagen ---- */}
+        <div style={{ display: "flex", flexShrink: 0, flexDirection: "column" }}>
+          <LabelRow
+            left={`${WINDOW_DAYS} dagen`}
+            rightText={`${last7} ${last7 === 1 ? "shot" : "shots"} deze week`}
+          />
 
-        <Calendar days={days} />
+          <Calendar days={days} />
 
-        <div
-          style={{
-            display: "flex",
-            marginTop: GAP_M,
-            fontSize: XS,
-            letterSpacing: 3,
-            color: MUTED,
-          }}
-        >
-          {safe(
-            `${days[0].date.toLocaleDateString("nl-NL", {
-              timeZone: TZ,
-              day: "numeric",
-              month: "short",
-            })} linksboven tot vandaag rechtsonder`,
-          ).toUpperCase()}
+          <div
+            style={{
+              display: "flex",
+              marginTop: GAP_M,
+              fontSize: XS,
+              letterSpacing: 3,
+              color: MUTED,
+            }}
+          >
+            {safe(
+              `${days[0].date.toLocaleDateString("nl-NL", {
+                timeZone: TZ,
+                day: "numeric",
+                month: "short",
+              })} linksboven tot vandaag rechtsonder`,
+            ).toUpperCase()}
+          </div>
+
+          <div style={{ display: "flex", marginTop: GAP_XL }}>
+            <TotalBlock
+              value={idle ? "—" : String(windowShots.length)}
+              label="Shots"
+            />
+            <TotalBlock
+              value={idle ? "—" : String(beansUsed)}
+              label="Bonen"
+              gap
+            />
+            <TotalBlock
+              value={windowEffective.length > 0 ? nl(avgRating, 1) : "—"}
+              label="Gem. rating"
+              gap
+            />
+          </div>
         </div>
-
-        <div style={{ display: "flex", marginTop: GAP_XL }}>
-          <TotalBlock
-            value={idle ? "—" : String(windowShots.length)}
-            label="Shots"
-          />
-          <TotalBlock
-            value={idle ? "—" : String(beansUsed)}
-            label="Bonen"
-            gap
-          />
-          <TotalBlock
-            value={windowEffective.length > 0 ? nl(avgRating, 1) : "—"}
-            label="Gem. rating"
-            gap
-          />
         </div>
-      </div>
+      ) : (
+        /* ---- Band 4: smaakkompas ----
+           Links het veld met het spoor van de laatste shots, rechts wat je
+           bij de volgende shot verandert. De 30-dagencijfers krimpen tot één
+           regel in de kop. */
+        <div style={{ display: "flex", flexShrink: 0, flexDirection: "column" }}>
+          <LabelRow left="Smaakkompas" rightText={totalsLine} />
+
+          <div style={{ display: "flex", marginTop: GAP_L }}>
+            <CompassPlot trail={trailPoints} />
+
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center",
+                flexGrow: 1,
+                flexBasis: 0,
+                marginLeft: GAP_XL,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  fontSize: XS,
+                  letterSpacing: 3,
+                  color: MUTED,
+                }}
+              >
+                VOLGENDE SHOT
+              </div>
+              {advice && compassPoint ? (
+                <div style={{ display: "flex", flexDirection: "column" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      marginTop: GAP_M,
+                      fontSize: L,
+                      fontWeight: 700,
+                      lineHeight: 1.1,
+                    }}
+                  >
+                    {safe(advice.title)}
+                  </div>
+                  {advice.change ? (
+                    <div
+                      style={{ display: "flex", marginTop: GAP_M, fontSize: M }}
+                    >
+                      {safe(advice.change.replace(" → ", " naar "))}
+                    </div>
+                  ) : null}
+                  <div
+                    style={{
+                      display: "flex",
+                      marginTop: GAP_L,
+                      fontSize: S,
+                      color: MUTED,
+                      lineHeight: 1.35,
+                    }}
+                  >
+                    {safe(advice.reason)}
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      marginTop: GAP_L,
+                      fontSize: XS,
+                      letterSpacing: 3,
+                      color: MUTED,
+                    }}
+                  >
+                    {safe(
+                      `laatste: ${describeTaste(compassPoint)} • ${agoLabel(compassShot.createdAt, now)}`,
+                    ).toUpperCase()}
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      marginTop: GAP_M,
+                      fontSize: L,
+                      fontWeight: 700,
+                      lineHeight: 1.1,
+                    }}
+                  >
+                    Nog geen shot op het kompas
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      marginTop: GAP_L,
+                      fontSize: S,
+                      color: MUTED,
+                      lineHeight: 1.35,
+                    }}
+                  >
+                    Tik in de app bij een shot van deze boon op het kompas
+                    waar hij zat. Dan staat hier wat je de volgende keer
+                    verandert.
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <Spacer />
     </Frame>
+  );
+}
+
+/** Woorden op het kompas. Minder dan in de app: op e-ink moet elk woord op
+ *  afstand leesbaar zijn, dus per hoek twee en verder alleen de assen. */
+const COMPASS_WORDS: { x: number; y: number; t: string }[] = [
+  { x: 112, y: 62, t: "overweldigend" },
+  { x: 112, y: 96, t: "zout" },
+  { x: 348, y: 62, t: "branderig" },
+  { x: 348, y: 96, t: "wrang" },
+  { x: 112, y: 338, t: "vlak" },
+  { x: 112, y: 372, t: "dun" },
+  { x: 348, y: 338, t: "droog" },
+  { x: 348, y: 372, t: "leeg" },
+];
+
+/** Het smaakkompas voor e-ink: links zuur, rechts bitter, boven zwaar, onder
+ *  waterig. Oudere shots zijn open rondjes, de laatste is de dichte stip. */
+function CompassPlot({ trail }: { trail: TastePoint[] }) {
+  const half = COMPASS / 2;
+  const reach = half - COMPASS_PAD;
+  const pts = trail.map((p) => ({
+    cx: half + p.x * reach,
+    cy: half - p.y * reach,
+  }));
+  const wordBox = 220;
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        position: "relative",
+        flexShrink: 0,
+        width: COMPASS,
+        height: COMPASS,
+        border: `3px solid ${RULE}`,
+      }}
+    >
+      <svg
+        width={COMPASS}
+        height={COMPASS}
+        viewBox={`0 0 ${COMPASS} ${COMPASS}`}
+        style={{ position: "absolute", left: -3, top: -3 }}
+      >
+        <line x1={COMPASS_PAD} y1={half} x2={COMPASS - COMPASS_PAD} y2={half} stroke={CELL_MID} strokeWidth="2" />
+        {/* De verticale as begint en eindigt onder de labels ZWAAR en WATERIG. */}
+        <line x1={half} y1={COMPASS_PAD + 16} x2={half} y2={COMPASS - COMPASS_PAD - 22} stroke={CELL_MID} strokeWidth="2" />
+        <circle cx={half} cy={half} r={reach * ON_TARGET_RADIUS} fill={CELL_LOW} stroke={INK} strokeWidth="3" />
+        {pts.length > 1 ? (
+          <polyline
+            points={pts.map((p) => `${p.cx},${p.cy}`).join(" ")}
+            fill="none"
+            stroke={INK}
+            strokeWidth="3"
+            strokeDasharray="8 7"
+          />
+        ) : null}
+        {pts.map((p, i) =>
+          i === pts.length - 1 ? (
+            <circle key={i} cx={p.cx} cy={p.cy} r="17" fill={INK} stroke={PAPER} strokeWidth="4" />
+          ) : (
+            <circle key={i} cx={p.cx} cy={p.cy} r="10" fill={PAPER} stroke={INK} strokeWidth="3" />
+          ),
+        )}
+      </svg>
+
+      {COMPASS_WORDS.map((w) => (
+        <div
+          key={w.t}
+          style={{
+            display: "flex",
+            position: "absolute",
+            justifyContent: "center",
+            left: w.x - wordBox / 2 - 3,
+            top: w.y - 3,
+            width: wordBox,
+            fontSize: XS,
+            color: MUTED,
+          }}
+        >
+          {w.t}
+        </div>
+      ))}
+
+      <CompassAxis text="ZWAAR" left={half - 110 - 3} top={8} align="center" />
+      <CompassAxis text="WATERIG" left={half - 110 - 3} top={COMPASS - 44} align="center" />
+      <CompassAxis text="ZUUR" left={10} top={half - 40} align="flex-start" />
+      <CompassAxis text="BITTER" left={COMPASS - 236} top={half - 40} align="flex-end" />
+    </div>
+  );
+}
+
+function CompassAxis({
+  text,
+  left,
+  top,
+  align,
+}: {
+  text: string;
+  left: number;
+  top: number;
+  align: "center" | "flex-start" | "flex-end";
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        position: "absolute",
+        justifyContent: align,
+        left,
+        top,
+        width: 220,
+        fontSize: XS,
+        fontWeight: 700,
+        letterSpacing: 3,
+      }}
+    >
+      {text}
+    </div>
   );
 }
 
