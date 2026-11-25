@@ -478,33 +478,97 @@ function Dashboard({
           )}
         </div>
       ) : (
-        /* Standaard staat hier de 30-dagenkalender; de boon zelf staat in de
-           kop van het kompas eronder. */
-        <div style={{ display: "flex", flexShrink: 0, flexDirection: "column" }}>
-          <LabelRow
-            left={`${WINDOW_DAYS} dagen`}
-            rightText={
-              `${last7} ${last7 === 1 ? "shot" : "shots"} deze week` +
-              (windowEffective.length > 0 ? ` • gem. ${nl(avgRating, 1)}` : "")
-            }
-          />
-          <Calendar days={days} />
+        /* Standaard: links de 30-dagenkalender op halve breedte, rechts de
+           laatste shot en de voorraad. De boonnaam staat in de kop van het
+           kompas eronder. */
+        <div style={{ display: "flex", flexShrink: 0 }}>
           <div
             style={{
               display: "flex",
-              marginTop: GAP_M,
-              fontSize: XS,
-              letterSpacing: 3,
-              color: MUTED,
+              flexDirection: "column",
+              flexGrow: 1,
+              flexBasis: 0,
             }}
           >
-            {safe(
-              `${days[0].date.toLocaleDateString("nl-NL", {
-                timeZone: TZ,
-                day: "numeric",
-                month: "short",
-              })} linksboven tot vandaag rechtsonder`,
-            ).toUpperCase()}
+            <LabelRow
+              left={`${WINDOW_DAYS} dagen`}
+              rightText={`${last7} deze week`}
+            />
+            <Calendar days={days} compact />
+            <div
+              style={{
+                display: "flex",
+                marginTop: GAP_M,
+                fontSize: XS,
+                letterSpacing: 3,
+                color: MUTED,
+              }}
+            >
+              {safe(
+                `vanaf ${days[0].date.toLocaleDateString("nl-NL", {
+                  timeZone: TZ,
+                  day: "numeric",
+                  month: "short",
+                })}` +
+                  (windowEffective.length > 0
+                    ? ` • gem. ${nl(avgRating, 1)}`
+                    : ""),
+              ).toUpperCase()}
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+              flexGrow: 1,
+              flexBasis: 0,
+              marginLeft: GAP_XL,
+            }}
+          >
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              <LabelRow left="Laatste shot" rightText={whenLabel(last, now)} />
+              <div style={{ display: "flex", marginTop: GAP_L, fontSize: S }}>
+                {recipeLine(last, false)}
+              </div>
+              <div style={{ display: "flex", marginTop: GAP_M }}>
+                {last.draft || last.rating === 0 ? (
+                  <div style={{ display: "flex", fontSize: S, color: MUTED }}>
+                    nog geen rating
+                  </div>
+                ) : (
+                  <Rating value={last.rating} />
+                )}
+              </div>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              <div
+                style={{
+                  display: "flex",
+                  fontSize: XS,
+                  letterSpacing: 3,
+                  color: MUTED,
+                }}
+              >
+                VOORRAAD
+              </div>
+              {stats ? (
+                <BagBar stats={stats} tight />
+              ) : (
+                <div
+                  style={{
+                    display: "flex",
+                    marginTop: GAP_M,
+                    fontSize: S,
+                    color: MUTED,
+                  }}
+                >
+                  Geen open zak geregistreerd.
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -931,8 +995,11 @@ function TotalBlock({
  *  want meer grijstinten houd je op dit scherm niet uit elkaar. */
 function Calendar({
   days,
+  compact,
 }: {
   days: { key: string; count: number }[];
+  /** Halve breedte: smallere cellen, dus een kleiner cijfer. */
+  compact?: boolean;
 }) {
   const rows = Array.from({ length: Math.ceil(days.length / GRID_COLS) }, (_, r) =>
     days.slice(r * GRID_COLS, r * GRID_COLS + GRID_COLS),
@@ -975,7 +1042,7 @@ function Calendar({
                   // Een nul in gedempt grijs: de dag telt mee, er is alleen
                   // niets gezet. Een leeg vakje las als "hier ontbreekt data".
                   color: d.count >= 3 ? PAPER : d.count === 0 ? MUTED : INK,
-                  fontSize: M,
+                  fontSize: compact ? S : M,
                   fontWeight: 700,
                 }}
               >
@@ -1014,12 +1081,13 @@ function beanMeta(bean: Bean | undefined, now: number): string {
   return parts.length > 0 ? parts.join(" • ") : "Geen boondetails ingevuld";
 }
 
-function recipeLine(s: ShotLog): string {
+function recipeLine(s: ShotLog, withRatio = true): string {
   return [
     `maling ${grind(s.grindSize)}`,
     `${nl(s.doseGrams, 1)} in`,
     `${nl(s.yieldGrams, 1)} uit`,
-    `1:${nl(s.brewRatio, 1)}`,
+    // Op halve breedte past de ratio er niet bij; die volgt uit in en uit.
+    ...(withRatio ? [`1:${nl(s.brewRatio, 1)}`] : []),
     `${s.extractionTimeSeconds} s`,
   ].join(" • ");
 }
@@ -1091,7 +1159,7 @@ function Rating({ value }: { value: number }) {
   );
 }
 
-function BagBar({ stats }: { stats: BagStats }) {
+function BagBar({ stats, tight }: { stats: BagStats; tight?: boolean }) {
   const pct =
     stats.bag.grams > 0
       ? Math.round((stats.remainingGrams / stats.bag.grams) * 100)
@@ -1104,7 +1172,8 @@ function BagBar({ stats }: { stats: BagStats }) {
         }`;
   // "verbruik onbekend" is de langste tekst die hier kan staan; onder ruwweg
   // een kwart van de balk past die niet meer binnen de zwarte vulling.
-  const binnen = pct >= 28;
+  // Op halve breedte is de balk half zo lang, dus de tekst past later.
+  const binnen = pct >= (tight ? 56 : 28);
 
   // De grammen stonden dubbelop: de balk laat de verhouding al zien. Wat je
   // écht wilt weten is wanneer je moet bijkopen, en dat staat nu ín de balk.
@@ -1115,7 +1184,7 @@ function BagBar({ stats }: { stats: BagStats }) {
     <div
       style={{
         display: "flex",
-        marginTop: GAP_L,
+        marginTop: tight ? GAP_S : GAP_L,
         height: 48,
         border: `3px solid ${RULE}`,
       }}
