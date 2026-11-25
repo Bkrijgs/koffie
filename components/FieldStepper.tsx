@@ -117,6 +117,13 @@ export function FieldStepper({ steps }: Props) {
       className="veld-stapper fixed inset-x-0 z-50 flex items-center gap-2 border-t border-line bg-card px-3 py-2 shadow-lift"
       style={{ bottom }}
     >
+      {/* Op iOS zweven de adresbalk en de toetsenbordbalk van Safari tussen
+          deze balk en het toetsenbord. Dit vlak vult die ruimte, zodat de
+          pagina er niet doorheen schemert. Elders valt het buiten beeld. */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-full h-48 bg-card"
+      />
       <button
         type="button"
         disabled={!prev}
