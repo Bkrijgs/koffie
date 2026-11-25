@@ -9,7 +9,7 @@ import { Field, inputClass } from "./Field";
 import { StarRating } from "./StarRating";
 import { BeanForm } from "./BeanForm";
 import { Barista } from "./Barista";
-import { CompassField } from "./CompassField";
+import { CompassField, CompassLegend } from "./CompassField";
 import {
   compassAdvice,
   tasteOf,
@@ -710,8 +710,9 @@ export function ShotForm({ initialBeanId, shot }: Props) {
             </span>
           )}
         </div>
-        <div className="mx-auto max-w-sm">
+        <div className="mx-auto max-w-md">
           <CompassField value={taste} trail={trailPoints} onChange={setTaste} />
+          <CompassLegend />
         </div>
         {liveAdvice && (
           <div className="anim-fade-up mt-2 rounded-lg border border-barista-100 bg-card px-3.5 py-2.5 text-sm">

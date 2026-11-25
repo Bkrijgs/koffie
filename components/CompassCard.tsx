@@ -10,7 +10,7 @@ import {
 } from "@/lib/compass";
 import type { Bean, Setup, ShotLog } from "@/lib/types";
 import { formatDateOnly } from "@/lib/utils";
-import { CompassField } from "./CompassField";
+import { CompassField, CompassLegend } from "./CompassField";
 
 type Props = {
   bean: Bean;
@@ -60,7 +60,10 @@ export function CompassCard({ bean, shots, setup, showBean = false }: Props) {
       </header>
 
       <div className="grid gap-5 sm:grid-cols-2 sm:items-center">
-        <CompassField trail={trail.map((s) => tasteOf(s)!)} />
+        <div>
+          <CompassField trail={trail.map((s) => tasteOf(s)!)} />
+          <CompassLegend />
+        </div>
 
         <div className="min-w-0">
           {latest && latestPoint && advice ? (
