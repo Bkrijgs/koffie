@@ -269,6 +269,11 @@ function Dashboard({
   const compassShot = trailShots[trailShots.length - 1];
   const compassPoint = compassShot ? tasteOf(compassShot) : null;
   const advice = compassShot ? compassAdvice(compassShot, setup) : null;
+  // De laatste drie shots van de boon in de maler, nieuwste eerst.
+  const recentShots = shots
+    .filter((s) => s.beanId === last.beanId)
+    .slice(0, 3);
+
   const stamp = new Date(now);
   const datePart = stamp.toLocaleDateString("nl-NL", {
     timeZone: TZ,
@@ -479,7 +484,7 @@ function Dashboard({
         </div>
       ) : (
         /* Standaard: links de 30-dagenkalender op halve breedte, rechts de
-           laatste shot en de voorraad. De boonnaam staat in de kop van het
+           laatste shots van deze boon. De boonnaam staat in de kop van het
            kompas eronder. */
         <div style={{ display: "flex", flexShrink: 0 }}>
           <div
@@ -521,54 +526,55 @@ function Dashboard({
             style={{
               display: "flex",
               flexDirection: "column",
-              justifyContent: "space-between",
               flexGrow: 1,
               flexBasis: 0,
               marginLeft: GAP_XL,
             }}
           >
-            <div style={{ display: "flex", flexDirection: "column" }}>
-              <LabelRow left="Laatste shot" rightText={whenLabel(last, now)} />
-              <div style={{ display: "flex", marginTop: GAP_L, fontSize: S }}>
-                {recipeLine(last, false)}
-              </div>
-              <div style={{ display: "flex", marginTop: GAP_M }}>
-                {last.draft || last.rating === 0 ? (
-                  <div style={{ display: "flex", fontSize: S, color: MUTED }}>
-                    nog geen rating
-                  </div>
-                ) : (
-                  <Rating value={last.rating} />
-                )}
-              </div>
-            </div>
-
-            <div style={{ display: "flex", flexDirection: "column" }}>
-              <div
-                style={{
-                  display: "flex",
-                  fontSize: XS,
-                  letterSpacing: 3,
-                  color: MUTED,
-                }}
-              >
-                VOORRAAD
-              </div>
-              {stats ? (
-                <BagBar stats={stats} tight />
-              ) : (
+            <LabelRow
+              left={recentShots.length === 1 ? "Laatste shot" : "Laatste shots"}
+            />
+            {recentShots.map((shot, i) => {
+              const point = tasteOf(shot);
+              const verdict =
+                shot.draft || shot.rating === 0
+                  ? shot.dialIn
+                    ? "dial-in"
+                    : "nog geen rating"
+                  : `${nl(shot.rating, 1)} ${shot.rating === 1 ? "ster" : "sterren"}`;
+              return (
                 <div
+                  key={shot.id}
                   style={{
                     display: "flex",
-                    marginTop: GAP_M,
-                    fontSize: S,
-                    color: MUTED,
+                    flexDirection: "column",
+                    marginTop: i === 0 ? GAP_L : GAP_M,
                   }}
                 >
-                  Geen open zak geregistreerd.
+                  <div style={{ display: "flex", fontSize: S }}>
+                    {recipeLine(shot, false)}
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      marginTop: 4,
+                      fontSize: XS,
+                      color: MUTED,
+                    }}
+                  >
+                    {safe(
+                      [
+                        agoLabel(shot.createdAt, now),
+                        verdict,
+                        point ? describeTaste(point) : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" • "),
+                    )}
+                  </div>
                 </div>
-              )}
-            </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -1159,7 +1165,7 @@ function Rating({ value }: { value: number }) {
   );
 }
 
-function BagBar({ stats, tight }: { stats: BagStats; tight?: boolean }) {
+function BagBar({ stats }: { stats: BagStats }) {
   const pct =
     stats.bag.grams > 0
       ? Math.round((stats.remainingGrams / stats.bag.grams) * 100)
@@ -1172,8 +1178,7 @@ function BagBar({ stats, tight }: { stats: BagStats; tight?: boolean }) {
         }`;
   // "verbruik onbekend" is de langste tekst die hier kan staan; onder ruwweg
   // een kwart van de balk past die niet meer binnen de zwarte vulling.
-  // Op halve breedte is de balk half zo lang, dus de tekst past later.
-  const binnen = pct >= (tight ? 56 : 28);
+  const binnen = pct >= 28;
 
   // De grammen stonden dubbelop: de balk laat de verhouding al zien. Wat je
   // écht wilt weten is wanneer je moet bijkopen, en dat staat nu ín de balk.
@@ -1184,7 +1189,7 @@ function BagBar({ stats, tight }: { stats: BagStats; tight?: boolean }) {
     <div
       style={{
         display: "flex",
-        marginTop: tight ? GAP_S : GAP_L,
+        marginTop: GAP_L,
         height: 48,
         border: `3px solid ${RULE}`,
       }}
