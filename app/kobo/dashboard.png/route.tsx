@@ -576,12 +576,14 @@ function Dashboard({
             />
             {recentShots.map((shot, i) => {
               const point = tasteOf(shot);
-              const verdict =
-                shot.draft || shot.rating === 0
-                  ? shot.dialIn
-                    ? "dial-in"
-                    : "nog geen rating"
-                  : `${nl(shot.rating, 1)} ${shot.rating === 1 ? "ster" : "sterren"}`;
+              const rated = !shot.draft && shot.rating > 0;
+              const details = [
+                rated ? null : shot.dialIn ? "dial-in" : "nog geen rating",
+                agoLabel(shot.createdAt, now),
+                point ? describeTaste(point) : null,
+              ]
+                .filter(Boolean)
+                .join(" • ");
               return (
                 <div
                   key={shot.id}
@@ -599,20 +601,18 @@ function Dashboard({
                   <div
                     style={{
                       display: "flex",
+                      alignItems: "center",
                       marginTop: GAP_S,
                       fontSize: XS,
                       color: MUTED,
                     }}
                   >
-                    {safe(
-                      [
-                        agoLabel(shot.createdAt, now),
-                        verdict,
-                        point ? describeTaste(point) : null,
-                      ]
-                        .filter(Boolean)
-                        .join(" • "),
-                    )}
+                    {rated ? <Rating value={shot.rating} small /> : null}
+                    <div
+                      style={{ display: "flex", marginLeft: rated ? 14 : 0 }}
+                    >
+                      {safe(details)}
+                    </div>
                   </div>
                 </div>
               );
@@ -1105,6 +1105,11 @@ function Calendar({
                       color: d.count >= 2 ? PAPER : INK,
                       fontSize: S,
                       fontWeight: 700,
+                      // Cijfers hebben geen staart, dus de regel oogt te
+                      // hoog; regelhoogte 1 plus een tikje naar beneden zet
+                      // het cijfer optisch in het midden van de stip.
+                      lineHeight: 1,
+                      paddingTop: 2,
                     }}
                   >
                     {empty ? "" : String(d.count)}
@@ -1199,18 +1204,26 @@ const STAR_SIZE = 32;
 
 /** Eén ster, fill 0 = leeg, 0.5 = half, 1 = vol. De gevulde ster staat in een
  *  smaller vakje met overflow hidden, zodat een halve ster echt half is. */
-function Star({ fill }: { fill: number }) {
+function Star({
+  fill,
+  size = STAR_SIZE,
+  gap = 5,
+}: {
+  fill: number;
+  size?: number;
+  gap?: number;
+}) {
   return (
     <div
       style={{
         display: "flex",
         position: "relative",
-        width: STAR_SIZE,
-        height: STAR_SIZE,
-        marginLeft: 5,
+        width: size,
+        height: size,
+        marginLeft: gap,
       }}
     >
-      <svg width={STAR_SIZE} height={STAR_SIZE} viewBox="0 0 24 24">
+      <svg width={size} height={size} viewBox="0 0 24 24">
         <path d={STAR_PATH} fill="none" stroke={INK} strokeWidth="1.8" />
       </svg>
       {fill > 0 ? (
@@ -1220,12 +1233,12 @@ function Star({ fill }: { fill: number }) {
             position: "absolute",
             top: 0,
             left: 0,
-            width: Math.round(STAR_SIZE * fill),
-            height: STAR_SIZE,
+            width: Math.round(size * fill),
+            height: size,
             overflow: "hidden",
           }}
         >
-          <svg width={STAR_SIZE} height={STAR_SIZE} viewBox="0 0 24 24">
+          <svg width={size} height={size} viewBox="0 0 24 24">
             <path d={STAR_PATH} fill={INK} />
           </svg>
         </div>
@@ -1234,12 +1247,18 @@ function Star({ fill }: { fill: number }) {
   );
 }
 
-/** Rating als vijf sterren; halve ratings worden een halve ster. */
-function Rating({ value }: { value: number }) {
+/** Rating als vijf sterren; halve ratings worden een halve ster. Met `small`
+ *  een compacte rij die links uitlijnt, voor in een lijst. */
+function Rating({ value, small }: { value: number; small?: boolean }) {
   return (
     <div style={{ display: "flex", alignItems: "center" }}>
       {[0, 1, 2, 3, 4].map((i) => (
-        <Star key={i} fill={Math.max(0, Math.min(1, value - i))} />
+        <Star
+          key={i}
+          fill={Math.max(0, Math.min(1, value - i))}
+          size={small ? 24 : STAR_SIZE}
+          gap={small ? (i === 0 ? 0 : 3) : 5}
+        />
       ))}
     </div>
   );
