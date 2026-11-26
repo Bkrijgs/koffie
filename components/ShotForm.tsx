@@ -3,13 +3,32 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useKoffie } from "@/lib/useKoffie";
-import { calcBrewRatio, effectiveShots } from "@/lib/utils";
+import { calcBrewRatio } from "@/lib/utils";
 import type { Rating, ShotLog } from "@/lib/types";
 import { Field, inputClass } from "./Field";
 import { StarRating } from "./StarRating";
 import { BeanForm } from "./BeanForm";
 import { Barista } from "./Barista";
-import { TASTE_TAGS } from "@/lib/tags";
+import { CompassField, CompassLegend } from "./CompassField";
+import {
+  compassAdvice,
+  tasteOf,
+  tasteTrail,
+  type TastePoint,
+} from "@/lib/compass";
+import { usePrefs } from "@/lib/prefs";
+import { FieldStepper } from "./FieldStepper";
+
+/** Volgorde waarin je de getalvelden invult; voedt de "volgende"-knop. */
+const FIELD_STEPS = [
+  { id: "shot-grind", label: "Maalgraad" },
+  { id: "shot-dose", label: "Dose" },
+  { id: "shot-yield", label: "Yield" },
+  { id: "shot-time", label: "Tijd" },
+  { id: "shot-water", label: "Water" },
+];
+import { ShotStyles } from "./ShotStyles";
+import { estimateStyles, referenceShot, type StyleEstimate } from "@/lib/styles";
 
 type Props = {
   initialBeanId?: string;
@@ -31,16 +50,16 @@ const RATIO_PRESETS = [
       "Kort getrokken, geconcentreerd. Veel body en zoetheid, weinig zuur — intens en siroopachtig.",
   },
   {
-    label: "Espresso",
+    label: "Normale",
     ratio: 2,
     description:
       "De klassieke verhouding. Balans tussen body, zoet en zuur — het standaard-recept.",
   },
   {
-    label: "Normale",
+    label: "Lang",
     ratio: 2.5,
     description:
-      "Iets langer doorgetrokken. Meer helderheid en aroma, lichter in body. Werkt goed bij lichter gebrande bonen.",
+      "De bovenkant van een normale. Meer helderheid en aroma, lichter in body. Werkt goed bij lichter gebrande bonen.",
   },
   {
     label: "Lungo",
@@ -69,6 +88,7 @@ function ratioToPct(r: number): number {
 export function ShotForm({ initialBeanId, shot }: Props) {
   const router = useRouter();
   const { beans, shots, setup, addShot, updateShot, ready } = useKoffie();
+  const prefs = usePrefs();
   const isEdit = Boolean(shot);
 
   const [beanId, setBeanId] = useState<string>(
@@ -93,15 +113,31 @@ export function ShotForm({ initialBeanId, shot }: Props) {
     shot?.nextAdjustment ?? "",
   );
   const [dialIn, setDialIn] = useState<boolean>(shot?.dialIn ?? false);
-  const [tags, setTags] = useState<string[]>(shot?.tags ?? []);
-  const [submitting, setSubmitting] = useState(false);
+  // Smaak-tags zitten niet meer in het formulier; bestaande tags van een
+  // oude shot blijven bij het bewerken wel bewaard.
+  const tags = shot?.tags ?? [];
+  const [taste, setTaste] = useState<TastePoint | null>(
+    shot ? tasteOf(shot) : null,
+  );
+  const [waterGrams, setWaterGrams] = useState<string>(
+    shot?.waterGrams !== undefined ? String(shot.waterGrams) : "",
+  );
+  const [submitting, setSubmitting] = useState<"shot" | "draft" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  function toggleTag(tag: string) {
-    setTags((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
-    );
-  }
+  // Alleen bonen die op voorraad staan in het keuzemenu. De al-gekozen boon
+  // blijft zichtbaar (bv. bij het bewerken van een oude shot van een boon die
+  // inmiddels op is), zodat de selectie niet stilletjes wegvalt.
+  const availableBeans = useMemo(
+    () => beans.filter((b) => b.inStock || b.id === beanId),
+    [beans, beanId],
+  );
+
+  // Een concept is een gelogde shot waarvan de rating nog moet komen. Je kunt
+  // 'm alleen als concept bewaren bij een nieuwe shot of bij een shot die al
+  // een concept ís — een afgeronde shot terugzetten naar concept heeft geen nut.
+  const isDraft = shot?.draft ?? false;
+  const canSaveAsDraft = !isEdit || isDraft;
 
   // Long-press op een verhouding-cel toont de uitleg-tooltip; release
   // verbergt 'm weer. Korte tap (<450ms) vult het yield-veld in.
@@ -144,7 +180,7 @@ export function ShotForm({ initialBeanId, shot }: Props) {
     const latest = [...shots].sort(
       (a, b) => +new Date(b.createdAt) - +new Date(a.createdAt),
     )[0];
-    if (latest && beans.some((b) => b.id === latest.beanId)) {
+    if (latest && beans.some((b) => b.id === latest.beanId && b.inStock)) {
       setBeanId(latest.beanId);
     }
   }, [isEdit, beanId, ready, shots, beans]);
@@ -155,18 +191,8 @@ export function ShotForm({ initialBeanId, shot }: Props) {
   // baseline.
   const placeholders = useMemo(() => {
     if (!beanId) return HARD_DEFAULTS;
-    const beanShots = shots.filter((s) => s.beanId === beanId);
-    if (beanShots.length === 0) return HARD_DEFAULTS;
-    const rated = effectiveShots(beanShots);
-    const source = rated.length > 0
-      ? [...rated].sort(
-          (a, b) =>
-            b.rating - a.rating ||
-            +new Date(b.createdAt) - +new Date(a.createdAt),
-        )[0]
-      : [...beanShots].sort(
-          (a, b) => +new Date(b.createdAt) - +new Date(a.createdAt),
-        )[0];
+    const source = referenceShot(shots.filter((s) => s.beanId === beanId));
+    if (!source) return HARD_DEFAULTS;
     return {
       grindSize: String(source.grindSize),
       doseGrams: String(source.doseGrams),
@@ -175,15 +201,43 @@ export function ShotForm({ initialBeanId, shot }: Props) {
     };
   }, [beanId, shots]);
 
-  // Feedback-loop: toon wat je bij de vorige shot voor deze boon van
-  // plan was, zodat je het niet vergeet. Alleen bij een nieuwe shot.
-  const lastAdjustment = useMemo(() => {
+  // Feedback-loop: wat nam je je bij de vorige shot van deze boon voor, en
+  // wat zegt het kompas over die shot? Alleen bij een nieuwe shot.
+  const previousShot = useMemo(() => {
     if (isEdit || !beanId) return null;
-    const recent = shots
-      .filter((s) => s.beanId === beanId)
-      .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt))[0];
-    return recent?.nextAdjustment ?? null;
+    return (
+      shots
+        .filter((s) => s.beanId === beanId)
+        .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt))[0] ??
+      null
+    );
   }, [isEdit, beanId, shots]);
+  const lastAdjustment = previousShot?.nextAdjustment ?? null;
+  const previousAdvice = useMemo(
+    () => (previousShot ? compassAdvice(previousShot, setup) : null),
+    [previousShot, setup],
+  );
+
+  // Zet het recept van de vorige shot in het formulier, met de aanpassing
+  // die het kompas voorstelt. De tijd blijft leeg: die meet je opnieuw.
+  function applyPreviousAdvice() {
+    if (!previousShot || !previousAdvice) return;
+    const next = previousAdvice.next;
+    setGrindSize(String(next.grindSize ?? previousShot.grindSize));
+    setDoseGrams(String(next.doseGrams ?? previousShot.doseGrams));
+    setYieldGrams(String(next.yieldGrams ?? previousShot.yieldGrams));
+    const water = next.waterGrams ?? previousShot.waterGrams;
+    setWaterGrams(water !== undefined && water > 0 ? String(water) : "");
+  }
+
+  // Spoor op het kompas: eerdere shots van deze boon, zonder de shot die je
+  // nu bewerkt.
+  const trailPoints = useMemo(() => {
+    if (!beanId) return [];
+    return tasteTrail(
+      shots.filter((s) => s.beanId === beanId && s.id !== shot?.id),
+    ).map((s) => tasteOf(s)!);
+  }, [beanId, shots, shot?.id]);
 
   // For the live ratio preview and submit fallback, fall through to the
   // placeholder when an input is empty.
@@ -209,8 +263,65 @@ export function ShotForm({ initialBeanId, shot }: Props) {
     }));
   }, [dose]);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  // Zetstijlen: per stijl de doel-yield, doel-tijd en geschatte maalgraad
+  // voor deze boon, gerekend vanaf de huidige (of placeholder-)dose.
+  const styleEstimates = useMemo(() => {
+    if (!beanId || !isFinite(dose) || dose <= 0) return null;
+    return estimateStyles(
+      shots.filter((s) => s.beanId === beanId),
+      setup,
+      dose,
+    );
+  }, [beanId, shots, setup, dose]);
+
+  // Een stijl is "actief" als yield en tijd in het formulier ermee kloppen.
+  const activeStyleId = useMemo(() => {
+    if (!styleEstimates || !yieldGrams || !extractionTimeSeconds) return null;
+    const match = styleEstimates.rows.find(
+      (r) =>
+        ratio >= r.style.ratioLow - 0.01 &&
+        ratio <= r.style.ratioHigh + 0.01 &&
+        time >= r.style.timeLow &&
+        time <= r.style.timeHigh,
+    );
+    return match?.style.id ?? null;
+  }, [styleEstimates, yieldGrams, extractionTimeSeconds, ratio, time]);
+
+  function applyStyle(row: StyleEstimate) {
+    setYieldGrams(fmtGrams(row.targetYield));
+    setExtractionTime(String(row.targetTime));
+    if (row.grind !== null) setGrindSize(String(row.grind));
+  }
+
+  // Advies bij de plek die je nu op het kompas hebt getikt, gerekend met de
+  // waarden die in het formulier staan.
+  const liveAdvice = useMemo(() => {
+    if (!taste) return null;
+    const grind = parseFloat(grindSize || placeholders.grindSize);
+    const water = parseFloat(waterGrams);
+    if (!isFinite(grind) || !isFinite(dose) || !isFinite(yld)) return null;
+    return compassAdvice(
+      {
+        id: "",
+        beanId,
+        createdAt: "",
+        grindSize: grind,
+        doseGrams: dose,
+        yieldGrams: yld,
+        brewRatio: ratio,
+        extractionTimeSeconds: isFinite(time) ? time : 0,
+        rating: 0,
+        dialIn: false,
+        draft: false,
+        tasteX: taste.x,
+        tasteY: taste.y,
+        waterGrams: isFinite(water) && water > 0 ? water : undefined,
+      },
+      setup,
+    );
+  }, [taste, grindSize, placeholders.grindSize, waterGrams, dose, yld, ratio, time, beanId, setup]);
+
+  async function save(asDraft: boolean) {
     setError(null);
 
     const grind = parseFloat(grindSize || placeholders.grindSize);
@@ -220,9 +331,14 @@ export function ShotForm({ initialBeanId, shot }: Props) {
     if (!isFinite(dose) || dose <= 0) return setError("Dose vereist");
     if (!isFinite(yld) || yld <= 0) return setError("Yield vereist");
     if (!isFinite(time) || time <= 0) return setError("Tijd vereist");
-    if (!dialIn && !rating) return setError("Rating vereist");
+    // Bij een concept mag de rating ontbreken — dat is juist het punt.
+    if (!asDraft && !dialIn && !rating) return setError("Rating vereist");
+    const water = parseFloat(waterGrams);
+    if (waterGrams.trim() && (!isFinite(water) || water < 0)) {
+      return setError("Water: vul een getal in of laat leeg");
+    }
 
-    setSubmitting(true);
+    setSubmitting(asDraft ? "draft" : "shot");
     try {
       const payload = {
         beanId,
@@ -232,9 +348,13 @@ export function ShotForm({ initialBeanId, shot }: Props) {
         extractionTimeSeconds: time,
         rating,
         dialIn,
+        draft: asDraft,
         notes: notes.trim() || undefined,
         nextAdjustment: nextAdjustment.trim() || undefined,
         tags: tags.length > 0 ? tags : undefined,
+        tasteX: taste?.x,
+        tasteY: taste?.y,
+        waterGrams: isFinite(water) && water > 0 ? water : undefined,
       };
       if (shot) {
         await updateShot(shot.id, payload);
@@ -243,8 +363,13 @@ export function ShotForm({ initialBeanId, shot }: Props) {
       }
       router.push(`/beans/${beanId}`);
     } finally {
-      setSubmitting(false);
+      setSubmitting(null);
     }
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    void save(false);
   }
 
   if (!ready) {
@@ -285,6 +410,23 @@ export function ShotForm({ initialBeanId, shot }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
+      <FieldStepper steps={FIELD_STEPS} />
+      {isDraft && (
+        <div className="anim-fade-up flex gap-2.5 rounded-lg border border-gold-300/70 bg-gold-300/15 px-4 py-3 text-sm">
+          <span
+            className="mt-1.5 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-gold-400"
+            aria-hidden
+          />
+          <span className="min-w-0">
+            <span className="font-medium text-ink-800">Concept</span>
+            <span className="block text-xs text-ink-500">
+              Deze shot telt nog niet mee in gemiddeldes en top-shots. Vul de
+              rating in en klik op Opslaan om ’m af te ronden.
+            </span>
+          </span>
+        </div>
+      )}
+
       <Field label="Boon" htmlFor="shot-bean" required>
         <div className="flex gap-2">
           <select
@@ -294,7 +436,7 @@ export function ShotForm({ initialBeanId, shot }: Props) {
             onChange={(e) => setBeanId(e.target.value)}
           >
             <option value="">Kies een boon…</option>
-            {beans.map((b) => (
+            {availableBeans.map((b) => (
               <option key={b.id} value={b.id}>
                 {b.name}
                 {b.roaster ? ` — ${b.roaster}` : ""}
@@ -324,6 +466,39 @@ export function ShotForm({ initialBeanId, shot }: Props) {
         </div>
       )}
 
+      {previousShot && previousAdvice && (
+        <div className="anim-fade-up rounded-lg border border-barista-100 bg-card px-4 py-3 text-sm">
+          <p className="text-[10px] uppercase tracking-[0.18em] text-ink-300">
+            Kompas over je vorige shot
+          </p>
+          <p className="mt-1 text-ink-800">
+            <span className="font-medium">{previousAdvice.title}</span>
+            {previousAdvice.change && (
+              <span className="numeric text-barista-400">
+                {" "}
+                · {previousAdvice.change}
+              </span>
+            )}
+          </p>
+          <p className="mt-1 text-xs text-ink-400">{previousAdvice.reason}</p>
+          <button
+            type="button"
+            onClick={applyPreviousAdvice}
+            className="mt-2.5 rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-ink-600 transition hover:bg-ink-50/40"
+          >
+            Neem over in formulier
+          </button>
+        </div>
+      )}
+
+      {!isEdit && prefs.showStyles && styleEstimates && (
+        <ShotStyles
+          estimates={styleEstimates}
+          activeId={activeStyleId}
+          onPick={applyStyle}
+        />
+      )}
+
       <Field
         label="Maalgraad"
         htmlFor="shot-grind"
@@ -332,6 +507,7 @@ export function ShotForm({ initialBeanId, shot }: Props) {
       >
         <input
           id="shot-grind"
+          enterKeyHint="next"
           type="number"
           inputMode="decimal"
           step={setup.grindStep}
@@ -348,6 +524,7 @@ export function ShotForm({ initialBeanId, shot }: Props) {
         <Field label="Dose (g)" htmlFor="shot-dose" required>
           <input
             id="shot-dose"
+            enterKeyHint="next"
             type="number"
             inputMode="decimal"
             step="0.1"
@@ -361,6 +538,7 @@ export function ShotForm({ initialBeanId, shot }: Props) {
         <Field label="Yield (g)" htmlFor="shot-yield" required>
           <input
             id="shot-yield"
+            enterKeyHint="next"
             type="number"
             inputMode="decimal"
             step="0.1"
@@ -498,30 +676,86 @@ export function ShotForm({ initialBeanId, shot }: Props) {
         </div>
       )}
 
-      <div className="flex items-center justify-between rounded-lg border border-barista-100 bg-card px-4 py-3 text-sm">
-        <span className="text-[11px] uppercase tracking-[0.14em] text-ink-400">
-          Brew ratio
-        </span>
-        <span className="numeric font-display text-lg tracking-tightish text-barista-400">
-          {ratio > 0 ? `1 : ${ratio.toFixed(2)}` : "—"}
-        </span>
+      <div className="grid grid-cols-2 gap-5">
+        <Field label="Tijd (sec.)" htmlFor="shot-time" required>
+          <input
+            id="shot-time"
+            enterKeyHint="next"
+            type="number"
+            inputMode="numeric"
+            step="1"
+            min="0"
+            className={`${inputClass} numeric`}
+            value={extractionTimeSeconds}
+            onChange={(e) => setExtractionTime(e.target.value)}
+            placeholder={placeholders.extractionTimeSeconds}
+          />
+        </Field>
+        <Field label="Water erbij (g)" htmlFor="shot-water">
+          <input
+            id="shot-water"
+            enterKeyHint="done"
+            type="number"
+            inputMode="decimal"
+            step="1"
+            min="0"
+            className={`${inputClass} numeric`}
+            value={waterGrams}
+            onChange={(e) => setWaterGrams(e.target.value)}
+            placeholder="geen"
+          />
+        </Field>
       </div>
 
-      <Field label="Tijd (sec.)" htmlFor="shot-time" required>
-        <input
-          id="shot-time"
-          type="number"
-          inputMode="numeric"
-          step="1"
-          min="0"
-          className={`${inputClass} numeric`}
-          value={extractionTimeSeconds}
-          onChange={(e) => setExtractionTime(e.target.value)}
-          placeholder={placeholders.extractionTimeSeconds}
-        />
-      </Field>
+      <div>
+        <div className="mb-2 flex items-baseline justify-between gap-3">
+          <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-ink-400">
+            Smaak op het kompas
+          </span>
+          {taste ? (
+            <button
+              type="button"
+              onClick={() => setTaste(null)}
+              className="text-[11px] uppercase tracking-wider text-ink-400 underline underline-offset-2 hover:text-ink-700"
+            >
+              Wissen
+            </button>
+          ) : (
+            <span className="text-[10px] uppercase tracking-wider text-ink-300">
+              tik waar de shot zat
+            </span>
+          )}
+        </div>
+        <div className="mx-auto max-w-md">
+          <CompassField value={taste} trail={trailPoints} onChange={setTaste} />
+          <CompassLegend />
+        </div>
+        {liveAdvice && (
+          <div className="anim-fade-up mt-2 rounded-lg border border-barista-100 bg-card px-3.5 py-2.5 text-sm">
+            <p className="text-ink-800">
+              <span className="text-ink-400">Volgende keer:</span>{" "}
+              <span className="font-medium">{liveAdvice.title}</span>
+              {liveAdvice.change && (
+                <span className="numeric text-barista-400">
+                  {" "}
+                  · {liveAdvice.change}
+                </span>
+              )}
+            </p>
+            <p className="mt-1 text-xs text-ink-400">{liveAdvice.reason}</p>
+          </div>
+        )}
+      </div>
 
-      <Field label="Rating" required={!dialIn}>
+      <Field
+        label="Rating"
+        required={!dialIn}
+        hint={
+          canSaveAsDraft && !rating && !dialIn
+            ? "Nog niet geproefd? Sla 'm op als concept en vul de rating later aan."
+            : undefined
+        }
+      >
         <StarRating value={rating} onChange={(v) => setRating(v)} size="lg" />
       </Field>
 
@@ -542,67 +776,87 @@ export function ShotForm({ initialBeanId, shot }: Props) {
         </span>
       </label>
 
-      <div>
-        <span className="mb-1.5 block text-[11px] font-medium uppercase tracking-[0.14em] text-ink-400">
-          Smaakprofiel
-        </span>
-        <div className="flex flex-wrap gap-1.5">
-          {TASTE_TAGS.map((tag) => {
-            const selected = tags.includes(tag);
-            return (
-              <button
-                key={tag}
-                type="button"
-                onClick={() => toggleTag(tag)}
-                className={`rounded-full border px-2.5 py-1 text-xs transition-all duration-150 ease-out active:scale-90 ${
-                  selected
-                    ? "border-ink-800 bg-ink-800 text-paper scale-105"
-                    : "border-line text-ink-500 hover:bg-ink-50/40 hover:scale-105"
-                }`}
-              >
-                {tag}
-              </button>
-            );
-          })}
+      <details
+        className="rounded-lg border border-line bg-paper px-4 py-3"
+        open={Boolean(shot?.notes || shot?.nextAdjustment)}
+      >
+        <summary className="cursor-pointer text-[11px] font-medium uppercase tracking-[0.14em] text-ink-400">
+          Notities
+        </summary>
+        <div className="mt-4 space-y-5">
+          <Field label="Smaak" htmlFor="shot-notes">
+            <textarea
+              id="shot-notes"
+              className={`${inputClass} min-h-[70px]`}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Extra: balans, body, afdronk"
+            />
+          </Field>
+
+          <Field label="Volgende keer" htmlFor="shot-adjust">
+            <textarea
+              id="shot-adjust"
+              className={`${inputClass} min-h-[60px]`}
+              value={nextAdjustment}
+              onChange={(e) => setNextAdjustment(e.target.value)}
+              placeholder="Eigen plan, als je iets anders wilt dan het kompas"
+            />
+          </Field>
         </div>
-      </div>
-
-      <Field label="Smaak" htmlFor="shot-notes">
-        <textarea
-          id="shot-notes"
-          className={`${inputClass} min-h-[70px]`}
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          placeholder="Extra: balans, body, afdronk"
-        />
-      </Field>
-
-      <Field label="Volgende keer" htmlFor="shot-adjust">
-        <textarea
-          id="shot-adjust"
-          className={`${inputClass} min-h-[60px]`}
-          value={nextAdjustment}
-          onChange={(e) => setNextAdjustment(e.target.value)}
-          placeholder="Fijner malen"
-        />
-      </Field>
+      </details>
 
       {error && <p className="text-sm text-red-700">{error}</p>}
 
-      <button
-        type="submit"
-        disabled={submitting}
-        className="flex w-full items-center justify-center gap-2 rounded-lg bg-ink-800 px-4 py-3 text-sm font-medium text-paper transition hover:bg-ink-700 disabled:opacity-50"
-      >
-        {submitting ? (
-          <>
-            <Barista mood="pour" size={22} />
-            <span>Aan het zetten…</span>
-          </>
-        ) : (
-          <span>{isEdit ? "Bijwerken" : "Opslaan"}</span>
+      {canSaveAsDraft && (
+        <p className="text-xs text-ink-300">
+          Een concept bewaart alles behalve de rating — hij telt pas mee zodra
+          je die invult.
+        </p>
+      )}
+
+      {/* Op mobiel plakken de knoppen rechtsonder in beeld (dicht bij de
+          rechterduim) terwijl je door het lange formulier scrolt; op
+          desktop de vertrouwde knoppen over de volle breedte. */}
+      {/* pointer-events-none op de container: alleen de knoppen zelf vangen
+          tikken, zodat velden náást de zwevende knoppen bereikbaar blijven. */}
+      <div className="pointer-events-none sticky bottom-4 z-30 flex justify-end gap-2 sm:static sm:bottom-auto">
+        {canSaveAsDraft && (
+          <button
+            type="button"
+            onClick={() => void save(true)}
+            disabled={submitting !== null}
+            className="pointer-events-auto flex shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-line bg-card px-5 py-3.5 text-sm font-medium text-ink-600 shadow-lift transition hover:bg-ink-50/40 disabled:opacity-50 sm:rounded-lg sm:px-4 sm:py-3 sm:shadow-none"
+          >
+            {/* Op mobiel zweeft deze knop over het formulier; kort label
+                houdt het veld eronder bereikbaar. */}
+            {submitting === "draft" ? (
+              "Bewaren…"
+            ) : (
+              <>
+                <span className="sm:hidden">Concept</span>
+                <span className="hidden sm:inline">
+                  {isDraft ? "Concept bijwerken" : "Concept opslaan"}
+                </span>
+              </>
+            )}
+          </button>
         )}
-      </button>
+        <button
+          type="submit"
+          disabled={submitting !== null}
+          className="pointer-events-auto flex items-center justify-center gap-2 rounded-full bg-ink-800 px-7 py-3.5 text-sm font-medium text-paper shadow-lift transition hover:bg-ink-700 disabled:opacity-50 sm:flex-1 sm:rounded-lg sm:px-4 sm:py-3 sm:shadow-none"
+        >
+          {submitting === "shot" ? (
+            <>
+              <Barista mood="pour" size={22} />
+              <span>Aan het zetten…</span>
+            </>
+          ) : (
+            <span>{isEdit && !isDraft ? "Bijwerken" : "Opslaan"}</span>
+          )}
+        </button>
+      </div>
     </form>
   );
 }

@@ -36,11 +36,26 @@ we er altijd op terug kunnen vallen.
    hoog beoordeelt.
 4. **Feedback-loop.** Bij een nieuwe shot vraagt de app of de vorige
    `nextAdjustment` is uitgevoerd, zodat de engine oorzaak→gevolg leert.
+5. **Onderhoudskosten zijn een aparte entiteit (`expenses`).** Bonenkosten
+   blijven afgeleid van `priceEuros`/`bagWeightGrams` op de boon; een
+   waterfilter of Cafiza hangt aan niets. Bonen zijn daarom bewust géén
+   uitgave-categorie — anders tel je ze dubbel.
+6. **Apparatuur telt niet mee in de maandcijfers.** Categorie `apparatuur`
+   (machine, molen, tamper) is een eenmalige investering en krijgt een eigen
+   "geïnvesteerd"-totaal. Zou je die in de maandbalk gooien, dan zegt één
+   piek van een paar honderd euro niets meer over wat koffie normaal kost.
+   `onderhoud` en `overig` zijn wél lopende kosten en tellen mee.
+7. **"Bonen/shot" blijft puur bonen.** Onderhoud erin verwerken zou de tegel
+   onbruikbaar maken om bonen onderling te vergelijken. Het gecombineerde
+   beeld staat in "Deze maand" en "Totaal".
 
 ## Waar wordt wat bewaard
 
 - **Apparatuur-setup** → app-data (`setup`-tabel in Supabase + localStorage
   fallback), bewerkbaar via `/instellingen`. De AI krijgt dit als context mee.
+- **Uitgaven** → `expenses`-tabel in Supabase + localStorage fallback
+  (`koffie:expenses:v1`), bewerkbaar via `/kosten`. Bedragen als `numeric`
+  euro's, net als `beans.price_euros`.
 - **Ontwerpbeslissingen & architectuur** → dit document (`docs/koffie-ai.md`),
   in git.
 - **API-keys** → Vercel env vars, nooit in git, nooit in dit document.
